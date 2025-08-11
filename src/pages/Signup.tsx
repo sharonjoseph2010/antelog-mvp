@@ -29,7 +29,7 @@ const Signup = () => {
   const onSubmit = async (values: SignupValues) => {
     setLoading(true);
     try {
-      const redirectUrl = `${window.location.origin}/`;
+      const redirectUrl = `${window.location.origin}/auth/callback`;
       const { error } = await supabase.auth.signUp({
         email: values.email.toLowerCase(),
         password: values.password,
