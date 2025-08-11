@@ -35,6 +35,85 @@ export type Database = {
         }
         Relationships: []
       }
+      list_items: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          list_id: string
+          position: number
+          updated_at: string
+          url: string | null
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          list_id: string
+          position: number
+          updated_at?: string
+          url?: string | null
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          list_id?: string
+          position?: number
+          updated_at?: string
+          url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_list_items_list"
+            columns: ["list_id"]
+            isOneToOne: false
+            referencedRelation: "lists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lists: {
+        Row: {
+          category: Database["public"]["Enums"]["list_category"]
+          created_at: string
+          description: string | null
+          id: string
+          owner_id: string
+          title: string
+          updated_at: string
+          visibility: Database["public"]["Enums"]["list_visibility"]
+        }
+        Insert: {
+          category: Database["public"]["Enums"]["list_category"]
+          created_at?: string
+          description?: string | null
+          id?: string
+          owner_id: string
+          title: string
+          updated_at?: string
+          visibility?: Database["public"]["Enums"]["list_visibility"]
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["list_category"]
+          created_at?: string
+          description?: string | null
+          id?: string
+          owner_id?: string
+          title?: string
+          updated_at?: string
+          visibility?: Database["public"]["Enums"]["list_visibility"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_lists_owner"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           batch: string | null
@@ -96,6 +175,8 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
+      list_category: "films" | "places" | "products" | "services" | "other"
+      list_visibility: "private" | "friends" | "public"
       verification_status: "pending" | "verified" | "rejected"
     }
     CompositeTypes: {
@@ -224,6 +305,8 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      list_category: ["films", "places", "products", "services", "other"],
+      list_visibility: ["private", "friends", "public"],
       verification_status: ["pending", "verified", "rejected"],
     },
   },
