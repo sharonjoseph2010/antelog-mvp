@@ -7,8 +7,16 @@ import { Search, Users, ShieldCheck } from "lucide-react";
 
 const Index = () => {
   const handleScrollToSearch = () => {
-    const el = document.getElementById("site-search");
-    el?.scrollIntoView({ behavior: "smooth", block: "start" });
+    const container = document.getElementById("site-search");
+    container?.scrollIntoView({ behavior: "smooth", block: "start" });
+    const input = document.getElementById("site-search-input") as HTMLInputElement | null;
+    if (input) {
+      input.focus();
+      input.classList.add("ring-2", "ring-primary", "ring-offset-2", "ring-offset-background");
+      window.setTimeout(() => {
+        input.classList.remove("ring-2", "ring-primary", "ring-offset-2", "ring-offset-background");
+      }, 1500);
+    }
   };
 
   const jsonLd = {
@@ -61,7 +69,7 @@ const Index = () => {
               aria-label="Search lists, items, or people"
             >
               <Input
-                name="q"
+                id="site-search-input" name="q"
                 type="search"
                 placeholder="Search anything and everything..."
                 aria-label="Search input"
