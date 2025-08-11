@@ -14,7 +14,71 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      colleges: {
+        Row: {
+          created_at: string
+          domain: string
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          domain: string
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          domain?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          batch: string | null
+          college_id: string | null
+          created_at: string
+          full_name: string | null
+          handle: string
+          id: string
+          is_verified: boolean
+          trial_ends_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          batch?: string | null
+          college_id?: string | null
+          created_at?: string
+          full_name?: string | null
+          handle: string
+          id: string
+          is_verified?: boolean
+          trial_ends_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          batch?: string | null
+          college_id?: string | null
+          created_at?: string
+          full_name?: string | null
+          handle?: string
+          id?: string
+          is_verified?: boolean
+          trial_ends_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_college_id_fkey"
+            columns: ["college_id"]
+            isOneToOne: false
+            referencedRelation: "colleges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
