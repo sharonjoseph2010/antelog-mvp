@@ -44,10 +44,7 @@ const Index = () => {
           </p>
           <div className="mt-8 flex items-center justify-center gap-3">
             <Button asChild size="lg">
-              <Link to="/signup">Start Exploring</Link>
-            </Button>
-            <Button size="lg" variant="secondary" onClick={handleScrollToFeatures}>
-              Learn More
+              <Link to="/signup">Search Master Directory</Link>
             </Button>
           </div>
           <div className="mt-6 max-w-xl mx-auto">
@@ -66,7 +63,7 @@ const Index = () => {
               <Input
                 name="q"
                 type="search"
-                placeholder="Search lists, items, or people..."
+                placeholder="Search anything and everything..."
                 aria-label="Search input"
                 className="w-full"
               />
