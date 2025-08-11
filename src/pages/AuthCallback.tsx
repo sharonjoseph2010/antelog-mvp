@@ -6,14 +6,14 @@ const AuthCallback = () => {
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session) {
-        window.location.replace("/verify");
+        window.location.replace("/profile-setup");
       }
     });
 
     // Handle case where session is already set from URL hash
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
-        window.location.replace("/verify");
+        window.location.replace("/profile-setup");
       }
     });
 

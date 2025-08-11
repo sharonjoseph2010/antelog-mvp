@@ -50,7 +50,7 @@ const onSubmit = async (values: SignupValues) => {
 
     if (data?.session) {
       toast.success("Account created. Redirecting to verification…");
-      navigate("/verify", { replace: true });
+      navigate("/profile-setup", { replace: true });
       return;
     }
 

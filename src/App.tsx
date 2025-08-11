@@ -9,6 +9,7 @@ import NotFound from "./pages/NotFound";
 import Signup from "./pages/Signup";
 import Verify from "./pages/Verify";
 import AuthCallback from "./pages/AuthCallback";
+import ProfileSetup from "./pages/ProfileSetup";
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -21,6 +22,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/signup" element={<Signup />} />
+            <Route path="/profile-setup" element={<ProfileSetup />} />
             <Route path="/verify" element={<Verify />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
