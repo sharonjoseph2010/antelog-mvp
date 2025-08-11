@@ -27,10 +27,6 @@ const Dashboard = () => {
         navigate("/profile-setup", { replace: true });
         return;
       }
-      if (profile.verification_status !== "verified") {
-        navigate("/verify", { replace: true });
-        return;
-      }
       setChecking(false);
     })();
     return () => { setChecking(false); mounted = false; };
@@ -50,7 +46,7 @@ const Dashboard = () => {
           ) : (
             <>
               <h1 className="text-3xl font-bold">Welcome to Antelog</h1>
-              <p className="text-muted-foreground">You’re verified. We’ll add list features next.</p>
+              <p className="text-muted-foreground">We’ll add list features next.</p>
               <Button onClick={async () => { await supabase.auth.signOut(); navigate("/", { replace: true }); }}>Sign out</Button>
             </>
           )}
