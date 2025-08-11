@@ -9,7 +9,6 @@ interface HeaderProps {
 
 const Header = ({ isAuthenticated, isAdmin, onLogout }: HeaderProps) => {
   const navigate = useNavigate();
-  if (!isAuthenticated) return null;
 
   return (
     <header className="border-b bg-background">
@@ -17,22 +16,42 @@ const Header = ({ isAuthenticated, isAdmin, onLogout }: HeaderProps) => {
         <Link to={isAuthenticated ? "/dashboard" : "/"} className="font-semibold" aria-label="Antelog home">
           Antelog
         </Link>
-        <div className="flex items-center gap-4">
-          <Link to="/dashboard" className="hover:underline">
-            Dashboard
-          </Link>
-          <Link to="/lists" className="hover:underline">
-            My Lists
-          </Link>
-          {isAdmin && (
-            <Link to="/admin" className="hover:underline">
-              Admin
+        {isAuthenticated ? (
+          <div className="flex items-center gap-4">
+            <Link to="/dashboard" className="hover:underline">
+              Dashboard
             </Link>
-          )}
-          <Button variant="outline" size="sm" onClick={async () => { await onLogout(); navigate("/", { replace: true }); }} aria-label="Log out">
-            Logout
-          </Button>
-        </div>
+            <Link to="/lists" className="hover:underline">
+              My Lists
+            </Link>
+            {isAdmin && (
+              <Link to="/admin" className="hover:underline">
+                Admin
+              </Link>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={async () => {
+                await onLogout();
+                const to = "/";
+                navigate(to, { replace: true });
+              }}
+              aria-label="Log out"
+            >
+              Logout
+            </Button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <Link to="/login" className="hover:underline">
+              Sign In
+            </Link>
+            <Button asChild size="sm">
+              <Link to="/signup">Sign Up</Link>
+            </Button>
+          </div>
+        )}
       </nav>
     </header>
   );

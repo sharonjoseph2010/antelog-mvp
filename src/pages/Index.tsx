@@ -2,7 +2,8 @@ import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Search, Users, ShieldCheck } from "lucide-react";
 
 const Index = () => {
   const handleScrollToFeatures = () => {
@@ -49,13 +50,38 @@ const Index = () => {
               Learn More
             </Button>
           </div>
+          <div className="mt-6 max-w-xl mx-auto">
+            <form
+              className="flex items-center gap-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                const form = e.currentTarget as HTMLFormElement;
+                const input = form.querySelector('input[name="q"]') as HTMLInputElement | null;
+                const q = input?.value?.trim() ?? "";
+                window.location.href = q ? `/signup?q=${encodeURIComponent(q)}` : "/signup";
+              }}
+              role="search"
+              aria-label="Search lists, items, or people"
+            >
+              <Input
+                name="q"
+                type="search"
+                placeholder="Search lists, items, or people..."
+                aria-label="Search input"
+                className="w-full"
+              />
+              <Button type="submit" variant="secondary">Search</Button>
+            </form>
+          </div>
         </section>
 
-        {/* Core Features */}
         <section id="features" className="container mx-auto px-4 py-12">
           <div className="grid gap-6 md:grid-cols-3">
             <Card>
               <CardHeader>
+                <div className="mb-2 text-muted-foreground">
+                  <Users className="h-5 w-5" aria-hidden />
+                </div>
                 <CardTitle>Trust-Based Network</CardTitle>
               </CardHeader>
               <CardContent className="text-muted-foreground">
@@ -66,6 +92,9 @@ const Index = () => {
 
             <Card>
               <CardHeader>
+                <div className="mb-2 text-muted-foreground">
+                  <ShieldCheck className="h-5 w-5" aria-hidden />
+                </div>
                 <CardTitle>Verified Lists</CardTitle>
               </CardHeader>
               <CardContent className="text-muted-foreground">
@@ -76,6 +105,9 @@ const Index = () => {
 
             <Card>
               <CardHeader>
+                <div className="mb-2 text-muted-foreground">
+                  <Search className="h-5 w-5" aria-hidden />
+                </div>
                 <CardTitle>Smart Discovery</CardTitle>
               </CardHeader>
               <CardContent className="text-muted-foreground">
@@ -104,43 +136,6 @@ const Index = () => {
           </div>
         </section>
 
-        {/* Sample Lists */}
-        <section className="container mx-auto px-4 py-12">
-          <div className="max-w-5xl mx-auto">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-semibold">Sample lists</h2>
-              <span className="text-sm text-muted-foreground">Anonymous examples</span>
-            </div>
-            <div className="mt-6 grid gap-6 md:grid-cols-3">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Best Coffee Shops in the City</CardTitle>
-                </CardHeader>
-                <CardContent className="flex gap-2">
-                  <Badge variant="secondary">Places</Badge>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Must-Watch Films This Month</CardTitle>
-                </CardHeader>
-                <CardContent className="flex gap-2">
-                  <Badge variant="secondary">Films</Badge>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Essential Reads for Creative Thinkers</CardTitle>
-                </CardHeader>
-                <CardContent className="flex gap-2">
-                  <Badge variant="secondary">Books</Badge>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        </section>
 
         {/* Final CTA */}
         <section className="container mx-auto px-4 py-16 text-center">

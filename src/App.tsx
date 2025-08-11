@@ -82,9 +82,7 @@ const App = () => {
           <Toaster />
           <Sonner />
           <BrowserRouter>
-            {isAuthenticated && (
-              <Header isAuthenticated={isAuthenticated} isAdmin={isAdmin} onLogout={handleLogout} />
-            )}
+            <Header isAuthenticated={isAuthenticated} isAdmin={isAdmin} onLogout={handleLogout} />
             <Routes>
               <Route path="/" element={initializing ? <div className="min-h-screen flex items-center justify-center">Loading...</div> : (isAuthenticated ? <Navigate to="/dashboard" replace /> : <Index />)} />
               <Route path="/signup" element={<Signup />} />
