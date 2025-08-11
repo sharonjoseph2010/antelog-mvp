@@ -21,6 +21,8 @@ const Index = () => {
         if (!mounted) return;
         if (!profile || profile.verification_status !== "verified") {
           navigate("/verify", { replace: true });
+        } else {
+          navigate("/dashboard", { replace: true });
         }
       }
     })();

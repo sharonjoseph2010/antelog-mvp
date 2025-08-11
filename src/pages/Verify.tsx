@@ -65,7 +65,7 @@ const Verify = () => {
       if (p) {
         setProfile(p as Profile);
         if ((p as Profile).verification_status === "verified") {
-          navigate("/", { replace: true });
+          navigate("/dashboard", { replace: true });
         }
       }
     })();

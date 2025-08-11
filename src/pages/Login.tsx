@@ -52,7 +52,7 @@ const Login = () => {
     }
 
     if (profile.verification_status === "verified") {
-      navigate("/", { replace: true });
+      navigate("/dashboard", { replace: true });
       return;
     }
 
