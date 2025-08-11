@@ -5,11 +5,6 @@ const Footer = ({ isAuthenticated }: { isAuthenticated: boolean }) => {
     <footer className="border-t bg-background">
       <nav className="container mx-auto px-4 py-6" aria-label="Footer navigation">
         <ul className="flex flex-wrap items-center justify-center gap-4 text-sm text-muted-foreground">
-          <li>
-            <Link to="/" className="hover:underline">
-              Home
-            </Link>
-          </li>
           {isAuthenticated && (
             <>
               <li>
