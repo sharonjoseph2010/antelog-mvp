@@ -1,13 +1,14 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 
 interface HeaderProps {
   isAuthenticated: boolean;
   isAdmin: boolean;
-  onLogout: () => void;
+  onLogout: () => Promise<void>;
 }
 
 const Header = ({ isAuthenticated, isAdmin, onLogout }: HeaderProps) => {
+  const navigate = useNavigate();
   if (!isAuthenticated) return null;
 
   return (
@@ -28,7 +29,7 @@ const Header = ({ isAuthenticated, isAdmin, onLogout }: HeaderProps) => {
               Admin
             </Link>
           )}
-          <Button variant="outline" size="sm" onClick={onLogout} aria-label="Log out">
+          <Button variant="outline" size="sm" onClick={async () => { await onLogout(); navigate("/", { replace: true }); }} aria-label="Log out">
             Logout
           </Button>
         </div>

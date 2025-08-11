@@ -42,6 +42,7 @@ const App = () => {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
+    setUserEmail(null);
   };
 
   return (

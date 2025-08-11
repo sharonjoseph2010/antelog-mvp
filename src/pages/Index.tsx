@@ -20,7 +20,7 @@ const Index = () => {
           .maybeSingle();
         if (!mounted) return;
         if (!profile || profile.verification_status !== "verified") {
-          navigate("/verify", { replace: true });
+          navigate("/verify", { replace: true, state: { internal: true } });
         } else {
           navigate("/dashboard", { replace: true });
         }
@@ -40,7 +40,7 @@ const Index = () => {
       </Helmet>
       <main className="min-h-screen flex items-center justify-center bg-background">
         <section className="text-center space-y-6">
-          <h1 className="text-4xl font-bold">Welcome to Antelog</h1>
+          <h1 className="text-4xl font-bold">Discover trusted lists</h1>
           <p className="text-xl text-muted-foreground">A people‑powered directory of verified recommendations.</p>
           <div className="flex items-center justify-center gap-3">
             <Button asChild size="lg">
