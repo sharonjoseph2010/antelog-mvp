@@ -44,6 +44,16 @@ const Verify = () => {
   });
 
   useEffect(() => {
+    // Block direct access unless coming from internal flow
+    const state: any = (window.history.state && (window.history.state.usr || window.history.state.state)) || {};
+    // React Router places state under history.state.usr
+    if (!(state && state.internal === true)) {
+      navigate("/dashboard", { replace: true });
+      return;
+    }
+  }, [navigate]);
+
+  useEffect(() => {
     let mounted = true;
     (async () => {
       const { data: { session } } = await supabase.auth.getSession();

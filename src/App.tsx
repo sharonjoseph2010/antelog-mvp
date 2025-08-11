@@ -17,7 +17,9 @@ import ProfileSetup from "./pages/ProfileSetup";
 import Admin from "./pages/Admin";
 import Dashboard from "./pages/Dashboard";
 import Lists from "./pages/Lists";
+import ListsNew from "./pages/ListsNew";
 import { supabase } from "@/integrations/supabase/client";
+import { ProtectedRoute, AdminRoute, InternalRoute } from "@/components/routes/RouteGuards";
 const queryClient = new QueryClient();
 
 const App = () => {
@@ -56,11 +58,61 @@ const App = () => {
               <Route path="/" element={<Index />} />
               <Route path="/signup" element={<Signup />} />
               <Route path="/login" element={<Login />} />
-              <Route path="/profile-setup" element={<ProfileSetup />} />
-              <Route path="/verify" element={<Verify />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/admin" element={<Admin />} />
-              <Route path="/lists" element={<Lists />} />
+
+              <Route
+                path="/dashboard"
+                element={
+                  <ProtectedRoute isAuthenticated={isAuthenticated}>
+                    <Dashboard />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/lists"
+                element={
+                  <ProtectedRoute isAuthenticated={isAuthenticated}>
+                    <Lists />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/lists/new"
+                element={
+                  <ProtectedRoute isAuthenticated={isAuthenticated}>
+                    <ListsNew />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/admin"
+                element={
+                  <AdminRoute isAuthenticated={isAuthenticated} isAdmin={isAdmin}>
+                    <Admin />
+                  </AdminRoute>
+                }
+              />
+
+              <Route
+                path="/profile-setup"
+                element={
+                  <InternalRoute isAuthenticated={isAuthenticated}>
+                    <ProfileSetup />
+                  </InternalRoute>
+                }
+              />
+
+              <Route
+                path="/verify"
+                element={
+                  <InternalRoute isAuthenticated={isAuthenticated}>
+                    <Verify />
+                  </InternalRoute>
+                }
+              />
+
               <Route path="/auth/callback" element={<AuthCallback />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />

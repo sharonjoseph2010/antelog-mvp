@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Helmet } from "react-helmet-async";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,7 @@ type ProfileValues = z.infer<typeof profileSchema>;
 
 const ProfileSetup = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [loading, setLoading] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -38,6 +39,15 @@ const ProfileSetup = () => {
     },
     mode: "onSubmit",
   });
+
+  // Block direct access unless coming from internal flow
+  useEffect(() => {
+    const state: any = location.state || {};
+    if (state.internal !== true) {
+      navigate("/dashboard", { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const { data: subscription } = supabase.auth.onAuthStateChange((_evt, session) => {
@@ -125,7 +135,7 @@ const ProfileSetup = () => {
       }
 
       toast.success("Profile saved. We’ll verify your details soon.");
-      navigate("/verify", { replace: true });
+      navigate("/verify", { replace: true, state: { internal: true } });
     } catch (e) {
       console.error(e);
       toast.error("Something went wrong. Please try again.");

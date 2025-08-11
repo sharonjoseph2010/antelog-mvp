@@ -4,42 +4,55 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 
 const AuthCallback = () => {
   const [mode, setMode] = useState<"verifying" | "reset">("verifying");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const navigate = useNavigate();
 
-  useEffect(() => {
-    const url = new URL(window.location.href);
-    const hashParams = new URLSearchParams(url.hash.replace(/^#/, ""));
-    const queryParams = url.searchParams;
-    const isRecovery = hashParams.get("type") === "recovery" || queryParams.get("type") === "recovery";
+useEffect(() => {
+  const url = new URL(window.location.href);
+  const hashParams = new URLSearchParams(url.hash.replace(/^#/, ""));
+  const queryParams = url.searchParams;
+  const isRecovery = hashParams.get("type") === "recovery" || queryParams.get("type") === "recovery";
+  const hasSupabaseParams =
+    hashParams.has("access_token") ||
+    hashParams.has("refresh_token") ||
+    !!hashParams.get("type") ||
+    !!queryParams.get("code");
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "PASSWORD_RECOVERY" || isRecovery) {
-        setMode("reset");
-        return;
-      }
-      if (session) {
-        window.location.replace("/profile-setup");
-      }
-    });
+  // If accessed directly without expected auth params, make it invisible to users
+  if (!isRecovery && !hasSupabaseParams) {
+    navigate("/", { replace: true });
+    return;
+  }
 
-    // Handle case where session is already set from URL hash
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (isRecovery) {
-        setMode("reset");
-        return;
-      }
-      if (session) {
-        window.location.replace("/profile-setup");
-      }
-    });
+  const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    if (event === "PASSWORD_RECOVERY" || isRecovery) {
+      setMode("reset");
+      return;
+    }
+    if (session) {
+      navigate("/profile-setup", { replace: true, state: { internal: true } });
+    }
+  });
 
-    return () => subscription.unsubscribe();
-  }, []);
+  // Handle case where session is already set from URL hash
+  supabase.auth.getSession().then(({ data: { session } }) => {
+    if (isRecovery) {
+      setMode("reset");
+      return;
+    }
+    if (session) {
+      navigate("/profile-setup", { replace: true, state: { internal: true } });
+    }
+  });
+
+  return () => subscription.unsubscribe();
+}, [navigate]);
 
   const handleReset = async () => {
     if (password.length < 8) {
@@ -58,7 +71,7 @@ const AuthCallback = () => {
       return;
     }
     toast.success("Password updated. You can now sign in.");
-    window.location.replace("/login");
+    navigate("/login", { replace: true });
   };
 
   return (
