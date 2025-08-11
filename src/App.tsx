@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import { useEffect, useState } from "react";
 import Header from "@/components/layout/Header";
@@ -56,7 +56,7 @@ const App = () => {
               <Header isAuthenticated={isAuthenticated} isAdmin={isAdmin} onLogout={handleLogout} />
             )}
             <Routes>
-              <Route path="/" element={<Index />} />
+              <Route path="/" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Index />} />
               <Route path="/signup" element={<Signup />} />
               <Route path="/login" element={<Login />} />
 
@@ -118,7 +118,7 @@ const App = () => {
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
-            <Footer />
+            <Footer isAuthenticated={isAuthenticated} />
           </BrowserRouter>
         </TooltipProvider>
       </QueryClientProvider>
