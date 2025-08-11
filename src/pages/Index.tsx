@@ -6,8 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Search, Users, ShieldCheck } from "lucide-react";
 
 const Index = () => {
-  const handleScrollToFeatures = () => {
-    const el = document.getElementById("features");
+  const handleScrollToSearch = () => {
+    const el = document.getElementById("site-search");
     el?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
@@ -43,11 +43,11 @@ const Index = () => {
             trusted recommendations from your network.
           </p>
           <div className="mt-8 flex items-center justify-center gap-3">
-            <Button asChild size="lg">
-              <Link to="/signup">Search Master Directory</Link>
+            <Button size="lg" onClick={handleScrollToSearch}>
+              Search Master Directory
             </Button>
           </div>
-          <div className="mt-6 max-w-xl mx-auto">
+          <div id="site-search" className="mt-6 max-w-xl mx-auto">
             <form
               className="flex items-center gap-2"
               onSubmit={(e) => {
