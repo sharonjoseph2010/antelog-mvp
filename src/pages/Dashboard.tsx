@@ -22,14 +22,20 @@ const Dashboard = () => {
       }
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
-        .select("verification_status, full_name")
+        .select("verification_status, full_name, is_verified")
         .eq("id", session.user.id)
         .maybeSingle();
       console.info("[Dashboard] Profile lookup:", { profile, profileError });
       if (!mounted) return;
+      const isAdmin = session.user.email?.toLowerCase() === "sharonjoseph2010@gmail.com";
       if (!profile) {
-        console.info("[Dashboard] Missing profile, redirecting to /profile-setup with internal state");
-        navigate("/profile-setup", { replace: true, state: { internal: true, from: "/dashboard" } });
+        if (isAdmin) {
+          console.info("[Dashboard] No profile found but user is admin — allowing dashboard access.");
+          setChecking(false);
+        } else {
+          console.info("[Dashboard] Missing profile, redirecting to /profile-setup with internal state");
+          navigate("/profile-setup", { replace: true, state: { internal: true, from: "/dashboard" } });
+        }
         return;
       }
       setChecking(false);
