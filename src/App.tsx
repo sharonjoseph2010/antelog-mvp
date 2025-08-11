@@ -19,30 +19,58 @@ import Dashboard from "./pages/Dashboard";
 import Lists from "./pages/Lists";
 import ListsNew from "./pages/ListsNew";
 import { supabase } from "@/integrations/supabase/client";
+import type { Session, User } from "@supabase/supabase-js";
 import { ProtectedRoute, AdminRoute, InternalRoute } from "@/components/routes/RouteGuards";
 const queryClient = new QueryClient();
 
 const App = () => {
-  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [initializing, setInitializing] = useState(true);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUserEmail(session?.user?.email ?? null);
+    console.log("[Auth] Initializing auth listener...");
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log("[Auth] onAuthStateChange:", event, { hasSession: !!session, userId: session?.user?.id });
+      setSession(session);
+      setUser(session?.user ?? null);
     });
+
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setUserEmail(session?.user?.email ?? null);
+      console.log("[Auth] getSession result:", { hasSession: !!session, userId: session?.user?.id });
+      setSession(session);
+      setUser(session?.user ?? null);
+      setInitializing(false);
     });
+
     return () => {
+      console.log("[Auth] Unsubscribing auth listener");
       subscription.unsubscribe();
     };
   }, []);
 
-  const isAuthenticated = !!userEmail;
-  const isAdmin = userEmail === "sharonjoseph2010@gmail.com";
+  const isAuthenticated = !!user?.id;
+  const isAdmin = user?.email === "sharonjoseph2010@gmail.com";
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    setUserEmail(null);
+    try {
+      console.log("[Auth] Logging out...");
+      await supabase.auth.signOut({ scope: "local" });
+      await supabase.auth.signOut().catch((e) => {
+        console.warn("[Auth] Global signOut warning:", e?.message ?? e);
+      });
+      for (const key of Object.keys(localStorage)) {
+        if (key.startsWith("sb-") || key.startsWith("supabase.auth.token")) {
+          localStorage.removeItem(key);
+        }
+      }
+    } catch (e) {
+      console.error("[Auth] Logout error:", e);
+    } finally {
+      setSession(null);
+      setUser(null);
+      console.log("[Auth] Logout complete; session cleared");
+    }
   };
 
   return (
@@ -56,7 +84,7 @@ const App = () => {
               <Header isAuthenticated={isAuthenticated} isAdmin={isAdmin} onLogout={handleLogout} />
             )}
             <Routes>
-              <Route path="/" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Index />} />
+              <Route path="/" element={initializing ? <div className="min-h-screen flex items-center justify-center">Loading...</div> : (isAuthenticated ? <Navigate to="/dashboard" replace /> : <Index />)} />
               <Route path="/signup" element={<Signup />} />
               <Route path="/login" element={<Login />} />
 
