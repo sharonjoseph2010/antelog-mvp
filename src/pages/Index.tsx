@@ -1,30 +1,156 @@
 import { Link } from "react-router-dom";
-
-import { Button } from "@/components/ui/button";
 import { Helmet } from "react-helmet-async";
-
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 const Index = () => {
-  
+  const handleScrollToFeatures = () => {
+    const el = document.getElementById("features");
+    el?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: "Antelog",
+    url: window.location.origin,
+    description:
+      "Trust-powered recommendations. Discover verified lists from real people.",
+  };
 
   return (
     <>
       <Helmet>
-        <title>Antelog — Trusted Lists</title>
-        <meta name="description" content="Discover and share trusted, verified lists. Create your account to join Antelog." />
+        <title>Trust-powered recommendations — Antelog</title>
+        <meta
+          name="description"
+          content="Discover verified lists from real people. No ads, no influencers—just trusted recommendations from your network."
+        />
         <link rel="canonical" href={window.location.href} />
+        <script type="application/ld+json">{JSON.stringify(jsonLd)}</script>
       </Helmet>
-      <main className="min-h-screen flex items-center justify-center bg-background">
-        <section className="text-center space-y-6">
-          <h1 className="text-4xl font-bold">Discover trusted lists</h1>
-          <p className="text-xl text-muted-foreground">A people‑powered directory of verified recommendations.</p>
-          <div className="flex items-center justify-center gap-3">
+
+      <main className="min-h-screen bg-background">
+        {/* Hero */}
+        <section className="container mx-auto px-4 py-20 text-center">
+          <h1 className="text-4xl md:text-5xl font-bold tracking-tight">
+            Trust-powered recommendations
+          </h1>
+          <p className="mt-4 text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto">
+            Discover verified lists from real people. No ads, no influencers, just
+            trusted recommendations from your network.
+          </p>
+          <div className="mt-8 flex items-center justify-center gap-3">
             <Button asChild size="lg">
-              <Link to="/signup">Create account</Link>
+              <Link to="/signup">Start Exploring</Link>
             </Button>
-            <Button asChild size="lg" variant="secondary">
-              <Link to="/login">Sign in</Link>
+            <Button size="lg" variant="secondary" onClick={handleScrollToFeatures}>
+              Learn More
+            </Button>
+          </div>
+        </section>
+
+        {/* Core Features */}
+        <section id="features" className="container mx-auto px-4 py-12">
+          <div className="grid gap-6 md:grid-cols-3">
+            <Card>
+              <CardHeader>
+                <CardTitle>Trust-Based Network</CardTitle>
+              </CardHeader>
+              <CardContent className="text-muted-foreground">
+                Connect only with people you know. See recommendations from your
+                contacts and their extended network.
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Verified Lists</CardTitle>
+              </CardHeader>
+              <CardContent className="text-muted-foreground">
+                Text-only lists from verified users. No sponsored content, no fake
+                reviews.
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Smart Discovery</CardTitle>
+              </CardHeader>
+              <CardContent className="text-muted-foreground">
+                Find recommendations based on your network and interests, not
+                algorithms.
+              </CardContent>
+            </Card>
+          </div>
+        </section>
+
+        {/* How It Works */}
+        <section className="container mx-auto px-4 py-12">
+          <div className="max-w-4xl mx-auto">
+            <h2 className="text-2xl font-semibold">How it works</h2>
+            <ol className="mt-6 grid gap-4 md:grid-cols-3 list-decimal list-inside">
+              <li className="p-4 rounded-md border bg-card text-card-foreground">
+                Get verified
+              </li>
+              <li className="p-4 rounded-md border bg-card text-card-foreground">
+                Create and share lists
+              </li>
+              <li className="p-4 rounded-md border bg-card text-card-foreground">
+                Discover from your network
+              </li>
+            </ol>
+          </div>
+        </section>
+
+        {/* Sample Lists */}
+        <section className="container mx-auto px-4 py-12">
+          <div className="max-w-5xl mx-auto">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-semibold">Sample lists</h2>
+              <span className="text-sm text-muted-foreground">Anonymous examples</span>
+            </div>
+            <div className="mt-6 grid gap-6 md:grid-cols-3">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Best Coffee Shops in the City</CardTitle>
+                </CardHeader>
+                <CardContent className="flex gap-2">
+                  <Badge variant="secondary">Places</Badge>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Must-Watch Films This Month</CardTitle>
+                </CardHeader>
+                <CardContent className="flex gap-2">
+                  <Badge variant="secondary">Films</Badge>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Essential Reads for Creative Thinkers</CardTitle>
+                </CardHeader>
+                <CardContent className="flex gap-2">
+                  <Badge variant="secondary">Books</Badge>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </section>
+
+        {/* Final CTA */}
+        <section className="container mx-auto px-4 py-16 text-center">
+          <h2 className="text-3xl font-bold">Join the trusted community</h2>
+          <p className="mt-3 text-muted-foreground max-w-2xl mx-auto">
+            Only verified members can create and share lists.
+          </p>
+          <div className="mt-6">
+            <Button asChild size="lg">
+              <Link to="/signup">Get Started</Link>
             </Button>
           </div>
         </section>
