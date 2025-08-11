@@ -43,9 +43,12 @@ export type Database = {
           full_name: string | null
           handle: string
           id: string
+          id_card_image_url: string | null
           is_verified: boolean
+          student_id_number: string | null
           trial_ends_at: string | null
           updated_at: string
+          verification_status: Database["public"]["Enums"]["verification_status"]
         }
         Insert: {
           batch?: string | null
@@ -54,9 +57,12 @@ export type Database = {
           full_name?: string | null
           handle: string
           id: string
+          id_card_image_url?: string | null
           is_verified?: boolean
+          student_id_number?: string | null
           trial_ends_at?: string | null
           updated_at?: string
+          verification_status?: Database["public"]["Enums"]["verification_status"]
         }
         Update: {
           batch?: string | null
@@ -65,9 +71,12 @@ export type Database = {
           full_name?: string | null
           handle?: string
           id?: string
+          id_card_image_url?: string | null
           is_verified?: boolean
+          student_id_number?: string | null
           trial_ends_at?: string | null
           updated_at?: string
+          verification_status?: Database["public"]["Enums"]["verification_status"]
         }
         Relationships: [
           {
@@ -87,7 +96,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      verification_status: "pending" | "verified" | "rejected"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -214,6 +223,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      verification_status: ["pending", "verified", "rejected"],
+    },
   },
 } as const

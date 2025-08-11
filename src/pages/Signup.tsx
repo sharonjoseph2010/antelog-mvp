@@ -11,13 +11,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 
 const signupSchema = z.object({
-  email: z
-    .string()
-    .min(1, "Email is required")
-    .email("Enter a valid email")
-    .refine((val) => val.toLowerCase().endsWith("@srfti.ac.in"), {
-      message: "Currently only available to SRFTI students",
-    }),
+  email: z.string().min(1, "Email is required").email("Enter a valid email"),
   password: z.string().min(8, "Password must be at least 8 characters"),
 });
 
@@ -53,7 +47,7 @@ const Signup = () => {
         return;
       }
 
-      toast.success("Check your SRFTI inbox to verify your email.");
+      toast.success("Check your inbox to verify your email.");
       form.reset({ email: values.email.toLowerCase(), password: "" });
     } catch (e) {
       toast.error("Something went wrong. Please try again.");
@@ -65,10 +59,10 @@ const Signup = () => {
   return (
     <>
       <Helmet>
-        <title>SRFTI Signup | Antelog</title>
+        <title>Sign up | Antelog</title>
         <meta
           name="description"
-          content="Create your Antelog account using your SRFTI email. We'll send a verification link to complete signup."
+          content="Create your Antelog account with any email. We'll send a verification link to complete signup."
         />
         <link rel="canonical" href={window.location.href} />
       </Helmet>
@@ -76,8 +70,8 @@ const Signup = () => {
         <section className="w-full max-w-md">
           <Card className="shadow-sm">
             <CardHeader>
-              <CardTitle className="text-2xl">Create your SRFTI account</CardTitle>
-              <CardDescription>Use your @srfti.ac.in email. We'll email you a verification link.</CardDescription>
+              <CardTitle className="text-2xl">Create your account</CardTitle>
+              <CardDescription>Use any email. We'll email you a verification link.</CardDescription>
             </CardHeader>
             <CardContent>
               <Form {...form}>
@@ -89,7 +83,7 @@ const Signup = () => {
                       <FormItem>
                         <FormLabel>Email</FormLabel>
                         <FormControl>
-                          <Input type="email" placeholder="you@srfti.ac.in" autoComplete="email" {...field} />
+                          <Input type="email" placeholder="you@example.com" autoComplete="email" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
