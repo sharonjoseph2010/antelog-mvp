@@ -40,9 +40,12 @@ const Index = () => {
         <section className="text-center space-y-6">
           <h1 className="text-4xl font-bold">Welcome to Antelog</h1>
           <p className="text-xl text-muted-foreground">A people‑powered directory of verified recommendations.</p>
-          <div>
+          <div className="flex items-center justify-center gap-3">
             <Button asChild size="lg">
               <Link to="/signup">Create account</Link>
+            </Button>
+            <Button asChild size="lg" variant="secondary">
+              <Link to="/login">Sign in</Link>
             </Button>
           </div>
         </section>

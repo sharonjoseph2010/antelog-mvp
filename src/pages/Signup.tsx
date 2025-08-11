@@ -4,7 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Helmet } from "react-helmet-async";
 import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -114,6 +114,10 @@ const onSubmit = async (values: SignupValues) => {
                   <Button type="submit" className="w-full" disabled={loading}>
                     {loading ? "Creating account…" : "Create account"}
                   </Button>
+
+                  <p className="text-center text-sm text-muted-foreground">
+                    Already have an account? <Link to="/login" className="underline underline-offset-4">Sign in</Link>
+                  </p>
                 </form>
               </Form>
             </CardContent>

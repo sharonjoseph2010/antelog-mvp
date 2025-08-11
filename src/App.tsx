@@ -7,6 +7,7 @@ import { HelmetProvider } from "react-helmet-async";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Signup from "./pages/Signup";
+import Login from "./pages/Login";
 import Verify from "./pages/Verify";
 import AuthCallback from "./pages/AuthCallback";
 import ProfileSetup from "./pages/ProfileSetup";
@@ -22,6 +23,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/signup" element={<Signup />} />
+            <Route path="/login" element={<Login />} />
             <Route path="/profile-setup" element={<ProfileSetup />} />
             <Route path="/verify" element={<Verify />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
