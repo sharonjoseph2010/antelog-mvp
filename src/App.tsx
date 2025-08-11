@@ -19,6 +19,7 @@ import Dashboard from "./pages/Dashboard";
 import Lists from "./pages/Lists";
 import ListsNew from "./pages/ListsNew";
 import ListDetail from "./pages/ListDetail";
+import ListEdit from "./pages/ListEdit";
 import { supabase } from "@/integrations/supabase/client";
 import type { Session, User } from "@supabase/supabase-js";
 import { ProtectedRoute, AdminRoute, InternalRoute } from "@/components/routes/RouteGuards";
@@ -103,6 +104,15 @@ const App = () => {
                 element={
                   <ProtectedRoute isAuthenticated={isAuthenticated}>
                     <Lists />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/lists/:id/edit"
+                element={
+                  <ProtectedRoute isAuthenticated={isAuthenticated}>
+                    <ListEdit />
                   </ProtectedRoute>
                 }
               />

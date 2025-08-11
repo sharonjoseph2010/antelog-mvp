@@ -108,7 +108,9 @@ const ListDetail = () => {
               <Link to="/lists">← Back to My Lists</Link>
             </Button>
             <div className="flex items-center gap-2">
-              <Button variant="outline" disabled title="Editing coming soon">Edit List</Button>
+              <Button asChild variant="outline">
+                <Link to={id ? `/lists/${id}/edit` : "/lists"}>Edit List</Link>
+              </Button>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button variant="destructive">Delete List</Button>
