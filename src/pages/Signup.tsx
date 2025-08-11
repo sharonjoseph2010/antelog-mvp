@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Helmet } from "react-helmet-async";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,6 +20,7 @@ type SignupValues = z.infer<typeof signupSchema>;
 
 const Signup = () => {
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   const form = useForm<SignupValues>({
     resolver: zodResolver(signupSchema),
@@ -26,35 +28,40 @@ const Signup = () => {
     mode: "onSubmit",
   });
 
-  const onSubmit = async (values: SignupValues) => {
-    setLoading(true);
-    try {
-      const redirectUrl = `${window.location.origin}/auth/callback`;
-      const { error } = await supabase.auth.signUp({
-        email: values.email.toLowerCase(),
-        password: values.password,
-        options: {
-          emailRedirectTo: redirectUrl,
-        },
-      });
+const onSubmit = async (values: SignupValues) => {
+  setLoading(true);
+  try {
+    const redirectUrl = `${window.location.origin}/auth/callback`;
+    const { data, error } = await supabase.auth.signUp({
+      email: values.email.toLowerCase(),
+      password: values.password,
+      options: {
+        emailRedirectTo: redirectUrl,
+      },
+    });
 
-      if (error) {
-        const msg =
-          error.message?.toLowerCase().includes("already registered")
-            ? "This email is already registered. Try logging in or reset your password."
-            : error.message;
-        toast.error(msg);
-        return;
-      }
-
-      toast.success("Check your inbox to verify your email.");
-      form.reset({ email: values.email.toLowerCase(), password: "" });
-    } catch (e) {
-      toast.error("Something went wrong. Please try again.");
-    } finally {
-      setLoading(false);
+    if (error) {
+      const msg = error.message?.toLowerCase().includes("already registered")
+        ? "This email is already registered. Try logging in or reset your password."
+        : error.message;
+      toast.error(msg);
+      return;
     }
-  };
+
+    if (data?.session) {
+      toast.success("Account created. Redirecting to verification…");
+      navigate("/verify", { replace: true });
+      return;
+    }
+
+    toast.success("Check your inbox to verify your email.");
+    form.reset({ email: values.email.toLowerCase(), password: "" });
+  } catch (e) {
+    toast.error("Something went wrong. Please try again.");
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <>
