@@ -11,20 +11,25 @@ const Dashboard = () => {
   useEffect(() => {
     let mounted = true;
     (async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      console.info("[Dashboard] Checking session...");
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      console.info("[Dashboard] getSession:", { hasSession: !!session, userId: session?.user?.id, sessionError });
       if (!mounted) return;
       if (!session?.user) {
+        console.info("[Dashboard] No session, redirecting to /login");
         navigate("/login", { replace: true });
         return;
       }
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("verification_status, full_name")
         .eq("id", session.user.id)
         .maybeSingle();
+      console.info("[Dashboard] Profile lookup:", { profile, profileError });
       if (!mounted) return;
       if (!profile) {
-        navigate("/profile-setup", { replace: true });
+        console.info("[Dashboard] Missing profile, redirecting to /profile-setup with internal state");
+        navigate("/profile-setup", { replace: true, state: { internal: true, from: "/dashboard" } });
         return;
       }
       setChecking(false);
