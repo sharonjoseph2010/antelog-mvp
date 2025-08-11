@@ -33,8 +33,14 @@ const Admin = () => {
       if (!mounted) return;
       const userEmail = session?.user?.email ?? null;
       setEmail(userEmail);
-      if (!userEmail || !ADMIN_EMAILS.includes(userEmail)) {
-        navigate("/", { replace: true });
+      // If not logged in, send to login
+      if (!userEmail) {
+        navigate("/login", { replace: true });
+        return;
+      }
+      // If logged in but not admin, don't redirect — show access denied card
+      if (!ADMIN_EMAILS.includes(userEmail)) {
+        setLoading(false);
         return;
       }
       await loadPending();
