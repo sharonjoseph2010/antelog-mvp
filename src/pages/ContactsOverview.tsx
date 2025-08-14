@@ -38,42 +38,88 @@ const ContactsOverview = () => {
   const loadContacts = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        console.log('No authenticated user found');
+        toast({
+          title: "Authentication required",
+          description: "Please log in to view your contacts",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
 
-      // Get all contacts with relationship status
+      console.log('Loading contacts for user:', user.id);
+
+      // First, get basic contacts data
       const { data: contactsData, error } = await supabase
         .from('contact_imports')
-        .select(`
-          *,
-          profiles:matched_user_id(full_name, handle),
-          outgoing_requests:friend_requests!requester_id(status, addressee_id),
-          incoming_requests:friend_requests!addressee_id(status, requester_id),
-          friendships_user1:friendships!user1_id(user2_id),
-          friendships_user2:friendships!user2_id(user1_id)
-        `)
+        .select('*')
         .eq('user_id', user.id)
         .order('is_matched', { ascending: false })
         .order('contact_name');
 
-      if (error) throw error;
+      console.log('Contacts query result:', { contactsData, error });
 
-      const processedContacts: ContactWithStatus[] = contactsData?.map(contact => {
-        const profile = Array.isArray(contact.profiles) ? contact.profiles[0] : contact.profiles;
-        
-        // Check friendship status
-        const friendships1 = Array.isArray(contact.friendships_user1) ? contact.friendships_user1 : [];
-        const friendships2 = Array.isArray(contact.friendships_user2) ? contact.friendships_user2 : [];
-        const isFriends = friendships1.some(f => f.user2_id === contact.matched_user_id) ||
-                         friendships2.some(f => f.user1_id === contact.matched_user_id);
+      if (error) {
+        console.error('Contacts query error:', error);
+        throw error;
+      }
 
-        // Check friend request status
-        const outgoingRequests = Array.isArray(contact.outgoing_requests) ? contact.outgoing_requests : [];
-        const incomingRequests = Array.isArray(contact.incoming_requests) ? contact.incoming_requests : [];
-        
-        const sentRequest = outgoingRequests.find(r => r.addressee_id === contact.matched_user_id && r.status === 'pending');
-        const receivedRequest = incomingRequests.find(r => r.requester_id === contact.matched_user_id && r.status === 'pending');
+      if (!contactsData) {
+        console.log('No contacts data returned');
+        setContacts([]);
+        setLoading(false);
+        return;
+      }
 
-        return {
+      // Now get profile data for matched contacts
+      const processedContacts: ContactWithStatus[] = [];
+      
+      for (const contact of contactsData) {
+        let profile = null;
+        let isFriends = false;
+        let hasSentRequest = false;
+        let hasReceivedRequest = false;
+
+        if (contact.is_matched && contact.matched_user_id) {
+          // Get profile data
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('full_name, handle')
+            .eq('id', contact.matched_user_id)
+            .single();
+          
+          profile = profileData;
+
+          // Check friendship status
+          const { data: friendshipData } = await supabase
+            .from('friendships')
+            .select('*')
+            .or(`and(user1_id.eq.${user.id},user2_id.eq.${contact.matched_user_id}),and(user1_id.eq.${contact.matched_user_id},user2_id.eq.${user.id})`);
+          
+          isFriends = friendshipData && friendshipData.length > 0;
+
+          // Check friend request status
+          const { data: sentRequestData } = await supabase
+            .from('friend_requests')
+            .select('*')
+            .eq('requester_id', user.id)
+            .eq('addressee_id', contact.matched_user_id)
+            .eq('status', 'pending');
+          
+          const { data: receivedRequestData } = await supabase
+            .from('friend_requests')
+            .select('*')
+            .eq('requester_id', contact.matched_user_id)
+            .eq('addressee_id', user.id)
+            .eq('status', 'pending');
+
+          hasSentRequest = sentRequestData && sentRequestData.length > 0;
+          hasReceivedRequest = receivedRequestData && receivedRequestData.length > 0;
+        }
+
+        processedContacts.push({
           id: contact.id,
           contact_name: contact.contact_name,
           contact_email: contact.contact_email,
@@ -83,11 +129,11 @@ const ContactsOverview = () => {
           full_name: profile?.full_name,
           handle: profile?.handle,
           is_friends: isFriends,
-          has_sent_request: !!sentRequest,
-          has_received_request: !!receivedRequest,
-          friend_request_status: sentRequest?.status || receivedRequest?.status
-        };
-      }) || [];
+          has_sent_request: hasSentRequest,
+          has_received_request: hasReceivedRequest,
+          friend_request_status: hasSentRequest ? 'pending' : hasReceivedRequest ? 'pending' : undefined
+        });
+      }
 
       setContacts(processedContacts);
     } catch (error) {
