@@ -12,6 +12,10 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 
 const profileSchema = z.object({
+  phone_number: z
+    .string()
+    .min(1, "Phone number is required")
+    .regex(/^\+[1-9]\d{1,14}$/, "Enter a valid phone number with country code (e.g., +1234567890)"),
   full_name: z.string().min(1, "Full name is required").max(120, "Too long"),
   handle: z
     .string()
@@ -33,6 +37,7 @@ const ProfileSetup = () => {
   const form = useForm<ProfileValues>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
+      phone_number: "",
       full_name: "",
       handle: "",
       student_id_number: "",
@@ -67,12 +72,13 @@ const ProfileSetup = () => {
         // Prefill if profile exists
         supabase
           .from("profiles")
-          .select("full_name, handle, student_id_number, id_card_image_url")
+          .select("phone_number, full_name, handle, student_id_number, id_card_image_url")
           .eq("id", uid)
           .maybeSingle()
           .then(({ data, error }) => {
             if (!error && data) {
               form.reset({
+                phone_number: data.phone_number ?? "",
                 full_name: data.full_name ?? "",
                 handle: data.handle ?? "",
                 student_id_number: data.student_id_number ?? "",
@@ -116,6 +122,7 @@ const ProfileSetup = () => {
 
       const payload: any = {
         id: userId,
+        phone_number: values.phone_number.trim(),
         full_name: values.full_name.trim(),
         handle: values.handle.trim().toLowerCase(),
         student_id_number: values.student_id_number.trim(),
@@ -156,11 +163,33 @@ const ProfileSetup = () => {
           <Card className="shadow-sm">
             <CardHeader>
               <CardTitle className="text-2xl">Set up your profile</CardTitle>
-              <CardDescription>Tell us who you are and upload your student ID for verification.</CardDescription>
+              <CardDescription>Complete your profile to find friends already on Antelog and start creating lists.</CardDescription>
             </CardHeader>
             <CardContent>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                  <FormField
+                    control={form.control}
+                    name="phone_number"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Phone number</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="tel" 
+                            placeholder="+1234567890" 
+                            autoComplete="tel" 
+                            {...field} 
+                          />
+                        </FormControl>
+                        <p className="text-sm text-muted-foreground">
+                          Include country code. This helps you find friends who are already on Antelog.
+                        </p>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
                   <FormField
                     control={form.control}
                     name="full_name"
