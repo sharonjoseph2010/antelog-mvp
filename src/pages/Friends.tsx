@@ -66,32 +66,57 @@ const Friends = () => {
     if (!currentUserId) return;
 
     try {
-      // Load received requests
-      const { data: received, error: receivedError } = await supabase
+      // Load received requests with profiles
+      const { data: receivedData, error: receivedError } = await supabase
         .from('friend_requests')
-        .select(`
-          *,
-          requester_profile:profiles!friend_requests_requester_id_fkey(handle, full_name)
-        `)
+        .select('*')
         .eq('addressee_id', currentUserId)
         .eq('status', 'pending');
 
       if (receivedError) throw receivedError;
 
       // Load sent requests
-      const { data: sent, error: sentError } = await supabase
+      const { data: sentData, error: sentError } = await supabase
         .from('friend_requests')
-        .select(`
-          *,
-          addressee_profile:profiles!friend_requests_addressee_id_fkey(handle, full_name)
-        `)
+        .select('*')
         .eq('requester_id', currentUserId)
         .eq('status', 'pending');
 
       if (sentError) throw sentError;
 
-      setFriendRequests(received || []);
-      setSentRequests(sent || []);
+      // Get profiles for received requests
+      if (receivedData && receivedData.length > 0) {
+        const requesterIds = receivedData.map(r => r.requester_id);
+        const { data: requesterProfiles } = await supabase
+          .from('profiles')
+          .select('id, handle, full_name')
+          .in('id', requesterIds);
+
+        const receivedWithProfiles = receivedData.map(request => ({
+          ...request,
+          requester_profile: requesterProfiles?.find(p => p.id === request.requester_id)
+        }));
+        setFriendRequests(receivedWithProfiles);
+      } else {
+        setFriendRequests([]);
+      }
+
+      // Get profiles for sent requests
+      if (sentData && sentData.length > 0) {
+        const addresseeIds = sentData.map(r => r.addressee_id);
+        const { data: addresseeProfiles } = await supabase
+          .from('profiles')
+          .select('id, handle, full_name')
+          .in('id', addresseeIds);
+
+        const sentWithProfiles = sentData.map(request => ({
+          ...request,
+          addressee_profile: addresseeProfiles?.find(p => p.id === request.addressee_id)
+        }));
+        setSentRequests(sentWithProfiles);
+      } else {
+        setSentRequests([]);
+      }
     } catch (error) {
       console.error('Error loading friend requests:', error);
     } finally {
@@ -106,30 +131,45 @@ const Friends = () => {
       // Load friendships where current user is user1
       const { data: friendships1, error: error1 } = await supabase
         .from('friendships')
-        .select(`
-          *,
-          friend_profile:profiles!friendships_user2_id_fkey(handle, full_name)
-        `)
+        .select('*')
         .eq('user1_id', currentUserId);
 
       // Load friendships where current user is user2
       const { data: friendships2, error: error2 } = await supabase
         .from('friendships')
-        .select(`
-          *,
-          friend_profile:profiles!friendships_user1_id_fkey(handle, full_name)
-        `)
+        .select('*')
         .eq('user2_id', currentUserId);
 
       if (error1) throw error1;
       if (error2) throw error2;
 
-      const allFriendships = [
+      const allFriendshipsData = [
         ...(friendships1 || []),
         ...(friendships2 || [])
       ];
 
-      setFriendships(allFriendships);
+      // Get friend profiles
+      if (allFriendshipsData.length > 0) {
+        const friendIds = allFriendshipsData.map(f => 
+          f.user1_id === currentUserId ? f.user2_id : f.user1_id
+        );
+        
+        const { data: friendProfiles } = await supabase
+          .from('profiles')
+          .select('id, handle, full_name')
+          .in('id', friendIds);
+
+        const friendshipsWithProfiles = allFriendshipsData.map(friendship => ({
+          ...friendship,
+          friend_profile: friendProfiles?.find(p => 
+            p.id === (friendship.user1_id === currentUserId ? friendship.user2_id : friendship.user1_id)
+          )
+        }));
+
+        setFriendships(friendshipsWithProfiles);
+      } else {
+        setFriendships([]);
+      }
     } catch (error) {
       console.error('Error loading friendships:', error);
     }

@@ -20,6 +20,8 @@ import Lists from "./pages/Lists";
 import ListsNew from "./pages/ListsNew";
 import ListDetail from "./pages/ListDetail";
 import ListEdit from "./pages/ListEdit";
+import Friends from "./pages/Friends";
+import ContactsImport from "./pages/ContactsImport";
 import { supabase } from "@/integrations/supabase/client";
 import type { Session, User } from "@supabase/supabase-js";
 import { ProtectedRoute, AdminRoute, InternalRoute } from "@/components/routes/RouteGuards";
@@ -129,6 +131,24 @@ const App = () => {
                 element={
                   <ProtectedRoute isAuthenticated={isAuthenticated}>
                     <ListsNew />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/friends"
+                element={
+                  <ProtectedRoute isAuthenticated={isAuthenticated}>
+                    <Friends />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/contacts/import"
+                element={
+                  <ProtectedRoute isAuthenticated={isAuthenticated}>
+                    <ContactsImport />
                   </ProtectedRoute>
                 }
               />
