@@ -81,7 +81,7 @@ export const FriendSuggestions = () => {
         .select('id')
         .eq('requester_id', user.id)
         .eq('addressee_id', suggestedUserId)
-        .single();
+        .maybeSingle();
 
       if (existingRequest) {
         toast({
@@ -101,6 +101,21 @@ export const FriendSuggestions = () => {
         });
 
       if (requestError) throw requestError;
+
+      // Create friend request notification for the addressee
+      const { error: notificationError } = await supabase
+        .from('notifications')
+        .insert({
+          user_id: suggestedUserId,
+          type: 'friend_request',
+          title: 'New friend request',
+          message: 'Someone wants to connect with you',
+          related_user_id: user.id,
+        });
+
+      if (notificationError) {
+        console.error('Error creating notification:', notificationError);
+      }
 
       // Dismiss the suggestion
       await dismissSuggestion(suggestionId);
