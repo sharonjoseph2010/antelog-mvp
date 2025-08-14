@@ -35,6 +35,36 @@ export type Database = {
         }
         Relationships: []
       }
+      contact_imports: {
+        Row: {
+          antelog_user_id: string | null
+          created_at: string
+          email: string
+          id: string
+          is_on_antelog: boolean
+          name: string
+          user_id: string
+        }
+        Insert: {
+          antelog_user_id?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          is_on_antelog?: boolean
+          name: string
+          user_id: string
+        }
+        Update: {
+          antelog_user_id?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          is_on_antelog?: boolean
+          name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       friend_requests: {
         Row: {
           addressee_id: string
