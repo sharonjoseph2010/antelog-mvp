@@ -371,6 +371,10 @@ export type Database = {
         Args: { action_type: string; contact_id?: string }
         Returns: undefined
       }
+      validate_authenticated_user: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
     }
     Enums: {
       list_category: "films" | "places" | "products" | "services" | "other"
