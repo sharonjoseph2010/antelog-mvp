@@ -27,6 +27,9 @@ const Header = ({ isAuthenticated, isAdmin, onLogout }: HeaderProps) => {
             <Link to="/friends" className="hover:underline">
               Friends
             </Link>
+            <Link to="/contacts" className="hover:underline">
+              Contacts
+            </Link>
             {isAdmin && (
               <Link to="/admin" className="hover:underline">
                 Admin
