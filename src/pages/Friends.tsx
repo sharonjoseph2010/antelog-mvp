@@ -34,6 +34,7 @@ interface Friendship {
     handle: string;
     full_name: string;
   };
+  contact_name?: string;
 }
 
 const Friends = () => {
@@ -148,7 +149,7 @@ const Friends = () => {
         ...(friendships2 || [])
       ];
 
-      // Get friend profiles
+      // Get friend profiles and contact names
       if (allFriendshipsData.length > 0) {
         const friendIds = allFriendshipsData.map(f => 
           f.user1_id === currentUserId ? f.user2_id : f.user1_id
@@ -159,12 +160,25 @@ const Friends = () => {
           .select('id, handle, full_name')
           .in('id', friendIds);
 
-        const friendshipsWithProfiles = allFriendshipsData.map(friendship => ({
-          ...friendship,
-          friend_profile: friendProfiles?.find(p => 
-            p.id === (friendship.user1_id === currentUserId ? friendship.user2_id : friendship.user1_id)
-          )
-        }));
+        // Get contact names for these friends
+        const { data: contactData } = await supabase
+          .from('contact_imports')
+          .select('matched_user_id, contact_name')
+          .eq('user_id', currentUserId)
+          .in('matched_user_id', friendIds)
+          .eq('is_matched', true);
+
+        const friendshipsWithProfiles = allFriendshipsData.map(friendship => {
+          const friendId = friendship.user1_id === currentUserId ? friendship.user2_id : friendship.user1_id;
+          const friendProfile = friendProfiles?.find(p => p.id === friendId);
+          const contactName = contactData?.find(c => c.matched_user_id === friendId)?.contact_name;
+          
+          return {
+            ...friendship,
+            friend_profile: friendProfile,
+            contact_name: contactName
+          };
+        });
 
         setFriendships(friendshipsWithProfiles);
       } else {
@@ -307,7 +321,7 @@ const Friends = () => {
                       >
                         <div>
                           <h3 className="font-medium">
-                            {friendship.friend_profile?.full_name || 'Unknown User'}
+                            {friendship.contact_name || friendship.friend_profile?.full_name || 'Unknown User'}
                           </h3>
                           <p className="text-sm text-muted-foreground">
                             @{friendship.friend_profile?.handle || 'unknown'}
