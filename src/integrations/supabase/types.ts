@@ -35,6 +35,36 @@ export type Database = {
         }
         Relationships: []
       }
+      contact_access_logs: {
+        Row: {
+          action: string
+          contact_id: string | null
+          created_at: string | null
+          id: string
+          ip_address: unknown | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          contact_id?: string | null
+          created_at?: string | null
+          id?: string
+          ip_address?: unknown | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          contact_id?: string | null
+          created_at?: string | null
+          id?: string
+          ip_address?: unknown | null
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       contact_imports: {
         Row: {
           contact_email: string | null
@@ -325,7 +355,22 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_user_contacts_securely: {
+        Args: { target_email?: string; target_phone: string }
+        Returns: {
+          contact_email: string
+          contact_name: string
+          user_id: string
+        }[]
+      }
+      hash_contact_info: {
+        Args: { contact_value: string }
+        Returns: string
+      }
+      log_contact_access: {
+        Args: { action_type: string; contact_id?: string }
+        Returns: undefined
+      }
     }
     Enums: {
       list_category: "films" | "places" | "products" | "services" | "other"
