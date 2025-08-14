@@ -136,10 +136,12 @@ const ContactsImport = () => {
 
       const contactsToSave = contacts.map(contact => ({
         user_id: user.id,
-        name: contact.name,
-        email: contact.email,
-        is_on_antelog: contact.isOnAntelog || false,
-        antelog_user_id: contact.antelogUserId || null,
+        contact_name: contact.name,
+        contact_email: contact.email,
+        contact_phone: null,
+        import_source: 'file',
+        is_matched: contact.isOnAntelog || false,
+        matched_user_id: contact.antelogUserId || null,
       }));
 
       const { error } = await supabase

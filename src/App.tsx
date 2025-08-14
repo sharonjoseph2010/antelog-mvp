@@ -22,6 +22,7 @@ import ListDetail from "./pages/ListDetail";
 import ListEdit from "./pages/ListEdit";
 import Friends from "./pages/Friends";
 import ContactsImport from "./pages/ContactsImport";
+import ContactsImportHub from "./pages/ContactsImportHub";
 import { supabase } from "@/integrations/supabase/client";
 import type { Session, User } from "@supabase/supabase-js";
 import { ProtectedRoute, AdminRoute, InternalRoute } from "@/components/routes/RouteGuards";
@@ -146,6 +147,15 @@ const App = () => {
 
               <Route
                 path="/contacts/import"
+                element={
+                  <ProtectedRoute isAuthenticated={isAuthenticated}>
+                    <ContactsImportHub />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/contacts/legacy"
                 element={
                   <ProtectedRoute isAuthenticated={isAuthenticated}>
                     <ContactsImport />

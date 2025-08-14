@@ -37,30 +37,39 @@ export type Database = {
       }
       contact_imports: {
         Row: {
-          antelog_user_id: string | null
+          contact_email: string | null
+          contact_name: string
+          contact_phone: string | null
           created_at: string
-          email: string
           id: string
-          is_on_antelog: boolean
-          name: string
+          import_source: string
+          is_matched: boolean
+          matched_user_id: string | null
+          updated_at: string
           user_id: string
         }
         Insert: {
-          antelog_user_id?: string | null
+          contact_email?: string | null
+          contact_name: string
+          contact_phone?: string | null
           created_at?: string
-          email: string
           id?: string
-          is_on_antelog?: boolean
-          name: string
+          import_source?: string
+          is_matched?: boolean
+          matched_user_id?: string | null
+          updated_at?: string
           user_id: string
         }
         Update: {
-          antelog_user_id?: string | null
+          contact_email?: string | null
+          contact_name?: string
+          contact_phone?: string | null
           created_at?: string
-          email?: string
           id?: string
-          is_on_antelog?: boolean
-          name?: string
+          import_source?: string
+          is_matched?: boolean
+          matched_user_id?: string | null
+          updated_at?: string
           user_id?: string
         }
         Relationships: []
@@ -89,6 +98,36 @@ export type Database = {
           requester_id?: string
           status?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      friend_suggestions: {
+        Row: {
+          created_at: string
+          id: string
+          is_dismissed: boolean
+          match_type: string
+          match_value: string
+          suggested_user_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_dismissed?: boolean
+          match_type: string
+          match_value: string
+          suggested_user_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_dismissed?: boolean
+          match_type?: string
+          match_value?: string
+          suggested_user_id?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -192,6 +231,39 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          created_at: string
+          id: string
+          is_read: boolean
+          message: string
+          related_user_id: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message: string
+          related_user_id?: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message?: string
+          related_user_id?: string | null
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           batch: string | null
@@ -202,6 +274,7 @@ export type Database = {
           id: string
           id_card_image_url: string | null
           is_verified: boolean
+          phone_number: string | null
           student_id_number: string | null
           trial_ends_at: string | null
           updated_at: string
@@ -216,6 +289,7 @@ export type Database = {
           id: string
           id_card_image_url?: string | null
           is_verified?: boolean
+          phone_number?: string | null
           student_id_number?: string | null
           trial_ends_at?: string | null
           updated_at?: string
@@ -230,6 +304,7 @@ export type Database = {
           id?: string
           id_card_image_url?: string | null
           is_verified?: boolean
+          phone_number?: string | null
           student_id_number?: string | null
           trial_ends_at?: string | null
           updated_at?: string

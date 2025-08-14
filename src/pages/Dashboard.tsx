@@ -4,6 +4,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
+import { FriendSuggestions } from "@/components/FriendSuggestions";
+import { NotificationCenter } from "@/components/NotificationCenter";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -116,6 +118,12 @@ return (
                   </Button>
                 </CardContent>
               </Card>
+            </div>
+
+            {/* Friend Suggestions and Notifications */}
+            <div className="grid gap-6 lg:grid-cols-2">
+              <FriendSuggestions />
+              <NotificationCenter />
             </div>
 
             {recentLists.length > 0 && (
