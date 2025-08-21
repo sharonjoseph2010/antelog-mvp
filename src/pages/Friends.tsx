@@ -42,6 +42,7 @@ const Friends = () => {
   const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]);
   const [sentRequests, setSentRequests] = useState<FriendRequest[]>([]);
   const [friendships, setFriendships] = useState<Friendship[]>([]);
+  const [extendedNetworkCount, setExtendedNetworkCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
@@ -53,6 +54,7 @@ const Friends = () => {
     if (currentUserId) {
       loadFriendRequests();
       loadFriendships();
+      loadExtendedNetworkCount();
     }
   }, [currentUserId]);
 
@@ -189,6 +191,27 @@ const Friends = () => {
     }
   };
 
+  const loadExtendedNetworkCount = async () => {
+    if (!currentUserId) return;
+
+    try {
+      const { data: networkData, error } = await supabase.rpc('get_extended_network', {
+        user_id: currentUserId
+      });
+
+      if (error) {
+        console.error('Error loading extended network count:', error);
+        setExtendedNetworkCount(0);
+        return;
+      }
+
+      setExtendedNetworkCount(networkData?.length || 0);
+    } catch (error) {
+      console.error('Error loading extended network count:', error);
+      setExtendedNetworkCount(0);
+    }
+  };
+
   const handleFriendRequest = async (requestId: string, action: 'accept' | 'reject') => {
     try {
       const { error } = await supabase
@@ -284,7 +307,8 @@ const Friends = () => {
               Friends ({friendships.length})
             </TabsTrigger>
             <TabsTrigger value="extended" className="flex items-center gap-2">
-              Extended Network
+              <Users className="h-4 w-4" />
+              Extended Network ({extendedNetworkCount})
             </TabsTrigger>
             <TabsTrigger value="received" className="flex items-center gap-2">
               <UserPlus className="h-4 w-4" />
