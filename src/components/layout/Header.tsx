@@ -27,6 +27,9 @@ const Header = ({ isAuthenticated, isAdmin, onLogout }: HeaderProps) => {
             <Link to="/friends" className="hover:underline">
               Friends
             </Link>
+            <Link to="/groups" className="hover:underline">
+              Groups
+            </Link>
             <Link to="/contacts" className="hover:underline">
               Contacts
             </Link>
