@@ -355,6 +355,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_extended_network: {
+        Args: { user_id: string }
+        Returns: {
+          full_name: string
+          handle: string
+          mutual_friends: string[]
+          profile_id: string
+        }[]
+      }
       get_user_contacts_securely: {
         Args: { target_email?: string; target_phone: string }
         Returns: {

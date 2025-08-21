@@ -278,10 +278,13 @@ const Friends = () => {
         </div>
 
         <Tabs defaultValue="friends" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="friends" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
               Friends ({friendships.length})
+            </TabsTrigger>
+            <TabsTrigger value="extended" className="flex items-center gap-2">
+              Extended Network
             </TabsTrigger>
             <TabsTrigger value="received" className="flex items-center gap-2">
               <UserPlus className="h-4 w-4" />
@@ -343,6 +346,31 @@ const Friends = () => {
                     ))}
                   </div>
                 )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="extended">
+            <Card>
+              <CardHeader>
+                <CardTitle>Extended Network</CardTitle>
+                <CardDescription>
+                  Discover friends-of-friends and expand your connections
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center py-8">
+                  <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-medium mb-2">Explore Your Extended Network</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Find people you might know through mutual friends
+                  </p>
+                  <Button asChild>
+                    <Link to="/network/extended">
+                      View Extended Network
+                    </Link>
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
