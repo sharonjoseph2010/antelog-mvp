@@ -284,40 +284,71 @@ const Friends = () => {
       </Helmet>
 
       <div className="container mx-auto py-8 px-4 max-w-4xl">
-        <div className="mb-8 flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold mb-2">Friends</h1>
-            <p className="text-muted-foreground">
-              Manage your friend connections and requests
-            </p>
+        <div className="mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+            <div>
+              <h1 className="text-3xl font-bold mb-2">Friends</h1>
+              <p className="text-muted-foreground">
+                Manage your friend connections and requests
+              </p>
+            </div>
+            
+            <Button asChild className="flex items-center gap-2 self-start sm:self-auto">
+              <Link to="/contacts/import">
+                <Upload className="h-4 w-4" />
+                Import Contacts
+              </Link>
+            </Button>
           </div>
-          
-          <Button asChild className="flex items-center gap-2">
-            <Link to="/contacts/import">
-              <Upload className="h-4 w-4" />
-              Import Contacts
-            </Link>
-          </Button>
-        </div>
 
-        <Tabs defaultValue="friends" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="friends" className="flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              Friends ({friendships.length})
-            </TabsTrigger>
-            <TabsTrigger value="extended" className="flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              Extended Network ({extendedNetworkCount})
-            </TabsTrigger>
-            <TabsTrigger value="received" className="flex items-center gap-2">
-              <UserPlus className="h-4 w-4" />
-              Received ({friendRequests.length})
-            </TabsTrigger>
-            <TabsTrigger value="sent" className="flex items-center gap-2">
-              Sent ({sentRequests.length})
-            </TabsTrigger>
-          </TabsList>
+          <Tabs defaultValue="friends" className="space-y-6">
+            <div className="border-b border-border">
+              <TabsList className="h-auto p-0 bg-transparent grid w-full grid-cols-2 sm:grid-cols-4 gap-0">
+                <TabsTrigger 
+                  value="friends" 
+                  className="flex items-center justify-center gap-2 px-4 py-3 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none bg-transparent text-muted-foreground data-[state=active]:text-foreground hover:text-foreground transition-colors"
+                >
+                  <Users className="h-4 w-4" />
+                  <span className="hidden xs:inline">Friends</span>
+                  <Badge variant="secondary" className="ml-1 text-xs">
+                    {friendships.length}
+                  </Badge>
+                </TabsTrigger>
+                
+                <TabsTrigger 
+                  value="extended" 
+                  className="flex items-center justify-center gap-2 px-4 py-3 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none bg-transparent text-muted-foreground data-[state=active]:text-foreground hover:text-foreground transition-colors"
+                >
+                  <Users className="h-4 w-4" />
+                  <span className="hidden xs:inline">Extended</span>
+                  <Badge variant="secondary" className="ml-1 text-xs">
+                    {extendedNetworkCount}
+                  </Badge>
+                </TabsTrigger>
+                
+                <TabsTrigger 
+                  value="received" 
+                  className="flex items-center justify-center gap-2 px-4 py-3 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none bg-transparent text-muted-foreground data-[state=active]:text-foreground hover:text-foreground transition-colors"
+                >
+                  <UserPlus className="h-4 w-4" />
+                  <span className="hidden xs:inline">Received</span>
+                  <Badge variant="secondary" className="ml-1 text-xs">
+                    {friendRequests.length}
+                  </Badge>
+                </TabsTrigger>
+                
+                <TabsTrigger 
+                  value="sent" 
+                  className="flex items-center justify-center gap-2 px-4 py-3 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none bg-transparent text-muted-foreground data-[state=active]:text-foreground hover:text-foreground transition-colors"
+                >
+                  <Upload className="h-4 w-4" />
+                  <span className="hidden xs:inline">Sent</span>
+                  <Badge variant="secondary" className="ml-1 text-xs">
+                    {sentRequests.length}
+                  </Badge>
+                </TabsTrigger>
+              </TabsList>
+            </div>
 
           <TabsContent value="friends">
             <Card>
@@ -374,32 +405,35 @@ const Friends = () => {
             </Card>
           </TabsContent>
 
-          <TabsContent value="extended">
-            <Card>
-              <CardHeader>
-                <CardTitle>Extended Network</CardTitle>
-                <CardDescription>
-                  Discover friends-of-friends and expand your connections
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-8">
-                  <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-medium mb-2">Explore Your Extended Network</h3>
-                  <p className="text-muted-foreground mb-4">
-                    Find people you might know through mutual friends
-                  </p>
-                  <Button asChild>
-                    <Link to="/network/extended">
-                      View Extended Network
-                    </Link>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+            <TabsContent value="extended">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Extended Network</CardTitle>
+                  <CardDescription>
+                    Discover friends-of-friends and expand your connections
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-center py-12">
+                    <div className="mx-auto w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
+                      <Users className="h-8 w-8 text-muted-foreground" />
+                    </div>
+                    <h3 className="text-xl font-semibold mb-2">Explore Your Extended Network</h3>
+                    <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                      Find people you might know through mutual friends and expand your network
+                    </p>
+                    <Button asChild size="lg">
+                      <Link to="/network/extended" className="flex items-center gap-2">
+                        <Users className="h-4 w-4" />
+                        View Extended Network
+                      </Link>
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
 
-          <TabsContent value="received">
+            <TabsContent value="received">
             <Card>
               <CardHeader>
                 <CardTitle>Friend Requests</CardTitle>
@@ -506,6 +540,7 @@ const Friends = () => {
             </Card>
           </TabsContent>
         </Tabs>
+        </div>
       </div>
     </>
   );
