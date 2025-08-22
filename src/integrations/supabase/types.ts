@@ -406,6 +406,130 @@ export type Database = {
           },
         ]
       }
+      request_responses: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          list_id: string | null
+          request_id: string
+          responder_id: string
+          response_type: Database["public"]["Enums"]["response_type"]
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          list_id?: string | null
+          request_id: string
+          responder_id: string
+          response_type: Database["public"]["Enums"]["response_type"]
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          list_id?: string | null
+          request_id?: string
+          responder_id?: string
+          response_type?: Database["public"]["Enums"]["response_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_request_responses_list_id"
+            columns: ["list_id"]
+            isOneToOne: false
+            referencedRelation: "lists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_request_responses_request_id"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      request_votes: {
+        Row: {
+          created_at: string
+          id: string
+          response_id: string
+          vote_type: Database["public"]["Enums"]["vote_type"]
+          voter_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          response_id: string
+          vote_type: Database["public"]["Enums"]["vote_type"]
+          voter_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          response_id?: string
+          vote_type?: Database["public"]["Enums"]["vote_type"]
+          voter_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_request_votes_response_id"
+            columns: ["response_id"]
+            isOneToOne: false
+            referencedRelation: "request_responses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      requests: {
+        Row: {
+          audience_type: Database["public"]["Enums"]["request_audience_type"]
+          category: Database["public"]["Enums"]["request_category"]
+          created_at: string
+          creator_id: string
+          group_id: string | null
+          id: string
+          location: string | null
+          status: Database["public"]["Enums"]["request_status"]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          audience_type: Database["public"]["Enums"]["request_audience_type"]
+          category: Database["public"]["Enums"]["request_category"]
+          created_at?: string
+          creator_id: string
+          group_id?: string | null
+          id?: string
+          location?: string | null
+          status?: Database["public"]["Enums"]["request_status"]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          audience_type?: Database["public"]["Enums"]["request_audience_type"]
+          category?: Database["public"]["Enums"]["request_category"]
+          created_at?: string
+          creator_id?: string
+          group_id?: string | null
+          id?: string
+          location?: string | null
+          status?: Database["public"]["Enums"]["request_status"]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_requests_group_id"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -444,7 +568,12 @@ export type Database = {
     Enums: {
       list_category: "films" | "places" | "products" | "services" | "other"
       list_visibility: "private" | "friends" | "public"
+      request_audience_type: "friends" | "extended_network" | "specific_group"
+      request_category: "films" | "places" | "products" | "services" | "other"
+      request_status: "open" | "responded" | "closed"
+      response_type: "existing_list" | "new_recommendations" | "comment"
       verification_status: "pending" | "verified" | "rejected"
+      vote_type: "helpful" | "not_helpful"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -574,7 +703,12 @@ export const Constants = {
     Enums: {
       list_category: ["films", "places", "products", "services", "other"],
       list_visibility: ["private", "friends", "public"],
+      request_audience_type: ["friends", "extended_network", "specific_group"],
+      request_category: ["films", "places", "products", "services", "other"],
+      request_status: ["open", "responded", "closed"],
+      response_type: ["existing_list", "new_recommendations", "comment"],
       verification_status: ["pending", "verified", "rejected"],
+      vote_type: ["helpful", "not_helpful"],
     },
   },
 } as const

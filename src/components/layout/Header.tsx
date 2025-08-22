@@ -30,6 +30,9 @@ const Header = ({ isAuthenticated, isAdmin, onLogout }: HeaderProps) => {
             <Link to="/groups" className="hover:underline">
               Groups
             </Link>
+            <Link to="/requests" className="hover:underline">
+              Requests
+            </Link>
             <Link to="/contacts" className="hover:underline">
               Contacts
             </Link>

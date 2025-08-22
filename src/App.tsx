@@ -28,6 +28,8 @@ import ExtendedNetwork from "./pages/ExtendedNetwork";
 import Groups from "./pages/Groups";
 import GroupsNew from "./pages/GroupsNew";
 import GroupDetail from "./pages/GroupDetail";
+import Requests from "./pages/Requests";
+import RequestsNew from "./pages/RequestsNew";
 import { supabase } from "@/integrations/supabase/client";
 import type { Session, User } from "@supabase/supabase-js";
 import { ProtectedRoute, AdminRoute, InternalRoute } from "@/components/routes/RouteGuards";
@@ -209,6 +211,24 @@ const App = () => {
                 element={
                   <ProtectedRoute isAuthenticated={isAuthenticated}>
                     <GroupDetail />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/requests"
+                element={
+                  <ProtectedRoute isAuthenticated={isAuthenticated}>
+                    <Requests />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/requests/new"
+                element={
+                  <ProtectedRoute isAuthenticated={isAuthenticated}>
+                    <RequestsNew />
                   </ProtectedRoute>
                 }
               />
