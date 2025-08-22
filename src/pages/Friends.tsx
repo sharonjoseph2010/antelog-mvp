@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Users, UserPlus, Upload, Check, X, Trash2 } from "lucide-react";
+import { Users, UserPlus, Upload, Check, X, Trash2, Network } from "lucide-react";
 
 interface FriendRequest {
   id: string;
@@ -319,7 +319,7 @@ const Friends = () => {
                   value="extended" 
                   className="flex items-center justify-center gap-2 px-4 py-3 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none bg-transparent text-muted-foreground data-[state=active]:text-foreground hover:text-foreground transition-colors"
                 >
-                  <Users className="h-4 w-4" />
+                  <Network className="h-4 w-4" />
                   <span className="hidden xs:inline">Extended</span>
                   <Badge variant="secondary" className="ml-1 text-xs">
                     {extendedNetworkCount}
@@ -416,7 +416,7 @@ const Friends = () => {
                 <CardContent>
                   <div className="text-center py-12">
                     <div className="mx-auto w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
-                      <Users className="h-8 w-8 text-muted-foreground" />
+                      <Network className="h-8 w-8 text-muted-foreground" />
                     </div>
                     <h3 className="text-xl font-semibold mb-2">Explore Your Extended Network</h3>
                     <p className="text-muted-foreground mb-6 max-w-md mx-auto">
@@ -424,7 +424,7 @@ const Friends = () => {
                     </p>
                     <Button asChild size="lg">
                       <Link to="/network/extended" className="flex items-center gap-2">
-                        <Users className="h-4 w-4" />
+                        <Network className="h-4 w-4" />
                         View Extended Network
                       </Link>
                     </Button>
