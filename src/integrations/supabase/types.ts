@@ -569,6 +569,17 @@ export type Database = {
           profile_id: string
         }[]
       }
+      get_safe_profile_view: {
+        Args: { profile_id: string }
+        Returns: {
+          full_name: string
+          handle: string
+          id: string
+          is_verified: boolean
+          phone_number: string
+          student_id_number: string
+        }[]
+      }
       get_user_contacts_securely: {
         Args: { target_email?: string; target_phone: string }
         Returns: {
