@@ -6,9 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 
-// Allowed admin emails
-const ADMIN_EMAILS = ["sharonjoseph2010@gmail.com"];
-
 type PendingProfile = {
   id: string;
   full_name: string | null;
@@ -19,31 +16,34 @@ type PendingProfile = {
 
 const Admin = () => {
   const navigate = useNavigate();
-  const [email, setEmail] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<PendingProfile[]>([]);
   const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
-
-  const isAdmin = useMemo(() => !!email && ADMIN_EMAILS.includes(email), [email]);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     let mounted = true;
     (async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!mounted) return;
-      const userEmail = session?.user?.email ?? null;
-      setEmail(userEmail);
+      
       // If not logged in, send to login
-      if (!userEmail) {
+      if (!session?.user) {
         navigate("/login", { replace: true });
         return;
       }
-      // If logged in but not admin, don't redirect — show access denied card
-      if (!ADMIN_EMAILS.includes(userEmail)) {
-        setLoading(false);
-        return;
+
+      // Check if user has admin role using the new role-based system
+      const { data: userRole } = await supabase
+        .rpc('get_current_user_role');
+      
+      const hasAdminRole = userRole === 'admin';
+      setIsAdmin(hasAdminRole);
+      
+      if (hasAdminRole) {
+        await loadPending();
       }
-      await loadPending();
+      
       setLoading(false);
     })();
     return () => { mounted = false; };

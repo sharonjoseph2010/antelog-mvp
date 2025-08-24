@@ -530,11 +530,36 @@ export type Database = {
           },
         ]
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      get_current_user_role: {
+        Args: Record<PropertyKey, never>
+        Returns: Database["public"]["Enums"]["app_role"]
+      }
       get_extended_network: {
         Args: { user_id: string }
         Returns: {
@@ -552,6 +577,13 @@ export type Database = {
           user_id: string
         }[]
       }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       hash_contact_info: {
         Args: { contact_value: string }
         Returns: string
@@ -566,6 +598,7 @@ export type Database = {
       }
     }
     Enums: {
+      app_role: "admin" | "moderator" | "user"
       list_category: "films" | "places" | "products" | "services" | "other"
       list_visibility: "private" | "friends" | "public"
       request_audience_type: "friends" | "extended_network" | "specific_group"
@@ -701,6 +734,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      app_role: ["admin", "moderator", "user"],
       list_category: ["films", "places", "products", "services", "other"],
       list_visibility: ["private", "friends", "public"],
       request_audience_type: ["friends", "extended_network", "specific_group"],
