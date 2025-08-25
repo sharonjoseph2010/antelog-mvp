@@ -580,14 +580,6 @@ export type Database = {
           student_id_number: string
         }[]
       }
-      get_user_contacts_securely: {
-        Args: { target_email?: string; target_phone: string }
-        Returns: {
-          contact_email: string
-          contact_name: string
-          user_id: string
-        }[]
-      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
