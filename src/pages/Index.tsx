@@ -3,6 +3,7 @@ import { Helmet } from "react-helmet-async";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { Search, Users, ShieldCheck } from "lucide-react";
 
 const Index = () => {
@@ -41,6 +42,11 @@ const Index = () => {
       </Helmet>
 
       <main className="min-h-screen bg-background">
+        {/* Theme Toggle */}
+        <div className="absolute top-4 right-4">
+          <ThemeToggle />
+        </div>
+        
         {/* Hero */}
         <section className="container mx-auto px-4 py-20 text-center">
           <h1 className="text-4xl md:text-5xl font-bold tracking-tight">
