@@ -205,6 +205,27 @@ export default function Requests() {
               </span>
             </div>
           </div>
+
+          {/* Action Buttons */}
+          <div className="flex items-center justify-between pt-2 border-t">
+            <div className="flex items-center gap-2">
+              {showCreator && (
+                <Button asChild variant="outline" size="sm">
+                  <Link to={`/requests/${request.id}/respond`} className="flex items-center gap-1">
+                    <MessageSquare className="h-3 w-3" />
+                    Respond
+                  </Link>
+                </Button>
+              )}
+            </div>
+            {!showCreator && request.response_count > 0 && (
+              <Button asChild variant="ghost" size="sm">
+                <Link to={`/requests/${request.id}/respond`} className="flex items-center gap-1">
+                  View Responses
+                </Link>
+              </Button>
+            )}
+          </div>
         </div>
       </CardContent>
     </Card>

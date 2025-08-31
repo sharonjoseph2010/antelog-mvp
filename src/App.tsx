@@ -31,6 +31,7 @@ import GroupsNew from "./pages/GroupsNew";
 import GroupDetail from "./pages/GroupDetail";
 import Requests from "./pages/Requests";
 import RequestsNew from "./pages/RequestsNew";
+import RequestRespond from "./pages/RequestRespond";
 import { supabase } from "@/integrations/supabase/client";
 import type { Session, User } from "@supabase/supabase-js";
 import { ProtectedRoute, AdminRoute, InternalRoute } from "@/components/routes/RouteGuards";
@@ -231,6 +232,15 @@ const App = () => {
                 element={
                   <ProtectedRoute isAuthenticated={isAuthenticated}>
                     <RequestsNew />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/requests/:id/respond"
+                element={
+                  <ProtectedRoute isAuthenticated={isAuthenticated}>
+                    <RequestRespond />
                   </ProtectedRoute>
                 }
               />
