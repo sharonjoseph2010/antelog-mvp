@@ -5,11 +5,13 @@ const Footer = ({ isAuthenticated }: { isAuthenticated: boolean }) => {
   return (
     <footer className="border-t bg-background">
       <div className="container mx-auto px-4 py-6">
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
+        <div className="relative">
+          <p className="text-center text-sm text-muted-foreground">
             Antelog is built on the principle that the best recommendations come from real people you trust, not algorithms or advertising budgets.
           </p>
-          <ThemeToggle />
+          <div className="absolute top-0 right-0">
+            <ThemeToggle />
+          </div>
         </div>
         {isAuthenticated && (
           <nav className="mt-4" aria-label="Footer navigation">
