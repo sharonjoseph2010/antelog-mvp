@@ -24,8 +24,8 @@ const Index = () => {
   const content = {
     stealth: {
       title: "A new social platform for students",
-      description: "Connect, share, and discover with your network. Coming soon to SRFTI students.",
-      metaDescription: "A new social platform for students at SRFTI. Join the waitlist for early access.",
+      description: "Connect, share, and discover with your network. Built by students, for students.",
+      metaDescription: "A new social platform for students. Join the waitlist for early access.",
       buttonText: "Join Waitlist"
     },
     public: {
@@ -138,7 +138,7 @@ const Index = () => {
               </CardHeader>
               <CardContent className="text-muted-foreground">
                 {isStealthMode
-                  ? "Join the waitlist for early access. First launching at SRFTI."
+                  ? "Join the waitlist for early access. Launching soon for students."
                   : "Find recommendations based on your network and interests, not algorithms."
                 }
               </CardContent>
@@ -172,7 +172,7 @@ const Index = () => {
           </h2>
           <p className="mt-3 text-muted-foreground max-w-2xl mx-auto">
             {isStealthMode 
-              ? "Be among the first to experience the new social platform for SRFTI students."
+              ? "Be among the first to experience the new social platform for students."
               : "Only verified members can create and share lists."
             }
           </p>
