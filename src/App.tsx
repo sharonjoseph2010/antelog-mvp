@@ -34,12 +34,15 @@ import RequestsNew from "./pages/RequestsNew";
 import RequestRespond from "./pages/RequestRespond";
 import { supabase } from "@/integrations/supabase/client";
 import type { Session, User } from "@supabase/supabase-js";
-import { ProtectedRoute, AdminRoute, InternalRoute } from "@/components/routes/RouteGuards";
+import { ProtectedRoute, AdminRoute, InternalRoute, VerifiedRoute } from "@/components/routes/RouteGuards";
+import Directory from "./pages/Directory";
+import GuestSignup from "./pages/GuestSignup";
 const queryClient = new QueryClient();
 
 const App = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
+  const [userType, setUserType] = useState<'verified' | 'guest' | null>(null);
   const [initializing, setInitializing] = useState(true);
 
   useEffect(() => {
@@ -99,7 +102,9 @@ const App = () => {
             <Routes>
               <Route path="/" element={initializing ? <div className="min-h-screen flex items-center justify-center">Loading...</div> : (isAuthenticated ? <Navigate to="/dashboard" replace /> : <Index />)} />
               <Route path="/signup" element={<Signup />} />
-              <Route path="/login" element={<Login />} />
+            <Route path="/guest-signup" element={<GuestSignup />} />
+            <Route path="/directory" element={<Directory />} />
+            <Route path="/login" element={<Login />} />
 
               <Route
                 path="/dashboard"

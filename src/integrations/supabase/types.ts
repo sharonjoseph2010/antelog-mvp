@@ -104,6 +104,72 @@ export type Database = {
         }
         Relationships: []
       }
+      directory_entries: {
+        Row: {
+          category: Database["public"]["Enums"]["list_category"]
+          content: string
+          contributor_id: string
+          created_at: string
+          id: string
+          list_id: string
+          list_item_id: string
+          search_count: number
+          updated_at: string
+          url: string | null
+          vote_count: number
+        }
+        Insert: {
+          category: Database["public"]["Enums"]["list_category"]
+          content: string
+          contributor_id: string
+          created_at?: string
+          id?: string
+          list_id: string
+          list_item_id: string
+          search_count?: number
+          updated_at?: string
+          url?: string | null
+          vote_count?: number
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["list_category"]
+          content?: string
+          contributor_id?: string
+          created_at?: string
+          id?: string
+          list_id?: string
+          list_item_id?: string
+          search_count?: number
+          updated_at?: string
+          url?: string | null
+          vote_count?: number
+        }
+        Relationships: []
+      }
+      directory_votes: {
+        Row: {
+          created_at: string
+          entry_id: string
+          id: string
+          vote_type: string
+          voter_id: string
+        }
+        Insert: {
+          created_at?: string
+          entry_id: string
+          id?: string
+          vote_type: string
+          voter_id: string
+        }
+        Update: {
+          created_at?: string
+          entry_id?: string
+          id?: string
+          vote_type?: string
+          voter_id?: string
+        }
+        Relationships: []
+      }
       friend_requests: {
         Row: {
           addressee_id: string
@@ -364,6 +430,7 @@ export type Database = {
           student_id_number: string | null
           trial_ends_at: string | null
           updated_at: string
+          user_type: Database["public"]["Enums"]["user_type"]
           verification_status: Database["public"]["Enums"]["verification_status"]
         }
         Insert: {
@@ -379,6 +446,7 @@ export type Database = {
           student_id_number?: string | null
           trial_ends_at?: string | null
           updated_at?: string
+          user_type?: Database["public"]["Enums"]["user_type"]
           verification_status?: Database["public"]["Enums"]["verification_status"]
         }
         Update: {
@@ -394,6 +462,7 @@ export type Database = {
           student_id_number?: string | null
           trial_ends_at?: string | null
           updated_at?: string
+          user_type?: Database["public"]["Enums"]["user_type"]
           verification_status?: Database["public"]["Enums"]["verification_status"]
         }
         Relationships: [
@@ -530,6 +599,33 @@ export type Database = {
           },
         ]
       }
+      search_analytics: {
+        Row: {
+          category: Database["public"]["Enums"]["list_category"] | null
+          created_at: string
+          id: string
+          results_count: number
+          search_query: string
+          user_id: string | null
+        }
+        Insert: {
+          category?: Database["public"]["Enums"]["list_category"] | null
+          created_at?: string
+          id?: string
+          results_count?: number
+          search_query: string
+          user_id?: string | null
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["list_category"] | null
+          created_at?: string
+          id?: string
+          results_count?: number
+          search_query?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -591,6 +687,10 @@ export type Database = {
         Args: { contact_value: string }
         Returns: string
       }
+      increment_search_count: {
+        Args: { entry_ids: string[] }
+        Returns: undefined
+      }
       log_contact_access: {
         Args: { action_type: string; contact_id?: string }
         Returns: undefined
@@ -608,6 +708,7 @@ export type Database = {
       request_category: "films" | "places" | "products" | "services" | "other"
       request_status: "open" | "responded" | "closed"
       response_type: "existing_list" | "new_recommendations" | "comment"
+      user_type: "verified" | "guest"
       verification_status: "pending" | "verified" | "rejected"
       vote_type: "helpful" | "not_helpful"
     }
@@ -744,6 +845,7 @@ export const Constants = {
       request_category: ["films", "places", "products", "services", "other"],
       request_status: ["open", "responded", "closed"],
       response_type: ["existing_list", "new_recommendations", "comment"],
+      user_type: ["verified", "guest"],
       verification_status: ["pending", "verified", "rejected"],
       vote_type: ["helpful", "not_helpful"],
     },
