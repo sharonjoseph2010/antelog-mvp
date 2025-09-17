@@ -2,24 +2,10 @@ import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Search, Users, ShieldCheck } from "lucide-react";
+import { Users, ShieldCheck } from "lucide-react";
 
 const Index = () => {
   const isStealthMode = import.meta.env.VITE_STEALTH_MODE === "true";
-  
-  const handleScrollToSearch = () => {
-    const container = document.getElementById("site-search");
-    container?.scrollIntoView({ behavior: "smooth", block: "start" });
-    const input = document.getElementById("site-search-input") as HTMLInputElement | null;
-    if (input) {
-      input.focus();
-      input.classList.add("ring-2", "ring-primary", "ring-offset-2", "ring-offset-background");
-      window.setTimeout(() => {
-        input.classList.remove("ring-2", "ring-primary", "ring-offset-2", "ring-offset-background");
-      }, 1500);
-    }
-  };
 
   const content = {
     stealth: {
@@ -67,33 +53,10 @@ const Index = () => {
           <p className="mt-4 text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto">
             {currentContent.description}
           </p>
-          <div className="mt-8 flex items-center justify-center gap-3">
-            <Button size="lg" onClick={handleScrollToSearch}>
-              {currentContent.buttonText}
+          <div className="mt-8">
+            <Button asChild size="lg">
+              <Link to="/guest-signup">{currentContent.buttonText}</Link>
             </Button>
-          </div>
-          <div id="site-search" className="mt-6 max-w-xl mx-auto">
-            <form
-              className="flex items-center gap-2"
-              onSubmit={(e) => {
-                e.preventDefault();
-                const form = e.currentTarget as HTMLFormElement;
-                const input = form.querySelector('input[name="q"]') as HTMLInputElement | null;
-                const q = input?.value?.trim() ?? "";
-                window.location.href = q ? `/signup?q=${encodeURIComponent(q)}` : "/signup";
-              }}
-              role="search"
-              aria-label="Search lists, items, or people"
-            >
-              <Input
-                id="site-search-input" name="q"
-                type="search"
-                placeholder="Search anything and everything..."
-                aria-label="Search input"
-                className="w-full"
-              />
-              <Button type="submit" variant="secondary">Search</Button>
-            </form>
           </div>
         </section>
 
@@ -132,7 +95,7 @@ const Index = () => {
             <Card>
               <CardHeader>
                 <div className="mb-2 text-muted-foreground">
-                  <Search className="h-5 w-5" aria-hidden />
+                  <ShieldCheck className="h-5 w-5" aria-hidden />
                 </div>
                 <CardTitle>{isStealthMode ? "Coming Soon" : "Smart Discovery"}</CardTitle>
               </CardHeader>
@@ -184,7 +147,7 @@ const Index = () => {
             ) : (
               <>
                 <Button asChild variant="outline" size="lg" className="flex-1">
-                  <Link to="/guest-signup">Directory</Link>
+                  <Link to="/guest-signup">Master Directory</Link>
                 </Button>
                 <Button asChild size="lg" className="flex-1">
                   <Link to="/signup">Get Verified</Link>
@@ -194,7 +157,7 @@ const Index = () => {
           </div>
           {!isStealthMode && (
             <div className="mt-4 text-sm text-muted-foreground space-y-1">
-              <p><strong>Directory</strong>: Free access to search all recommendations</p>
+              <p><strong>Master Directory</strong>: Free access to search all recommendations</p>
               <p><strong>Get Verified</strong>: Create lists, build network, full platform access</p>
             </div>
           )}

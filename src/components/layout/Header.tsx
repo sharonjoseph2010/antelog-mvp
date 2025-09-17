@@ -19,14 +19,14 @@ const Header = ({ isAuthenticated, isAdmin, userType, onLogout }: HeaderProps) =
         </Link>
         
         <div className="flex items-center gap-4">
-          {/* Directory requires authentication */}
+          {/* Master Directory requires authentication */}
           {isAuthenticated ? (
             <Link to="/directory" className="hover:underline">
-              Directory
+              Master Directory
             </Link>
           ) : (
             <Link to="/guest-signup" className="hover:underline">
-              Directory
+              Master Directory
             </Link>
           )}
           

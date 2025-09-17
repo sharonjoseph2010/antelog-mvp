@@ -292,7 +292,7 @@ export default function Directory() {
         <div className="container mx-auto px-4 py-8 max-w-4xl">
           {/* Header */}
           <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold mb-4">Directory</h1>
+            <h1 className="text-4xl font-bold mb-4">Master Directory</h1>
             <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
               Search through curated recommendations from our verified community. 
               Discover places, films, products, and more based on real experiences.
