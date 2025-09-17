@@ -184,7 +184,7 @@ const Index = () => {
             ) : (
               <>
                 <Button asChild variant="outline" size="lg" className="flex-1">
-                  <Link to="/guest-signup">Browse Directory</Link>
+                  <Link to="/directory">Directory</Link>
                 </Button>
                 <Button asChild size="lg" className="flex-1">
                   <Link to="/signup">Get Verified</Link>
@@ -194,7 +194,7 @@ const Index = () => {
           </div>
           {!isStealthMode && (
             <div className="mt-4 text-sm text-muted-foreground space-y-1">
-              <p><strong>Browse Directory</strong>: Free access to search all recommendations</p>
+              <p><strong>Directory</strong>: Free access to search all recommendations</p>
               <p><strong>Get Verified</strong>: Create lists, build network, full platform access</p>
             </div>
           )}

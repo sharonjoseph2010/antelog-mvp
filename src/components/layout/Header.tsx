@@ -54,7 +54,6 @@ const Header = ({ isAuthenticated, isAdmin, userType, onLogout }: HeaderProps) =
             </>
           ) : (
             <>
-              <Link to="/guest-signup" className="hover:underline">Browse Directory</Link>
               <Link to="/login" className="hover:underline">Sign In</Link>
               <Button asChild size="sm">
                 <Link to="/signup">Get Verified</Link>
