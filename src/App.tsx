@@ -47,18 +47,58 @@ const App = () => {
 
   useEffect(() => {
     console.log("[Auth] Initializing auth listener...");
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log("[Auth] onAuthStateChange:", event, { hasSession: !!session, userId: session?.user?.id });
       setSession(session);
       setUser(session?.user ?? null);
+      
+      // Fetch user type when session changes
+      if (session?.user) {
+        try {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('user_type')
+            .eq('id', session.user.id)
+            .single();
+          
+          setUserType(profile?.user_type || 'guest');
+        } catch (error) {
+          console.error("[Auth] Error fetching user type:", error);
+          setUserType('guest');
+        }
+      } else {
+        setUserType(null);
+      }
     });
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const initializeAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
       console.log("[Auth] getSession result:", { hasSession: !!session, userId: session?.user?.id });
       setSession(session);
       setUser(session?.user ?? null);
+      
+      // Fetch user type for initial session
+      if (session?.user) {
+        try {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('user_type')
+            .eq('id', session.user.id)
+            .single();
+          
+          setUserType(profile?.user_type || 'guest');
+        } catch (error) {
+          console.error("[Auth] Error fetching user type:", error);
+          setUserType('guest');
+        }
+      } else {
+        setUserType(null);
+      }
+      
       setInitializing(false);
-    });
+    };
+    
+    initializeAuth();
 
     return () => {
       console.log("[Auth] Unsubscribing auth listener");
@@ -86,6 +126,7 @@ const App = () => {
     } finally {
       setSession(null);
       setUser(null);
+      setUserType(null);
       console.log("[Auth] Logout complete; session cleared");
     }
   };
@@ -98,7 +139,12 @@ const App = () => {
           <Toaster />
           <Sonner />
           <BrowserRouter>
-            <Header isAuthenticated={isAuthenticated} isAdmin={isAdmin} onLogout={handleLogout} />
+            <Header 
+              isAuthenticated={isAuthenticated} 
+              isAdmin={isAdmin} 
+              userType={userType}
+              onLogout={handleLogout} 
+            />
             <Routes>
               <Route path="/" element={initializing ? <div className="min-h-screen flex items-center justify-center">Loading...</div> : (isAuthenticated ? <Navigate to="/dashboard" replace /> : <Index />)} />
               <Route path="/signup" element={<Signup />} />
@@ -109,45 +155,45 @@ const App = () => {
               <Route
                 path="/dashboard"
                 element={
-                  <ProtectedRoute isAuthenticated={isAuthenticated}>
+                  <VerifiedRoute isAuthenticated={isAuthenticated} userType={userType}>
                     <Dashboard />
-                  </ProtectedRoute>
+                  </VerifiedRoute>
                 }
               />
 
               <Route
                 path="/lists"
                 element={
-                  <ProtectedRoute isAuthenticated={isAuthenticated}>
+                  <VerifiedRoute isAuthenticated={isAuthenticated} userType={userType}>
                     <Lists />
-                  </ProtectedRoute>
+                  </VerifiedRoute>
                 }
               />
 
               <Route
                 path="/lists/:id/edit"
                 element={
-                  <ProtectedRoute isAuthenticated={isAuthenticated}>
+                  <VerifiedRoute isAuthenticated={isAuthenticated} userType={userType}>
                     <ListEdit />
-                  </ProtectedRoute>
+                  </VerifiedRoute>
                 }
               />
 
               <Route
                 path="/lists/:id"
                 element={
-                  <ProtectedRoute isAuthenticated={isAuthenticated}>
+                  <VerifiedRoute isAuthenticated={isAuthenticated} userType={userType}>
                     <ListDetail />
-                  </ProtectedRoute>
+                  </VerifiedRoute>
                 }
               />
 
               <Route
                 path="/lists/new"
                 element={
-                  <ProtectedRoute isAuthenticated={isAuthenticated}>
+                  <VerifiedRoute isAuthenticated={isAuthenticated} userType={userType}>
                     <ListsNew />
-                  </ProtectedRoute>
+                  </VerifiedRoute>
                 }
               />
 
@@ -235,18 +281,18 @@ const App = () => {
               <Route
                 path="/requests/new"
                 element={
-                  <ProtectedRoute isAuthenticated={isAuthenticated}>
+                  <VerifiedRoute isAuthenticated={isAuthenticated} userType={userType}>
                     <RequestsNew />
-                  </ProtectedRoute>
+                  </VerifiedRoute>
                 }
               />
 
               <Route
                 path="/requests/:id/respond"
                 element={
-                  <ProtectedRoute isAuthenticated={isAuthenticated}>
+                  <VerifiedRoute isAuthenticated={isAuthenticated} userType={userType}>
                     <RequestRespond />
-                  </ProtectedRoute>
+                  </VerifiedRoute>
                 }
               />
 
