@@ -168,19 +168,36 @@ const Index = () => {
         {/* Final CTA */}
         <section className="container mx-auto px-4 py-16 text-center">
           <h2 className="text-3xl font-bold">
-            {isStealthMode ? "Join the waitlist" : "Join the trusted community"}
+            {isStealthMode ? "Join the waitlist" : "Get Started with Antelog"}
           </h2>
           <p className="mt-3 text-muted-foreground max-w-2xl mx-auto">
             {isStealthMode 
               ? "Be among the first to experience the new social platform for students."
-              : "Only verified members can create and share lists."
+              : "Choose how you want to join our community of curated recommendations."
             }
           </p>
-          <div className="mt-6">
-            <Button asChild size="lg">
-              <Link to="/signup">{isStealthMode ? "Join Waitlist" : "Get Started"}</Link>
-            </Button>
+          <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center max-w-md mx-auto">
+            {isStealthMode ? (
+              <Button asChild size="lg" className="w-full">
+                <Link to="/signup">Join Waitlist</Link>
+              </Button>
+            ) : (
+              <>
+                <Button asChild variant="outline" size="lg" className="flex-1">
+                  <Link to="/guest-signup">Browse Directory</Link>
+                </Button>
+                <Button asChild size="lg" className="flex-1">
+                  <Link to="/signup">Get Verified</Link>
+                </Button>
+              </>
+            )}
           </div>
+          {!isStealthMode && (
+            <div className="mt-4 text-sm text-muted-foreground space-y-1">
+              <p><strong>Browse Directory</strong>: Free access to search all recommendations</p>
+              <p><strong>Get Verified</strong>: Create lists, build network, full platform access</p>
+            </div>
+          )}
         </section>
       </main>
     </>
