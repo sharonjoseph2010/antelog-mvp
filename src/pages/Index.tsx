@@ -184,7 +184,7 @@ const Index = () => {
             ) : (
               <>
                 <Button asChild variant="outline" size="lg" className="flex-1">
-                  <Link to="/directory">Directory</Link>
+                  <Link to="/guest-signup">Directory</Link>
                 </Button>
                 <Button asChild size="lg" className="flex-1">
                   <Link to="/signup">Get Verified</Link>

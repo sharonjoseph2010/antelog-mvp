@@ -149,7 +149,11 @@ const App = () => {
               <Route path="/" element={initializing ? <div className="min-h-screen flex items-center justify-center">Loading...</div> : (isAuthenticated ? <Navigate to="/dashboard" replace /> : <Index />)} />
               <Route path="/signup" element={<Signup />} />
             <Route path="/guest-signup" element={<GuestSignup />} />
-            <Route path="/directory" element={<Directory />} />
+            <Route path="/directory" element={
+              <ProtectedRoute isAuthenticated={isAuthenticated}>
+                <Directory />
+              </ProtectedRoute>
+            } />
             <Route path="/login" element={<Login />} />
 
               <Route
