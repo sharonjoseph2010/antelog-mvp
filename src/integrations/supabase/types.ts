@@ -691,6 +691,14 @@ export type Database = {
         Args: { entry_ids: string[] }
         Returns: undefined
       }
+      is_group_creator: {
+        Args: { group_id: string; user_id: string }
+        Returns: boolean
+      }
+      is_group_member: {
+        Args: { group_id: string; user_id: string }
+        Returns: boolean
+      }
       log_contact_access: {
         Args: { action_type: string; contact_id?: string }
         Returns: undefined
