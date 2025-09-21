@@ -46,129 +46,75 @@ const App = () => {
   const [userType, setUserType] = useState<'verified' | 'guest' | null>(null);
   const [initializing, setInitializing] = useState(true);
 
-  // Move auth logic to main App component
+  // Simplified auth logic
   useEffect(() => {
-    console.log('DEBUG: Starting auth listener setup');
+    console.log('INIT: App starting, setting up auth...');
     
-    const fetchUserType = async (userId: string) => {
+    let mounted = true;
+    
+    const initAuth = async () => {
       try {
-        console.log('DEBUG: Fetching user type for userId:', userId);
-        const { data: profile, error } = await supabase
-          .from('profiles')
-          .select('user_type, is_verified, verification_status')
-          .eq('id', userId)
-          .single();
-        
-        console.log('DEBUG: Profile query result:', profile, 'Error:', error);
-        
-        if (error) {
-          console.error('DEBUG: Profile fetch error:', error);
-          return 'guest';
-        }
-        
-        const userType = profile?.user_type || 'guest';
-        console.log('DEBUG: Determined user type:', userType);
-        return userType;
-      } catch (error) {
-        console.error('DEBUG: fetchUserType error:', error);
-        return 'guest';
-      }
-    };
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('DEBUG: Auth state change:', event, 'Session exists:', !!session);
-      console.log('DEBUG: Event details - userId:', session?.user?.id, 'timestamp:', new Date().toISOString());
-      
-      if (event === 'SIGNED_IN' && session) {
-        console.log('DEBUG: User signed in, processing session...');
-        setSession(session);
-        setUser(session.user);
-        
-        console.log('DEBUG: Getting user type and details...');
-        const userTypeResult = await fetchUserType(session.user.id);
-        console.log('DEBUG: User type fetch completed:', userTypeResult);
-        setUserType(userTypeResult);
-        
-        console.log('DEBUG: SIGNED_IN processing complete, setting initializing to false');
-        setInitializing(false);
-        return;
-      }
-      
-      if (event === 'SIGNED_OUT') {
-        console.log('DEBUG: User signed out, clearing state');
-        setSession(null);
-        setUser(null);
-        setUserType(null);
-        setInitializing(false);
-        return;
-      }
-      
-      // Handle other events
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        console.log('DEBUG: Other event with session, fetching user type...');
-        const userTypeResult = await fetchUserType(session.user.id);
-        console.log('DEBUG: User type result for other event:', userTypeResult);
-        setUserType(userTypeResult);
-      } else {
-        console.log('DEBUG: Other event without session, clearing user type');
-        setUserType(null);
-      }
-      
-      console.log('DEBUG: Setting initializing to false for event:', event);
-      setInitializing(false);
-    });
-
-    const initializeAuth = async () => {
-      console.log('DEBUG: Starting initializeAuth function');
-      try {
+        console.log('INIT: Getting current session...');
         const { data: { session }, error } = await supabase.auth.getSession();
-        console.log('DEBUG: getSession result:', { hasSession: !!session, userId: session?.user?.id, error });
+        
+        if (!mounted) return;
+        
+        console.log('INIT: Session check complete:', { 
+          hasSession: !!session, 
+          userId: session?.user?.id,
+          error: error?.message 
+        });
         
         if (error) {
-          console.error('DEBUG: getSession error:', error);
+          console.error('INIT: Session error:', error);
           setInitializing(false);
           return;
         }
         
-        if (!session) {
-          console.log('DEBUG: No existing session found, clearing states');
+        if (session?.user) {
+          console.log('INIT: User found, setting session...');
+          setSession(session);
+          setUser(session.user);
+          setUserType('verified'); // Default for now
+        } else {
+          console.log('INIT: No session found');
           setSession(null);
           setUser(null);
           setUserType(null);
-          setInitializing(false);
-          return;
         }
         
-        console.log('DEBUG: Existing session found, processing...');
-        setSession(session);
-        setUser(session.user);
-        
-        // Fetch user type for existing session
-        try {
-          console.log('DEBUG: Fetching user type for existing session...');
-          const userTypeResult = await fetchUserType(session.user.id);
-          console.log('DEBUG: Existing session user type result:', userTypeResult);
-          setUserType(userTypeResult);
-        } catch (error) {
-          console.error('DEBUG: Error fetching user type for existing session:', error);
-          setUserType('guest');
-        }
-        
-        console.log('DEBUG: Existing session processing complete, setting initializing to false');
+        console.log('INIT: Setting initializing to false');
         setInitializing(false);
+        
       } catch (error) {
-        console.error('DEBUG: Critical error in initializeAuth:', error);
-        setInitializing(false);
+        console.error('INIT: Fatal error:', error);
+        if (mounted) {
+          setInitializing(false);
+        }
       }
     };
-
-    initializeAuth();
-
+    
+    // Set up auth listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('AUTH: State change:', event, 'Has session:', !!session);
+      
+      if (!mounted) return;
+      
+      setSession(session);
+      setUser(session?.user ?? null);
+      setUserType(session?.user ? 'verified' : null);
+      
+      if (!initializing) {
+        console.log('AUTH: Auth change after init complete');
+      }
+    });
+    
+    // Initialize
+    initAuth();
+    
     return () => {
-      console.log("[Auth] Unsubscribing auth listener");
+      console.log('CLEANUP: Unmounting auth setup');
+      mounted = false;
       subscription.unsubscribe();
     };
   }, []);
