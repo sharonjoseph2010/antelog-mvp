@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -20,8 +20,6 @@ type LoginValues = z.infer<typeof loginSchema>;
 
 const Login = () => {
   const [loading, setLoading] = useState(false);
-  const [checkingAuth, setCheckingAuth] = useState(true);
-  const [shouldBlockLogin, setShouldBlockLogin] = useState(false);
   const navigate = useNavigate();
 
   const form = useForm<LoginValues>({
@@ -29,57 +27,6 @@ const Login = () => {
     defaultValues: { email: "", password: "" },
     mode: "onSubmit",
   });
-
-  // Check if user is already authenticated
-  useEffect(() => {
-    const checkExistingAuth = async () => {
-      try {
-        // Add timeout to prevent hanging
-        const authTimeout = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Auth check timeout')), 5000)
-        );
-        
-        const { data: { session }, error } = await Promise.race([
-          supabase.auth.getSession(),
-          authTimeout
-        ]);
-        
-        if (session?.user && !error) {
-          console.log("User already authenticated, redirecting to dashboard");
-          navigate("/dashboard", { replace: true });
-          return;
-        }
-        
-        // Double check with getUser as fallback
-        try {
-          const getUserTimeout = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('getUser timeout')), 3000)
-          );
-          
-          const { data: userData, error: userError } = await Promise.race([
-            supabase.auth.getUser(),
-            getUserTimeout
-          ]);
-          
-          if (userData?.user && !userError) {
-            console.log("User authenticated via getUser, redirecting to dashboard");
-            navigate("/dashboard", { replace: true });
-            return;
-          }
-        } catch (userCheckError) {
-          console.warn("getUser check failed:", userCheckError.message);
-        }
-        
-      } catch (error) {
-        console.warn("Auth check error:", error.message);
-        // Continue to login form if auth check fails or times out
-      }
-      
-      setCheckingAuth(false);
-    };
-
-    checkExistingAuth();
-  }, [navigate]);
 
   const postLoginRedirect = async (existingSession = null) => {
     
@@ -122,33 +69,22 @@ const Login = () => {
       const { data: profile, error } = profileResult;
 
       if (error) {
-        console.log("Profile query error - redirecting to profile-setup:", error);
         navigate("/profile-setup", { replace: true });
         return;
       }
 
       // No profile or missing essentials -> setup
       if (!profile || !profile.full_name || !profile.handle) {
-        console.log("Profile missing or incomplete - redirecting to profile-setup:", {
-          hasProfile: !!profile,
-          hasFullName: !!profile?.full_name,
-          hasHandle: !!profile?.handle,
-          profile: profile
-        });
         navigate("/profile-setup", { replace: true });
         return;
       }
 
-      console.log("Profile complete, checking verification:", profile.verification_status);
-
       if (profile.verification_status === "verified") {
-        console.log("User verified - redirecting to dashboard");
         navigate("/dashboard", { replace: true });
         return;
       }
 
       // Otherwise pending/rejected -> verify
-      console.log("User not verified - redirecting to verify");
       navigate("/verify", { replace: true });
       
     } catch (error) {
@@ -159,53 +95,9 @@ const Login = () => {
   };
 
   const onSubmit = async (values: LoginValues) => {
-    // Prevent form submission if login is blocked
-    if (shouldBlockLogin) {
-      console.log("Login submission blocked - user already authenticated");
-      toast.success("Already logged in!");
-      navigate("/dashboard", { replace: true });
-      return;
-    }
-    
     setLoading(true);
     
     try {
-      // Double-check auth state before attempting login with timeout
-      console.log("Checking auth state before login attempt...");
-      try {
-        const preAuthTimeout = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Pre-login auth check timeout')), 3000)
-        );
-        
-        const { data: { session } } = await Promise.race([
-          supabase.auth.getSession(),
-          preAuthTimeout
-        ]);
-        
-        if (session?.user) {
-          console.log("User already authenticated during login attempt, redirecting...");
-          toast.success("Already logged in!");
-          setShouldBlockLogin(true);
-          navigate("/dashboard", { replace: true });
-          setLoading(false);
-          return;
-        }
-      } catch (checkError) {
-        console.warn("Pre-login auth check failed:", checkError.message);
-        // Continue with login attempt only if no other auth state detected
-      }
-      
-      // Final safety check - prevent signInWithPassword if any blocking state
-      if (shouldBlockLogin) {
-        console.log("Login blocked during pre-auth check");
-        toast.success("Already logged in!");
-        navigate("/dashboard", { replace: true });
-        setLoading(false);
-        return;
-      }
-      
-      console.log("Proceeding with login attempt...");
-      
       // Add timeout to prevent infinite hanging
       const timeoutPromise = new Promise((_, reject) => 
         setTimeout(() => reject(new Error('signInWithPassword timeout after 30 seconds')), 30000)
@@ -280,62 +172,6 @@ const Login = () => {
     }
   };
 
-  // Show loading while checking existing authentication
-  if (checkingAuth) {
-    return (
-      <>
-        <Helmet>
-          <title>Sign in | Antelog</title>
-        </Helmet>
-        <main className="min-h-screen bg-background flex items-center justify-center px-4">
-          <div className="text-center">
-            <p className="text-muted-foreground">Checking authentication...</p>
-          </div>
-        </main>
-      </>
-    );
-  }
-
-  // Additional safeguard: quick auth check every few seconds while on login page
-  useEffect(() => {
-    const quickAuthCheck = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          setShouldBlockLogin(true);
-          console.log("Login form blocked - user authenticated");
-          toast.success("Already logged in!");
-          navigate("/dashboard", { replace: true });
-        }
-      } catch (error) {
-        console.warn("Quick auth check failed:", error.message);
-      }
-    };
-    
-    // Run initial check
-    quickAuthCheck();
-    
-    // Set up periodic check while on login page
-    const interval = setInterval(quickAuthCheck, 2000);
-    
-    return () => clearInterval(interval);
-  }, [navigate, setShouldBlockLogin]);
-
-  if (shouldBlockLogin) {
-    return (
-      <>
-        <Helmet>
-          <title>Sign in | Antelog</title>
-        </Helmet>
-        <main className="min-h-screen bg-background flex items-center justify-center px-4">
-          <div className="text-center">
-            <p className="text-muted-foreground">Already logged in, redirecting...</p>
-          </div>
-        </main>
-      </>
-    );
-  }
-
   return (
     <>
       <Helmet>
@@ -393,8 +229,8 @@ const Login = () => {
                     )}
                   />
 
-                  <Button type="submit" className="w-full" disabled={loading || shouldBlockLogin}>
-                    {shouldBlockLogin ? "Already logged in..." : loading ? "Signing in…" : "Sign in"}
+                  <Button type="submit" className="w-full" disabled={loading}>
+                    {loading ? "Signing in…" : "Sign in"}
                   </Button>
 
                   <p className="text-center text-sm text-muted-foreground">
