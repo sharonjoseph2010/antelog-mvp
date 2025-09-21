@@ -67,10 +67,15 @@ export type Database = {
       }
       contact_imports: {
         Row: {
+          consent_given: boolean | null
+          consent_timestamp: string | null
           contact_email: string | null
           contact_name: string
           contact_phone: string | null
           created_at: string
+          data_retention_expires_at: string | null
+          encrypted_email: string | null
+          encrypted_phone: string | null
           id: string
           import_source: string
           is_matched: boolean
@@ -79,10 +84,15 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          consent_given?: boolean | null
+          consent_timestamp?: string | null
           contact_email?: string | null
           contact_name: string
           contact_phone?: string | null
           created_at?: string
+          data_retention_expires_at?: string | null
+          encrypted_email?: string | null
+          encrypted_phone?: string | null
           id?: string
           import_source?: string
           is_matched?: boolean
@@ -91,10 +101,15 @@ export type Database = {
           user_id: string
         }
         Update: {
+          consent_given?: boolean | null
+          consent_timestamp?: string | null
           contact_email?: string | null
           contact_name?: string
           contact_phone?: string | null
           created_at?: string
+          data_retention_expires_at?: string | null
+          encrypted_email?: string | null
+          encrypted_phone?: string | null
           id?: string
           import_source?: string
           is_matched?: boolean
@@ -652,6 +667,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      cleanup_expired_contacts: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       get_current_user_role: {
         Args: Record<PropertyKey, never>
         Returns: Database["public"]["Enums"]["app_role"]
