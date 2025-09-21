@@ -67,6 +67,7 @@ useEffect(() => {
         setChecking(false);
         return;
       }
+      const userId = session.user.id;
       const isAdmin = session.user.email?.toLowerCase() === "sharonjoseph2010@gmail.com";
 
       let profile = null;
