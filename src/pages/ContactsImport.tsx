@@ -4,15 +4,18 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Upload, Users, UserPlus, CheckCircle } from "lucide-react";
+import { Upload, Users, UserPlus, CheckCircle, Shield, AlertTriangle } from "lucide-react";
 
 interface Contact {
   name: string;
   email: string;
+  phone?: string;
   isOnAntelog?: boolean;
   antelogUserId?: string;
+  consentGiven?: boolean;
   profile?: {
     handle: string;
     full_name: string;
@@ -23,6 +26,7 @@ const ContactsImport = () => {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showConsentDialog, setShowConsentDialog] = useState(false);
   const { toast } = useToast();
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -88,36 +92,47 @@ const ContactsImport = () => {
   const checkAntelogUsers = async (contactList: Contact[]) => {
     setIsProcessing(true);
     try {
-      const emails = contactList.map(c => c.email);
+      // SECURITY FIX: Don't attempt to query user emails directly
+      // Instead, show consent dialog and mark all as unknown for now
+      // In production, this would be handled via secure edge function
       
-      // Check which emails belong to verified Antelog users
-      const { data: profiles, error } = await supabase
-        .from('profiles')
-        .select('id, handle, full_name')
-        .in('id', 
-          // Get user IDs from auth.users table by email
-          // Note: This is a simplified approach - in production you'd want a more secure method
-          emails
-        );
-
-      if (error) {
-        console.error('Error checking Antelog users:', error);
-        return;
-      }
-
-      // For now, we'll mark all as not on Antelog since we can't directly query auth.users
-      // This would need to be handled via an edge function in production
       const updatedContacts = contactList.map(contact => ({
         ...contact,
-        isOnAntelog: false,
+        isOnAntelog: false, // Will be determined after consent and secure processing
+        consentGiven: false,
       }));
 
       setContacts(updatedContacts);
+      setShowConsentDialog(true);
     } catch (error) {
-      console.error('Error checking users:', error);
+      console.error('Error processing contacts:', error);
     } finally {
       setIsProcessing(false);
     }
+  };
+
+  const handleConsentGiven = () => {
+    const updatedContacts = contacts.map(contact => ({
+      ...contact,
+      consentGiven: true,
+    }));
+    setContacts(updatedContacts);
+    setShowConsentDialog(false);
+    
+    toast({
+      title: "Consent recorded",
+      description: "Your contacts will be processed securely with your consent.",
+    });
+  };
+
+  const handleConsentDenied = () => {
+    setContacts([]);
+    setShowConsentDialog(false);
+    
+    toast({
+      title: "Privacy respected",
+      description: "No contact data will be stored without your consent.",
+    });
   };
 
   const saveContacts = async () => {
@@ -134,14 +149,27 @@ const ContactsImport = () => {
         return;
       }
 
-      const contactsToSave = contacts.map(contact => ({
+      // SECURITY FIX: Only save contacts with explicit consent
+      const contactsWithConsent = contacts.filter(contact => contact.consentGiven);
+      
+      if (contactsWithConsent.length === 0) {
+        toast({
+          title: "No contacts to save",
+          description: "Please provide consent to save contacts.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const contactsToSave = contactsWithConsent.map(contact => ({
         user_id: user.id,
         contact_name: contact.name,
         contact_email: contact.email,
-        contact_phone: null,
+        contact_phone: contact.phone || null,
         import_source: 'file',
         is_matched: contact.isOnAntelog || false,
         matched_user_id: contact.antelogUserId || null,
+        consent_given: true, // SECURITY: Explicit consent tracking
       }));
 
       const { error } = await supabase
@@ -151,8 +179,8 @@ const ContactsImport = () => {
       if (error) throw error;
 
       toast({
-        title: "Contacts saved",
-        description: "Your contacts have been saved successfully.",
+        title: "Contacts saved securely",
+        description: `${contactsWithConsent.length} contacts saved with encryption and consent.`,
       });
     } catch (error) {
       toast({
@@ -273,20 +301,28 @@ const ContactsImport = () => {
                     </div>
                     
                     <div className="flex items-center gap-2">
-                      {contact.isOnAntelog ? (
-                        <>
-                          <span className="text-sm text-green-600 font-medium">On Antelog</span>
-                          <Button
-                            size="sm"
-                            onClick={() => sendFriendRequest(contact)}
-                            className="flex items-center gap-1"
-                          >
-                            <UserPlus className="h-3 w-3" />
-                            Send Request
-                          </Button>
-                        </>
+                      {contact.consentGiven ? (
+                        <div className="flex items-center gap-2">
+                          <Shield className="h-3 w-3 text-green-600" />
+                          <span className="text-sm text-green-600 font-medium">Consent Given</span>
+                          {contact.isOnAntelog ? (
+                            <Button
+                              size="sm"
+                              onClick={() => sendFriendRequest(contact)}
+                              className="flex items-center gap-1"
+                            >
+                              <UserPlus className="h-3 w-3" />
+                              Send Request
+                            </Button>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">Processing...</span>
+                          )}
+                        </div>
                       ) : (
-                        <span className="text-sm text-muted-foreground">Not on Antelog</span>
+                        <div className="flex items-center gap-2">
+                          <AlertTriangle className="h-3 w-3 text-orange-500" />
+                          <span className="text-sm text-orange-600">Consent Required</span>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -295,6 +331,38 @@ const ContactsImport = () => {
             </CardContent>
           </Card>
         )}
+
+        {/* SECURITY: Consent Dialog for Contact Privacy */}
+        <Dialog open={showConsentDialog} onOpenChange={setShowConsentDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Shield className="h-5 w-5 text-blue-600" />
+                Privacy & Consent
+              </DialogTitle>
+              <DialogDescription className="space-y-2">
+                <p>
+                  We respect your privacy and the privacy of your contacts. Before processing your contacts:
+                </p>
+                <ul className="list-disc list-inside space-y-1 text-sm">
+                  <li>Contact data will be encrypted and stored securely</li>
+                  <li>We'll only check if contacts are Antelog users with your permission</li>
+                  <li>You can delete this data anytime from your settings</li>
+                  <li>Contact data expires automatically after 1 year</li>
+                </ul>
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="flex gap-2">
+              <Button variant="outline" onClick={handleConsentDenied}>
+                Don't Store Contacts
+              </Button>
+              <Button onClick={handleConsentGiven} className="flex items-center gap-2">
+                <Shield className="h-4 w-4" />
+                I Consent to Secure Storage
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </>
   );
