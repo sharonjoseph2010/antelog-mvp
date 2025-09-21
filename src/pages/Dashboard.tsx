@@ -17,156 +17,61 @@ const Dashboard = () => {
 useEffect(() => {
   let mounted = true;
   (async () => {
-    try {
-      // Robust auth check with timeout fallback
-      
-      let session = null;
-      try {
-        // Try getSession with timeout first
-        const getSessionTimeout = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('getSession timeout')), 5000)
-        );
-        
-        const sessionResult = await Promise.race([
-          supabase.auth.getSession(), 
-          getSessionTimeout
-        ]);
-        session = sessionResult.data?.session;
-        
-        if (!session) {
-          // Fallback to getUser if getSession fails
-          const getUserTimeout = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('getUser timeout')), 5000)
-          );
-          
-          const userResult = await Promise.race([
-            supabase.auth.getUser(),
-            getUserTimeout
-          ]);
-          
-          if (userResult.data?.user) {
-            // Create minimal session from user data
-            session = {
-              user: userResult.data.user,
-              access_token: 'present'
-            };
-          }
-        }
-      } catch (error) {
-        console.warn("Dashboard auth calls timed out:", error.message);
-        // Route guards ensure authenticated users only reach this point
-      }
-      
-      if (!mounted) return;
-      
-      // If no session but we're on a protected route, show fallback state
-      if (!session?.user) {
-        setUserName("User");
-        setListCount(0);
-        setRecentLists([]);
-        setChecking(false);
+    console.info("[Dashboard] Checking session...");
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    console.info("[Dashboard] getSession:", { hasSession: !!session, userId: session?.user?.id, sessionError });
+    if (!mounted) return;
+    if (!session?.user) {
+      console.info("[Dashboard] No session, redirecting to /login");
+      navigate("/login", { replace: true });
+      return;
+    }
+
+    const userId = session.user.id;
+    const isAdmin = session.user.email?.toLowerCase() === "sharonjoseph2010@gmail.com";
+
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("full_name, handle, is_verified")
+      .eq("id", userId)
+      .maybeSingle();
+    console.info("[Dashboard] Profile lookup:", { profile, profileError });
+
+    if (!mounted) return;
+    if (!profile) {
+      if (isAdmin) {
+        console.info("[Dashboard] No profile found but user is admin — allowing dashboard access.");
+      } else {
+        console.info("[Dashboard] Missing profile, redirecting to /profile-setup with internal state");
+        navigate("/profile-setup", { replace: true, state: { internal: true, from: "/dashboard" } });
         return;
       }
-      const isAdmin = session.user.email?.toLowerCase() === "sharonjoseph2010@gmail.com";
-
-      let profile = null;
-      let profileError = null;
-      
-      try {
-        // Add timeout to profile query
-        const profileTimeout = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Profile query timeout')), 5000)
-        );
-        
-        const profileResult = await Promise.race([
-          supabase
-            .from("profiles")
-            .select("full_name, handle, is_verified")
-            .eq("id", userId)
-            .maybeSingle(),
-          profileTimeout
-        ]);
-        profile = profileResult.data;
-        profileError = profileResult.error;
-      } catch (error) {
-        console.warn("Dashboard profile query failed:", error.message);
-        // Continue without profile data
-      }
-
-      if (!mounted) return;
-      if (!profile) {
-        if (isAdmin) {
-          // Admin can access without profile
-        } else {
-          navigate("/profile-setup", { replace: true, state: { internal: true, from: "/dashboard" } });
-          return;
-        }
-      }
-
-      const name = (profile?.full_name as string) || (profile?.handle as string) || (session.user.email ?? "User");
-      setUserName(name);
-
-      // Lists count query with timeout
-      try {
-        const countTimeout = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Lists count timeout')), 5000)
-        );
-        
-        const countResult = await Promise.race([
-          supabase
-            .from("lists")
-            .select("id", { count: "exact", head: true })
-            .eq("owner_id", userId),
-          countTimeout
-        ]);
-        const { count, error: countError } = countResult;
-        if (countError) {
-          console.warn("Dashboard lists count error:", countError);
-        }
-        setListCount(count ?? 0);
-      } catch (error) {
-        console.warn("Dashboard lists count query failed:", error.message);
-        setListCount(0);
-      }
-
-      // Recent lists query with timeout
-      try {
-        const recentTimeout = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Recent lists timeout')), 5000)
-        );
-        
-        const recentResult = await Promise.race([
-          supabase
-            .from("lists")
-            .select("id,title,created_at")
-            .eq("owner_id", userId)
-            .order("created_at", { ascending: false })
-            .limit(3),
-          recentTimeout
-        ]);
-        const { data: recent, error: recentError } = recentResult;
-        if (recentError) {
-          console.warn("Dashboard recent lists error:", recentError);
-        }
-        setRecentLists((recent ?? []) as any);
-      } catch (error) {
-        console.warn("Dashboard recent lists query failed:", error.message);
-        setRecentLists([]);
-      }
-
-      setChecking(false);
-      
-    } catch (error) {
-      console.error("Dashboard load failed:", error.message);
-      
-      // Set fallback values and continue
-      if (!mounted) return;
-      
-      setUserName("User");
-      setListCount(0);
-      setRecentLists([]);
-      setChecking(false);
     }
+
+    const name = (profile?.full_name as string) || (profile?.handle as string) || (session.user.email ?? "there");
+    setUserName(name);
+
+    const { count, error: countError } = await supabase
+      .from("lists")
+      .select("id", { count: "exact", head: true })
+      .eq("owner_id", userId);
+    if (countError) {
+      console.warn("[Dashboard] lists count error", countError);
+    }
+    setListCount(count ?? 0);
+
+    const { data: recent, error: recentError } = await supabase
+      .from("lists")
+      .select("id,title,created_at")
+      .eq("owner_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(3);
+    if (recentError) {
+      console.warn("[Dashboard] recent lists error", recentError);
+    }
+    setRecentLists((recent ?? []) as any);
+
+    setChecking(false);
   })();
   return () => { setChecking(false); mounted = false; };
 }, [navigate]);
