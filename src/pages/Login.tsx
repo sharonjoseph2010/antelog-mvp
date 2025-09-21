@@ -91,7 +91,6 @@ const Login = () => {
       toast.error("Something went wrong. Please try again.");
       setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleForgotPassword = async () => {
