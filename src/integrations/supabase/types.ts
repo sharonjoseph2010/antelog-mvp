@@ -704,7 +704,11 @@ export type Database = {
       app_role: "admin" | "moderator" | "user"
       list_category: "films" | "places" | "products" | "services" | "other"
       list_visibility: "private" | "friends" | "public"
-      request_audience_type: "friends" | "extended_network" | "specific_group"
+      request_audience_type:
+        | "friends"
+        | "extended_network"
+        | "specific_group"
+        | "public"
       request_category: "films" | "places" | "products" | "services" | "other"
       request_status: "open" | "responded" | "closed"
       response_type: "existing_list" | "new_recommendations" | "comment"
@@ -841,7 +845,12 @@ export const Constants = {
       app_role: ["admin", "moderator", "user"],
       list_category: ["films", "places", "products", "services", "other"],
       list_visibility: ["private", "friends", "public"],
-      request_audience_type: ["friends", "extended_network", "specific_group"],
+      request_audience_type: [
+        "friends",
+        "extended_network",
+        "specific_group",
+        "public",
+      ],
       request_category: ["films", "places", "products", "services", "other"],
       request_status: ["open", "responded", "closed"],
       response_type: ["existing_list", "new_recommendations", "comment"],
