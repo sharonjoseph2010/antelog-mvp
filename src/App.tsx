@@ -46,65 +46,7 @@ const App = () => {
   const [userType, setUserType] = useState<'verified' | 'guest' | null>(null);
   const [initializing, setInitializing] = useState(true);
 
-  if (initializing) {
-    console.log('DEBUG: App still initializing... Current states:', {
-      hasSession: !!session,
-      hasUser: !!user,
-      userType,
-      timestamp: new Date().toISOString()
-    });
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-pulse">Loading...</div>
-          <div className="mt-2 text-sm text-muted-foreground">
-            Initializing authentication...
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <HelmetProvider>
-      <QueryClientProvider client={queryClient}>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
-              <AppContent 
-                session={session} 
-                setSession={setSession}
-                user={user} 
-                setUser={setUser}
-                userType={userType} 
-                setUserType={setUserType}
-                initializing={initializing}
-                setInitializing={setInitializing}
-              />
-            </BrowserRouter>
-          </TooltipProvider>
-        </ThemeProvider>
-      </QueryClientProvider>
-    </HelmetProvider>
-  );
-};
-
-const AppContent = ({ 
-  session, setSession, user, setUser, userType, setUserType, initializing, setInitializing 
-}: {
-  session: Session | null;
-  setSession: (session: Session | null) => void;
-  user: User | null;
-  setUser: (user: User | null) => void;
-  userType: 'verified' | 'guest' | null;
-  setUserType: (type: 'verified' | 'guest' | null) => void;
-  initializing: boolean;
-  setInitializing: (init: boolean) => void;
-}) => {
-  const navigate = useNavigate();
-
+  // Move auth logic to main App component
   useEffect(() => {
     console.log('DEBUG: Starting auth listener setup');
     
@@ -231,6 +173,65 @@ const AppContent = ({
     };
   }, []);
 
+  if (initializing) {
+    console.log('DEBUG: App still initializing... Current states:', {
+      hasSession: !!session,
+      hasUser: !!user,
+      userType,
+      timestamp: new Date().toISOString()
+    });
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-pulse">Loading...</div>
+          <div className="mt-2 text-sm text-muted-foreground">
+            Initializing authentication...
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <HelmetProvider>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <AppContent 
+                session={session} 
+                setSession={setSession}
+                user={user} 
+                setUser={setUser}
+                userType={userType} 
+                setUserType={setUserType}
+                initializing={initializing}
+                setInitializing={setInitializing}
+              />
+            </BrowserRouter>
+          </TooltipProvider>
+        </ThemeProvider>
+      </QueryClientProvider>
+    </HelmetProvider>
+  );
+};
+
+const AppContent = ({ 
+  session, setSession, user, setUser, userType, setUserType, initializing, setInitializing 
+}: {
+  session: Session | null;
+  setSession: (session: Session | null) => void;
+  user: User | null;
+  setUser: (user: User | null) => void;
+  userType: 'verified' | 'guest' | null;
+  setUserType: (type: 'verified' | 'guest' | null) => void;
+  initializing: boolean;
+  setInitializing: (init: boolean) => void;
+}) => {
+  const navigate = useNavigate();
+
   // Handle navigation after authentication state is set
   useEffect(() => {
     console.log("[Auth] Navigation effect triggered:", { initializing, hasSession: !!session?.user, pathname: window.location.pathname });
@@ -320,11 +321,6 @@ const AppContent = ({
     currentPath: window.location.pathname,
     timestamp: new Date().toISOString()
   });
-
-  if (initializing) {
-    console.log('DEBUG: AppContent still initializing, showing loading screen');
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
-  }
 
   const handleLogout = async () => {
     try {
