@@ -146,7 +146,7 @@ const App = () => {
               onLogout={handleLogout} 
             />
             <Routes>
-              <Route path="/" element={initializing ? <div className="min-h-screen flex items-center justify-center">Loading...</div> : (isAuthenticated ? <Navigate to="/dashboard" replace /> : <Index />)} />
+              <Route path="/" element={initializing ? <div className="min-h-screen flex items-center justify-center">Loading...</div> : <Index />} />
               <Route path="/signup" element={<Signup />} />
             <Route path="/guest-signup" element={<GuestSignup />} />
             <Route path="/directory" element={
