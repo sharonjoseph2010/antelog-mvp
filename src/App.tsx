@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import { ThemeProvider } from "next-themes";
 import { useEffect, useState } from "react";
@@ -37,6 +37,7 @@ import type { Session, User } from "@supabase/supabase-js";
 import { ProtectedRoute, AdminRoute, InternalRoute, VerifiedRoute } from "@/components/routes/RouteGuards";
 import Directory from "./pages/Directory";
 import GuestSignup from "./pages/GuestSignup";
+
 const queryClient = new QueryClient();
 
 const App = () => {
@@ -45,59 +46,92 @@ const App = () => {
   const [userType, setUserType] = useState<'verified' | 'guest' | null>(null);
   const [initializing, setInitializing] = useState(true);
 
+  return (
+    <HelmetProvider>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <AppContent 
+                session={session} 
+                setSession={setSession}
+                user={user} 
+                setUser={setUser}
+                userType={userType} 
+                setUserType={setUserType}
+                initializing={initializing}
+                setInitializing={setInitializing}
+              />
+            </BrowserRouter>
+          </TooltipProvider>
+        </ThemeProvider>
+      </QueryClientProvider>
+    </HelmetProvider>
+  );
+};
+
+const AppContent = ({ 
+  session, setSession, user, setUser, userType, setUserType, initializing, setInitializing 
+}: {
+  session: Session | null;
+  setSession: (session: Session | null) => void;
+  user: User | null;
+  setUser: (user: User | null) => void;
+  userType: 'verified' | 'guest' | null;
+  setUserType: (type: 'verified' | 'guest' | null) => void;
+  initializing: boolean;
+  setInitializing: (init: boolean) => void;
+}) => {
+  const navigate = useNavigate();
+
   useEffect(() => {
     console.log("[Auth] Initializing auth listener...");
+    
+    const fetchUserType = async (userId: string) => {
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('user_type')
+          .eq('id', userId)
+          .single();
+        
+        return profile?.user_type || 'guest';
+      } catch (error) {
+        console.error("[Auth] Error fetching user type:", error);
+        return 'guest';
+      }
+    };
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log("[Auth] onAuthStateChange:", event, { hasSession: !!session, userId: session?.user?.id });
+      
       setSession(session);
       setUser(session?.user ?? null);
       
-      // Fetch user type when session changes
       if (session?.user) {
-        try {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('user_type')
-            .eq('id', session.user.id)
-            .single();
-          
-          setUserType(profile?.user_type || 'guest');
-        } catch (error) {
-          console.error("[Auth] Error fetching user type:", error);
-          setUserType('guest');
-        }
-      } else {
-        setUserType(null);
-      }
-    });
-
-    const initializeAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      console.log("[Auth] getSession result:", { hasSession: !!session, userId: session?.user?.id });
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      // Fetch user type for initial session
-      if (session?.user) {
-        try {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('user_type')
-            .eq('id', session.user.id)
-            .single();
-          
-          setUserType(profile?.user_type || 'guest');
-        } catch (error) {
-          console.error("[Auth] Error fetching user type:", error);
-          setUserType('guest');
-        }
+        const userTypeResult = await fetchUserType(session.user.id);
+        setUserType(userTypeResult);
       } else {
         setUserType(null);
       }
       
       setInitializing(false);
+    });
+
+    const initializeAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      console.log("[Auth] getSession result:", { hasSession: !!session, userId: session?.user?.id });
+      
+      if (!session) {
+        setSession(null);
+        setUser(null);
+        setUserType(null);
+        setInitializing(false);
+      }
     };
-    
+
     initializeAuth();
 
     return () => {
@@ -105,6 +139,61 @@ const App = () => {
       subscription.unsubscribe();
     };
   }, []);
+
+  // Handle navigation after authentication state is set
+  useEffect(() => {
+    if (initializing || !session?.user) return;
+
+    const handlePostAuthNavigation = async () => {
+      const userId = session.user.id;
+      
+      try {
+        const { data: profile, error } = await supabase
+          .from("profiles")
+          .select("full_name, handle, verification_status")
+          .eq("id", userId)
+          .maybeSingle();
+
+        if (error) {
+          console.error("[Auth] Profile fetch error:", error);
+          if (window.location.pathname !== "/profile-setup") {
+            navigate("/profile-setup", { replace: true });
+          }
+          return;
+        }
+
+        // No profile or missing essentials -> setup
+        if (!profile || !profile.full_name || !profile.handle) {
+          if (window.location.pathname !== "/profile-setup") {
+            navigate("/profile-setup", { replace: true });
+          }
+          return;
+        }
+
+        if (profile.verification_status === "verified") {
+          if (window.location.pathname !== "/dashboard") {
+            navigate("/dashboard", { replace: true });
+          }
+          return;
+        }
+
+        // Otherwise pending/rejected -> verify
+        if (window.location.pathname !== "/verify") {
+          navigate("/verify", { replace: true });
+        }
+      } catch (error) {
+        console.error("[Auth] Navigation error:", error);
+        if (window.location.pathname !== "/profile-setup") {
+          navigate("/profile-setup", { replace: true });
+        }
+      }
+    };
+
+    // Only navigate if we're on login/signup pages after successful auth
+    if (["/login", "/signup", "/"].includes(window.location.pathname)) {
+      handlePostAuthNavigation();
+    }
+  }, [session, initializing, navigate]);
 
   const isAuthenticated = !!user?.id;
   const isAdmin = user?.email === "sharonjoseph2010@gmail.com";
@@ -132,211 +221,201 @@ const App = () => {
   };
 
   return (
-    <HelmetProvider>
-      <QueryClientProvider client={queryClient}>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Header 
-              isAuthenticated={isAuthenticated} 
-              isAdmin={isAdmin} 
-              userType={userType}
-              onLogout={handleLogout} 
-            />
-            <Routes>
-              <Route path="/" element={initializing ? <div className="min-h-screen flex items-center justify-center">Loading...</div> : <Index />} />
-              <Route path="/signup" element={<Signup />} />
-            <Route path="/guest-signup" element={<GuestSignup />} />
-            <Route path="/directory" element={
-              <ProtectedRoute isAuthenticated={isAuthenticated}>
-                <Directory />
-              </ProtectedRoute>
-            } />
-            <Route path="/login" element={<Login />} />
+    <>
+      <Header 
+        isAuthenticated={isAuthenticated} 
+        isAdmin={isAdmin} 
+        userType={userType}
+        onLogout={handleLogout} 
+      />
+      <Routes>
+        <Route path="/" element={initializing ? <div className="min-h-screen flex items-center justify-center">Loading...</div> : <Index />} />
+        <Route path="/signup" element={<Signup />} />
+        <Route path="/guest-signup" element={<GuestSignup />} />
+        <Route path="/directory" element={
+          <ProtectedRoute isAuthenticated={isAuthenticated}>
+            <Directory />
+          </ProtectedRoute>
+        } />
+        <Route path="/login" element={<Login />} />
 
-              <Route
-                path="/dashboard"
-                element={
-                  <VerifiedRoute isAuthenticated={isAuthenticated} userType={userType}>
-                    <Dashboard />
-                  </VerifiedRoute>
-                }
-              />
+        <Route
+          path="/dashboard"
+          element={
+            <VerifiedRoute isAuthenticated={isAuthenticated} userType={userType}>
+              <Dashboard />
+            </VerifiedRoute>
+          }
+        />
 
-              <Route
-                path="/lists"
-                element={
-                  <VerifiedRoute isAuthenticated={isAuthenticated} userType={userType}>
-                    <Lists />
-                  </VerifiedRoute>
-                }
-              />
+        <Route
+          path="/lists"
+          element={
+            <VerifiedRoute isAuthenticated={isAuthenticated} userType={userType}>
+              <Lists />
+            </VerifiedRoute>
+          }
+        />
 
-              <Route
-                path="/lists/:id/edit"
-                element={
-                  <VerifiedRoute isAuthenticated={isAuthenticated} userType={userType}>
-                    <ListEdit />
-                  </VerifiedRoute>
-                }
-              />
+        <Route
+          path="/lists/:id/edit"
+          element={
+            <VerifiedRoute isAuthenticated={isAuthenticated} userType={userType}>
+              <ListEdit />
+            </VerifiedRoute>
+          }
+        />
 
-              <Route
-                path="/lists/:id"
-                element={
-                  <VerifiedRoute isAuthenticated={isAuthenticated} userType={userType}>
-                    <ListDetail />
-                  </VerifiedRoute>
-                }
-              />
+        <Route
+          path="/lists/:id"
+          element={
+            <VerifiedRoute isAuthenticated={isAuthenticated} userType={userType}>
+              <ListDetail />
+            </VerifiedRoute>
+          }
+        />
 
-              <Route
-                path="/lists/new"
-                element={
-                  <VerifiedRoute isAuthenticated={isAuthenticated} userType={userType}>
-                    <ListsNew />
-                  </VerifiedRoute>
-                }
-              />
+        <Route
+          path="/lists/new"
+          element={
+            <VerifiedRoute isAuthenticated={isAuthenticated} userType={userType}>
+              <ListsNew />
+            </VerifiedRoute>
+          }
+        />
 
-              <Route
-                path="/friends"
-                element={
-                  <ProtectedRoute isAuthenticated={isAuthenticated}>
-                    <Friends />
-                  </ProtectedRoute>
-                }
-              />
+        <Route
+          path="/friends"
+          element={
+            <ProtectedRoute isAuthenticated={isAuthenticated}>
+              <Friends />
+            </ProtectedRoute>
+          }
+        />
 
-              <Route
-                path="/contacts"
-                element={
-                  <ProtectedRoute isAuthenticated={isAuthenticated}>
-                    <ContactsOverview />
-                  </ProtectedRoute>
-                }
-              />
+        <Route
+          path="/contacts"
+          element={
+            <ProtectedRoute isAuthenticated={isAuthenticated}>
+              <ContactsOverview />
+            </ProtectedRoute>
+          }
+        />
 
-              <Route
-                path="/contacts/import"
-                element={
-                  <ProtectedRoute isAuthenticated={isAuthenticated}>
-                    <ContactsImportHub />
-                  </ProtectedRoute>
-                }
-              />
+        <Route
+          path="/contacts/import"
+          element={
+            <ProtectedRoute isAuthenticated={isAuthenticated}>
+              <ContactsImportHub />
+            </ProtectedRoute>
+          }
+        />
 
-              <Route
-                path="/contacts/legacy"
-                element={
-                  <ProtectedRoute isAuthenticated={isAuthenticated}>
-                    <ContactsImport />
-                  </ProtectedRoute>
-                }
-              />
+        <Route
+          path="/contacts/legacy"
+          element={
+            <ProtectedRoute isAuthenticated={isAuthenticated}>
+              <ContactsImport />
+            </ProtectedRoute>
+          }
+        />
 
-              <Route
-                path="/network/extended"
-                element={
-                  <ProtectedRoute isAuthenticated={isAuthenticated}>
-                    <ExtendedNetwork />
-                  </ProtectedRoute>
-                }
-              />
+        <Route
+          path="/network/extended"
+          element={
+            <ProtectedRoute isAuthenticated={isAuthenticated}>
+              <ExtendedNetwork />
+            </ProtectedRoute>
+          }
+        />
 
-              <Route
-                path="/groups"
-                element={
-                  <ProtectedRoute isAuthenticated={isAuthenticated}>
-                    <Groups />
-                  </ProtectedRoute>
-                }
-              />
+        <Route
+          path="/groups"
+          element={
+            <ProtectedRoute isAuthenticated={isAuthenticated}>
+              <Groups />
+            </ProtectedRoute>
+          }
+        />
 
-              <Route
-                path="/groups/new"
-                element={
-                  <ProtectedRoute isAuthenticated={isAuthenticated}>
-                    <GroupsNew />
-                  </ProtectedRoute>
-                }
-              />
+        <Route
+          path="/groups/new"
+          element={
+            <ProtectedRoute isAuthenticated={isAuthenticated}>
+              <GroupsNew />
+            </ProtectedRoute>
+          }
+        />
 
-              <Route
-                path="/groups/:id"
-                element={
-                  <ProtectedRoute isAuthenticated={isAuthenticated}>
-                    <GroupDetail />
-                  </ProtectedRoute>
-                }
-              />
+        <Route
+          path="/groups/:id"
+          element={
+            <ProtectedRoute isAuthenticated={isAuthenticated}>
+              <GroupDetail />
+            </ProtectedRoute>
+          }
+        />
 
-              <Route
-                path="/requests"
-                element={
-                  <ProtectedRoute isAuthenticated={isAuthenticated}>
-                    <Requests />
-                  </ProtectedRoute>
-                }
-              />
+        <Route
+          path="/requests"
+          element={
+            <ProtectedRoute isAuthenticated={isAuthenticated}>
+              <Requests />
+            </ProtectedRoute>
+          }
+        />
 
-              <Route
-                path="/requests/new"
-                element={
-                  <VerifiedRoute isAuthenticated={isAuthenticated} userType={userType}>
-                    <RequestsNew />
-                  </VerifiedRoute>
-                }
-              />
+        <Route
+          path="/requests/new"
+          element={
+            <VerifiedRoute isAuthenticated={isAuthenticated} userType={userType}>
+              <RequestsNew />
+            </VerifiedRoute>
+          }
+        />
 
-              <Route
-                path="/requests/:id/respond"
-                element={
-                  <VerifiedRoute isAuthenticated={isAuthenticated} userType={userType}>
-                    <RequestRespond />
-                  </VerifiedRoute>
-                }
-              />
+        <Route
+          path="/requests/:id/respond"
+          element={
+            <VerifiedRoute isAuthenticated={isAuthenticated} userType={userType}>
+              <RequestRespond />
+            </VerifiedRoute>
+          }
+        />
 
-              <Route
-                path="/admin"
-                element={
-                  <AdminRoute isAuthenticated={isAuthenticated} isAdmin={isAdmin}>
-                    <Admin />
-                  </AdminRoute>
-                }
-              />
+        <Route
+          path="/admin"
+          element={
+            <AdminRoute isAuthenticated={isAuthenticated} isAdmin={isAdmin}>
+              <Admin />
+            </AdminRoute>
+          }
+        />
 
-              <Route
-                path="/profile-setup"
-                element={
-                  <InternalRoute isAuthenticated={isAuthenticated}>
-                    <ProfileSetup />
-                  </InternalRoute>
-                }
-              />
+        <Route
+          path="/profile-setup"
+          element={
+            <InternalRoute isAuthenticated={isAuthenticated}>
+              <ProfileSetup />
+            </InternalRoute>
+          }
+        />
 
-              <Route
-                path="/verify"
-                element={
-                  <InternalRoute isAuthenticated={isAuthenticated}>
-                    <Verify />
-                  </InternalRoute>
-                }
-              />
+        <Route
+          path="/verify"
+          element={
+            <InternalRoute isAuthenticated={isAuthenticated}>
+              <Verify />
+            </InternalRoute>
+          }
+        />
 
-              <Route path="/auth/callback" element={<AuthCallback />} />
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-            <Footer isAuthenticated={isAuthenticated} />
-          </BrowserRouter>
-        </TooltipProvider>
-      </ThemeProvider>
-      </QueryClientProvider>
-    </HelmetProvider>
+        <Route path="/auth/callback" element={<AuthCallback />} />
+        {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+      <Footer isAuthenticated={isAuthenticated} />
+    </>
   );
 };
 
