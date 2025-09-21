@@ -46,6 +46,25 @@ const App = () => {
   const [userType, setUserType] = useState<'verified' | 'guest' | null>(null);
   const [initializing, setInitializing] = useState(true);
 
+  if (initializing) {
+    console.log('DEBUG: App still initializing... Current states:', {
+      hasSession: !!session,
+      hasUser: !!user,
+      userType,
+      timestamp: new Date().toISOString()
+    });
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-pulse">Loading...</div>
+          <div className="mt-2 text-sm text-muted-foreground">
+            Initializing authentication...
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <HelmetProvider>
       <QueryClientProvider client={queryClient}>
@@ -87,70 +106,119 @@ const AppContent = ({
   const navigate = useNavigate();
 
   useEffect(() => {
-    console.log("[Auth] Initializing auth listener...");
+    console.log('DEBUG: Starting auth listener setup');
     
     const fetchUserType = async (userId: string) => {
       try {
-        const { data: profile } = await supabase
+        console.log('DEBUG: Fetching user type for userId:', userId);
+        const { data: profile, error } = await supabase
           .from('profiles')
-          .select('user_type')
+          .select('user_type, is_verified, verification_status')
           .eq('id', userId)
           .single();
         
-        return profile?.user_type || 'guest';
+        console.log('DEBUG: Profile query result:', profile, 'Error:', error);
+        
+        if (error) {
+          console.error('DEBUG: Profile fetch error:', error);
+          return 'guest';
+        }
+        
+        const userType = profile?.user_type || 'guest';
+        console.log('DEBUG: Determined user type:', userType);
+        return userType;
       } catch (error) {
-        console.error("[Auth] Error fetching user type:", error);
+        console.error('DEBUG: fetchUserType error:', error);
         return 'guest';
       }
     };
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log("[Auth] onAuthStateChange:", event, { hasSession: !!session, userId: session?.user?.id });
+      console.log('DEBUG: Auth state change:', event, 'Session exists:', !!session);
+      console.log('DEBUG: Event details - userId:', session?.user?.id, 'timestamp:', new Date().toISOString());
       
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        console.log("[Auth] Fetching user type for:", session.user.id);
+      if (event === 'SIGNED_IN' && session) {
+        console.log('DEBUG: User signed in, processing session...');
+        setSession(session);
+        setUser(session.user);
+        
+        console.log('DEBUG: Getting user type and details...');
         const userTypeResult = await fetchUserType(session.user.id);
-        console.log("[Auth] User type result:", userTypeResult);
+        console.log('DEBUG: User type fetch completed:', userTypeResult);
         setUserType(userTypeResult);
-      } else {
-        console.log("[Auth] No session, clearing user type");
-        setUserType(null);
+        
+        console.log('DEBUG: SIGNED_IN processing complete, setting initializing to false');
+        setInitializing(false);
+        return;
       }
       
-      console.log("[Auth] Setting initializing to false");
-      setInitializing(false);
-    });
-
-    const initializeAuth = async () => {
-      console.log("[Auth] Starting initializeAuth");
-      const { data: { session } } = await supabase.auth.getSession();
-      console.log("[Auth] getSession result:", { hasSession: !!session, userId: session?.user?.id });
-      
-      if (!session) {
-        console.log("[Auth] No session found, clearing states");
+      if (event === 'SIGNED_OUT') {
+        console.log('DEBUG: User signed out, clearing state');
         setSession(null);
         setUser(null);
         setUserType(null);
         setInitializing(false);
+        return;
+      }
+      
+      // Handle other events
+      setSession(session);
+      setUser(session?.user ?? null);
+      
+      if (session?.user) {
+        console.log('DEBUG: Other event with session, fetching user type...');
+        const userTypeResult = await fetchUserType(session.user.id);
+        console.log('DEBUG: User type result for other event:', userTypeResult);
+        setUserType(userTypeResult);
       } else {
-        console.log("[Auth] Existing session found, processing...");
+        console.log('DEBUG: Other event without session, clearing user type');
+        setUserType(null);
+      }
+      
+      console.log('DEBUG: Setting initializing to false for event:', event);
+      setInitializing(false);
+    });
+
+    const initializeAuth = async () => {
+      console.log('DEBUG: Starting initializeAuth function');
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        console.log('DEBUG: getSession result:', { hasSession: !!session, userId: session?.user?.id, error });
+        
+        if (error) {
+          console.error('DEBUG: getSession error:', error);
+          setInitializing(false);
+          return;
+        }
+        
+        if (!session) {
+          console.log('DEBUG: No existing session found, clearing states');
+          setSession(null);
+          setUser(null);
+          setUserType(null);
+          setInitializing(false);
+          return;
+        }
+        
+        console.log('DEBUG: Existing session found, processing...');
         setSession(session);
         setUser(session.user);
         
         // Fetch user type for existing session
         try {
+          console.log('DEBUG: Fetching user type for existing session...');
           const userTypeResult = await fetchUserType(session.user.id);
-          console.log("[Auth] Existing session user type:", userTypeResult);
+          console.log('DEBUG: Existing session user type result:', userTypeResult);
           setUserType(userTypeResult);
         } catch (error) {
-          console.error("[Auth] Error fetching user type for existing session:", error);
+          console.error('DEBUG: Error fetching user type for existing session:', error);
           setUserType('guest');
         }
         
-        console.log("[Auth] Existing session processing complete");
+        console.log('DEBUG: Existing session processing complete, setting initializing to false');
+        setInitializing(false);
+      } catch (error) {
+        console.error('DEBUG: Critical error in initializeAuth:', error);
         setInitializing(false);
       }
     };
@@ -241,6 +309,22 @@ const AppContent = ({
 
   const isAuthenticated = !!user?.id;
   const isAdmin = user?.email === "sharonjoseph2010@gmail.com";
+
+  console.log('DEBUG: AppContent render - States:', {
+    initializing,
+    hasSession: !!session,
+    hasUser: !!user,
+    userType,
+    isAuthenticated,
+    isAdmin,
+    currentPath: window.location.pathname,
+    timestamp: new Date().toISOString()
+  });
+
+  if (initializing) {
+    console.log('DEBUG: AppContent still initializing, showing loading screen');
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  }
 
   const handleLogout = async () => {
     try {
