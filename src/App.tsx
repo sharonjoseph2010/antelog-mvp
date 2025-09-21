@@ -111,23 +111,46 @@ const AppContent = ({
       setUser(session?.user ?? null);
       
       if (session?.user) {
+        console.log("[Auth] Fetching user type for:", session.user.id);
         const userTypeResult = await fetchUserType(session.user.id);
+        console.log("[Auth] User type result:", userTypeResult);
         setUserType(userTypeResult);
       } else {
+        console.log("[Auth] No session, clearing user type");
         setUserType(null);
       }
       
+      console.log("[Auth] Setting initializing to false");
       setInitializing(false);
     });
 
     const initializeAuth = async () => {
+      console.log("[Auth] Starting initializeAuth");
       const { data: { session } } = await supabase.auth.getSession();
       console.log("[Auth] getSession result:", { hasSession: !!session, userId: session?.user?.id });
       
       if (!session) {
+        console.log("[Auth] No session found, clearing states");
         setSession(null);
         setUser(null);
         setUserType(null);
+        setInitializing(false);
+      } else {
+        console.log("[Auth] Existing session found, processing...");
+        setSession(session);
+        setUser(session.user);
+        
+        // Fetch user type for existing session
+        try {
+          const userTypeResult = await fetchUserType(session.user.id);
+          console.log("[Auth] Existing session user type:", userTypeResult);
+          setUserType(userTypeResult);
+        } catch (error) {
+          console.error("[Auth] Error fetching user type for existing session:", error);
+          setUserType('guest');
+        }
+        
+        console.log("[Auth] Existing session processing complete");
         setInitializing(false);
       }
     };
@@ -142,10 +165,21 @@ const AppContent = ({
 
   // Handle navigation after authentication state is set
   useEffect(() => {
-    if (initializing || !session?.user) return;
+    console.log("[Auth] Navigation effect triggered:", { initializing, hasSession: !!session?.user, pathname: window.location.pathname });
+    
+    if (initializing) {
+      console.log("[Auth] Still initializing, skipping navigation");
+      return;
+    }
+    
+    if (!session?.user) {
+      console.log("[Auth] No user session, skipping navigation");
+      return;
+    }
 
     const handlePostAuthNavigation = async () => {
       const userId = session.user.id;
+      console.log("[Auth] Starting post-auth navigation for user:", userId);
       
       try {
         const { data: profile, error } = await supabase
@@ -157,14 +191,18 @@ const AppContent = ({
         if (error) {
           console.error("[Auth] Profile fetch error:", error);
           if (window.location.pathname !== "/profile-setup") {
+            console.log("[Auth] Navigating to profile setup due to error");
             navigate("/profile-setup", { replace: true });
           }
           return;
         }
 
+        console.log("[Auth] Profile data:", profile);
+
         // No profile or missing essentials -> setup
         if (!profile || !profile.full_name || !profile.handle) {
           if (window.location.pathname !== "/profile-setup") {
+            console.log("[Auth] Navigating to profile setup - incomplete profile");
             navigate("/profile-setup", { replace: true });
           }
           return;
@@ -172,6 +210,7 @@ const AppContent = ({
 
         if (profile.verification_status === "verified") {
           if (window.location.pathname !== "/dashboard") {
+            console.log("[Auth] Navigating to dashboard - verified user");
             navigate("/dashboard", { replace: true });
           }
           return;
@@ -179,11 +218,13 @@ const AppContent = ({
 
         // Otherwise pending/rejected -> verify
         if (window.location.pathname !== "/verify") {
+          console.log("[Auth] Navigating to verify - pending/rejected status");
           navigate("/verify", { replace: true });
         }
       } catch (error) {
         console.error("[Auth] Navigation error:", error);
         if (window.location.pathname !== "/profile-setup") {
+          console.log("[Auth] Navigating to profile setup due to navigation error");
           navigate("/profile-setup", { replace: true });
         }
       }
@@ -191,7 +232,10 @@ const AppContent = ({
 
     // Only navigate if we're on login/signup pages after successful auth
     if (["/login", "/signup", "/"].includes(window.location.pathname)) {
+      console.log("[Auth] Current path requires post-auth navigation");
       handlePostAuthNavigation();
+    } else {
+      console.log("[Auth] Current path doesn't require post-auth navigation");
     }
   }, [session, initializing, navigate]);
 
