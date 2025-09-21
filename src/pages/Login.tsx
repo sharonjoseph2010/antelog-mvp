@@ -74,19 +74,21 @@ const Login = () => {
             ? "Invalid email or password."
             : error.message;
         toast.error(msg);
+        setLoading(false);
         return;
       }
 
       if (data?.user) {
         toast.success("Welcome back!");
         await postLoginRedirect();
+        setLoading(false);
         return;
       }
 
       toast.error("Could not sign in. Please try again.");
+      setLoading(false);
     } catch (e) {
       toast.error("Something went wrong. Please try again.");
-    } finally {
       setLoading(false);
     }
   };
