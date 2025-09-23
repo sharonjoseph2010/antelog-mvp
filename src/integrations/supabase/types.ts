@@ -398,6 +398,48 @@ export type Database = {
           },
         ]
       }
+      master_directory_entries: {
+        Row: {
+          category: Database["public"]["Enums"]["list_category"]
+          created_at: string
+          display_content: string
+          id: string
+          latest_mention_at: string
+          mention_count: number
+          mentioned_by_users: string[]
+          normalized_content: string
+          total_search_count: number
+          updated_at: string
+          url: string | null
+        }
+        Insert: {
+          category: Database["public"]["Enums"]["list_category"]
+          created_at?: string
+          display_content: string
+          id?: string
+          latest_mention_at: string
+          mention_count?: number
+          mentioned_by_users?: string[]
+          normalized_content: string
+          total_search_count?: number
+          updated_at?: string
+          url?: string | null
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["list_category"]
+          created_at?: string
+          display_content?: string
+          id?: string
+          latest_mention_at?: string
+          mention_count?: number
+          mentioned_by_users?: string[]
+          normalized_content?: string
+          total_search_count?: number
+          updated_at?: string
+          url?: string | null
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           created_at: string
@@ -664,7 +706,19 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      master_directory_view: {
+        Row: {
+          category: Database["public"]["Enums"]["list_category"] | null
+          display_content: string | null
+          latest_mention_at: string | null
+          mention_count: number | null
+          mentioned_by_users: string[] | null
+          normalized_content: string | null
+          total_search_count: number | null
+          url: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       cleanup_expired_contacts: {
@@ -682,6 +736,16 @@ export type Database = {
           handle: string
           mutual_friends: string[]
           profile_id: string
+        }[]
+      }
+      get_network_contributors: {
+        Args: { contributor_ids: string[]; user_id_param: string }
+        Returns: {
+          contributor_id: string
+          full_name: string
+          handle: string
+          is_extended_network: boolean
+          is_friend: boolean
         }[]
       }
       get_safe_profile_data: {
@@ -720,6 +784,10 @@ export type Database = {
         Args: { contact_value: string }
         Returns: string
       }
+      increment_master_directory_search_count: {
+        Args: { entry_ids: string[] }
+        Returns: undefined
+      }
       increment_search_count: {
         Args: { entry_ids: string[] }
         Returns: undefined
@@ -734,6 +802,10 @@ export type Database = {
       }
       log_contact_access: {
         Args: { action_type: string; contact_id?: string }
+        Returns: undefined
+      }
+      refresh_master_directory: {
+        Args: Record<PropertyKey, never>
         Returns: undefined
       }
       validate_authenticated_user: {

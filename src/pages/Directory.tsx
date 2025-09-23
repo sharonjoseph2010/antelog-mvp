@@ -10,18 +10,25 @@ import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
-interface DirectoryEntry {
+interface MasterDirectoryEntry {
   id: string;
-  content: string;
+  display_content: string;
+  normalized_content: string;
   category: string;
   url?: string;
-  vote_count: number;
-  search_count: number;
-  contributor_name?: string;
-  contributor_handle?: string;
-  contributor_id?: string;
-  is_network_connection?: boolean;
-  created_at: string;
+  mention_count: number;
+  mentioned_by_users: string[];
+  total_search_count: number;
+  latest_mention_at: string;
+  network_contributors?: NetworkContributor[];
+}
+
+interface NetworkContributor {
+  contributor_id: string;
+  full_name: string;
+  handle: string;
+  is_friend: boolean;
+  is_extended_network: boolean;
 }
 
 interface ContributorProfile {
@@ -49,7 +56,7 @@ export default function Directory() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [sortBy, setSortBy] = useState("relevance");
-  const [results, setResults] = useState<DirectoryEntry[]>([]);
+  const [results, setResults] = useState<MasterDirectoryEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [userType, setUserType] = useState<'verified' | 'guest' | null>(null);
@@ -85,23 +92,24 @@ export default function Directory() {
     setHasSearched(true);
 
     try {
-      // First get directory entries
+      // Search the new master directory entries
       let query = supabase
-        .from('directory_entries')
+        .from('master_directory_entries')
         .select(`
           id,
-          content,
+          display_content,
+          normalized_content,
           category,
           url,
-          vote_count,
-          search_count,
-          contributor_id,
-          created_at
+          mention_count,
+          mentioned_by_users,
+          total_search_count,
+          latest_mention_at
         `);
 
       // Apply search filters
       if (searchQuery.trim()) {
-        query = query.textSearch('content', searchQuery.trim());
+        query = query.textSearch('display_content', searchQuery.trim());
       }
 
       if (selectedCategory && selectedCategory !== "all") {
@@ -111,84 +119,62 @@ export default function Directory() {
       // Apply sorting
       switch (sortBy) {
         case 'votes':
-          query = query.order('vote_count', { ascending: false });
+          query = query.order('mention_count', { ascending: false });
           break;
         case 'popular':
-          query = query.order('search_count', { ascending: false });
+          query = query.order('total_search_count', { ascending: false });
           break;
         case 'recent':
-          query = query.order('created_at', { ascending: false });
+          query = query.order('latest_mention_at', { ascending: false });
           break;
         default:
-          // For relevance, combine vote_count and search_count
-          query = query.order('vote_count', { ascending: false })
-                      .order('search_count', { ascending: false });
+          // For relevance, combine mention_count and search_count
+          query = query.order('mention_count', { ascending: false })
+                      .order('total_search_count', { ascending: false });
       }
 
       const { data, error } = await query.limit(50);
 
       if (error) throw error;
 
-      // Get contributor info separately
-      let processedResults: DirectoryEntry[] = [];
+      // Get network contributor info for verified users
+      let processedResults: MasterDirectoryEntry[] = [];
       
       if (data && data.length > 0) {
-        const contributorIds = [...new Set(data.map(item => item.contributor_id))];
-        
-        // Get contributor profiles
-        const { data: contributors } = await supabase
-          .from('profiles')
-          .select('id, full_name, handle')
-          .in('id', contributorIds);
-
-        const contributorMap = new Map(contributors?.map(c => [c.id, c]) || []);
-
-        // Check network connections for verified users
-        let friendIds = new Set<string>();
-        let extendedIds = new Set<string>();
-        
         if (userType === 'verified') {
           const { data: { session } } = await supabase.auth.getSession();
           if (session) {
-            // Check direct friends
-            const { data: friendships } = await supabase
-              .from('friendships')
-              .select('user1_id, user2_id')
-              .or(`user1_id.eq.${session.user.id},user2_id.eq.${session.user.id}`);
+            // Get all unique contributor IDs
+            const allContributorIds = [...new Set(
+              data.flatMap(item => item.mentioned_by_users || [])
+            )];
 
-            friendships?.forEach(f => {
-              if (f.user1_id === session.user.id) friendIds.add(f.user2_id);
-              if (f.user2_id === session.user.id) friendIds.add(f.user1_id);
-            });
+            // Get network contributor info
+            const { data: networkContributors } = await supabase
+              .rpc('get_network_contributors', {
+                user_id_param: session.user.id,
+                contributor_ids: allContributorIds
+              });
 
-            // Check extended network
-            const { data: extendedNetwork } = await supabase
-              .rpc('get_extended_network', { user_id: session.user.id });
+            // Create a map for easy lookup
+            const contributorMap = new Map(
+              networkContributors?.map(c => [c.contributor_id, c]) || []
+            );
 
-            extendedNetwork?.forEach(n => {
-              if (n.profile_id) extendedIds.add(n.profile_id);
-            });
+            processedResults = data.map(item => ({
+              ...item,
+              network_contributors: item.mentioned_by_users
+                ?.map(userId => contributorMap.get(userId))
+                .filter(Boolean) || []
+            }));
           }
+        } else {
+          // For guest users, no network contributor info
+          processedResults = data.map(item => ({ 
+            ...item, 
+            network_contributors: [] 
+          }));
         }
-
-        processedResults = data.map(item => {
-          const contributor = contributorMap.get(item.contributor_id);
-          const isInNetwork = friendIds.has(item.contributor_id) || extendedIds.has(item.contributor_id);
-          
-          return {
-            id: item.id,
-            content: item.content,
-            category: item.category,
-            url: item.url,
-            vote_count: item.vote_count,
-            search_count: item.search_count,
-            created_at: item.created_at,
-            contributor_id: item.contributor_id,
-            contributor_name: (userType === 'verified' && isInNetwork) ? contributor?.full_name : undefined,
-            contributor_handle: (userType === 'verified' && isInNetwork) ? contributor?.handle : undefined,
-            is_network_connection: isInNetwork
-          };
-        });
       }
 
       setResults(processedResults);
@@ -206,7 +192,7 @@ export default function Directory() {
 
       // Increment search count for returned results
       if (processedResults.length > 0) {
-        await supabase.rpc('increment_search_count', {
+        await supabase.rpc('increment_master_directory_search_count', {
           entry_ids: processedResults.map(r => r.id)
         });
       }
@@ -223,60 +209,8 @@ export default function Directory() {
     }
   };
 
-  const voteOnEntry = async (entryId: string, voteType: 'upvote' | 'downvote') => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      toast({
-        title: "Please sign in to vote",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    try {
-      // Check if user already voted
-      const { data: existingVote } = await supabase
-        .from('directory_votes')
-        .select('id, vote_type')
-        .eq('entry_id', entryId)
-        .eq('voter_id', session.user.id)
-        .single();
-
-      if (existingVote) {
-        if (existingVote.vote_type === voteType) {
-          // Remove vote
-          await supabase
-            .from('directory_votes')
-            .delete()
-            .eq('id', existingVote.id);
-        } else {
-          // Update vote
-          await supabase
-            .from('directory_votes')
-            .update({ vote_type: voteType })
-            .eq('id', existingVote.id);
-        }
-      } else {
-        // Create new vote
-        await supabase
-          .from('directory_votes')
-          .insert({
-            entry_id: entryId,
-            voter_id: session.user.id,
-            vote_type: voteType
-          });
-      }
-
-      // Refresh results
-      searchDirectory();
-    } catch (error: any) {
-      toast({
-        title: "Voting failed",
-        description: error.message,
-        variant: "destructive"
-      });
-    }
-  };
+  // Note: In the master directory, vote count represents unique user mentions
+  // User voting on directory entries is separate from mention counting
 
   return (
     <>
@@ -397,7 +331,7 @@ export default function Directory() {
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-2">
-                              <h3 className="font-semibold text-lg">{entry.content}</h3>
+                              <h3 className="font-semibold text-lg">{entry.display_content}</h3>
                               {entry.url && (
                                 <Button
                                   variant="ghost"
@@ -421,29 +355,29 @@ export default function Directory() {
                                 {entry.category}
                               </Badge>
                               
-                              {entry.contributor_name && entry.is_network_connection && (
+                              {entry.network_contributors && entry.network_contributors.length > 0 && (
                                 <div className="flex items-center gap-1">
                                   <Users className="h-3 w-3" />
-                                  <span>by {entry.contributor_name}</span>
+                                  <span>by {entry.network_contributors.map(c => c.full_name).join(', ')}</span>
                                 </div>
                               )}
                               
                               <div className="flex items-center gap-1">
                                 <TrendingUp className="h-3 w-3" />
-                                <span>{entry.search_count} searches</span>
+                                <span>{entry.total_search_count} searches</span>
                               </div>
                             </div>
                           </div>
 
                           <div className="flex items-center gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => voteOnEntry(entry.id, 'upvote')}
-                              className="text-muted-foreground hover:text-green-600"
-                            >
-                              ↑ {entry.vote_count}
-                            </Button>
+                            <div className="text-center">
+                              <div className="text-sm font-medium text-green-600">
+                                ↑ {entry.mention_count}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {entry.mention_count === 1 ? 'person' : 'people'}
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </CardContent>
