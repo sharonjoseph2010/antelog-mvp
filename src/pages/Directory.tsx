@@ -107,9 +107,10 @@ export default function Directory() {
           latest_mention_at
         `);
 
-      // Apply search filters
+      // Apply search filters with broader matching
       if (searchQuery.trim()) {
-        query = query.textSearch('display_content', searchQuery.trim());
+        const searchTerm = searchQuery.trim();
+        query = query.or(`display_content.ilike.%${searchTerm}%,normalized_content.ilike.%${searchTerm}%`);
       }
 
       if (selectedCategory && selectedCategory !== "all") {
@@ -375,7 +376,7 @@ export default function Directory() {
                                 ↑ {entry.mention_count}
                               </div>
                               <div className="text-xs text-muted-foreground">
-                                {entry.mention_count === 1 ? 'person' : 'people'}
+                                Recommended by {entry.mention_count === 1 ? '1 person' : `${entry.mention_count} people`}
                               </div>
                             </div>
                           </div>
