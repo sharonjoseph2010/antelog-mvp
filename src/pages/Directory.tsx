@@ -104,13 +104,14 @@ export default function Directory() {
           mention_count,
           mentioned_by_users,
           total_search_count,
-          latest_mention_at
+          latest_mention_at,
+          searchable_text
         `);
 
-      // Apply search filters with broader matching
+      // Apply search filters with broader matching across content and list titles
       if (searchQuery.trim()) {
         const searchTerm = searchQuery.trim();
-        query = query.or(`display_content.ilike.%${searchTerm}%,normalized_content.ilike.%${searchTerm}%`);
+        query = query.or(`display_content.ilike.%${searchTerm}%,normalized_content.ilike.%${searchTerm}%,searchable_text.ilike.%${searchTerm}%`);
       }
 
       if (selectedCategory && selectedCategory !== "all") {

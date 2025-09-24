@@ -408,6 +408,7 @@ export type Database = {
           mention_count: number
           mentioned_by_users: string[]
           normalized_content: string
+          searchable_text: string | null
           total_search_count: number
           updated_at: string
           url: string | null
@@ -421,6 +422,7 @@ export type Database = {
           mention_count?: number
           mentioned_by_users?: string[]
           normalized_content: string
+          searchable_text?: string | null
           total_search_count?: number
           updated_at?: string
           url?: string | null
@@ -434,6 +436,7 @@ export type Database = {
           mention_count?: number
           mentioned_by_users?: string[]
           normalized_content?: string
+          searchable_text?: string | null
           total_search_count?: number
           updated_at?: string
           url?: string | null
@@ -714,6 +717,7 @@ export type Database = {
           mention_count: number | null
           mentioned_by_users: string[] | null
           normalized_content: string | null
+          searchable_text: string | null
           total_search_count: number | null
           url: string | null
         }
