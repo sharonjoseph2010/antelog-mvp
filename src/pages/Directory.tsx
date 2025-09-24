@@ -111,7 +111,9 @@ export default function Directory() {
       // Apply search filters with broader matching across content and list titles
       if (searchQuery.trim()) {
         const searchTerm = searchQuery.trim();
+        console.log('Search term:', searchTerm);
         query = query.or(`display_content.ilike.%${searchTerm}%,normalized_content.ilike.%${searchTerm}%,searchable_text.ilike.%${searchTerm}%`);
+        console.log('Query after or filter applied');
       }
 
       if (selectedCategory && selectedCategory !== "all") {
@@ -136,6 +138,8 @@ export default function Directory() {
       }
 
       const { data, error } = await query.limit(50);
+      
+      console.log('Query result:', { data, error, dataLength: data?.length });
 
       if (error) throw error;
 
