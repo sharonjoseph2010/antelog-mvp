@@ -20,6 +20,7 @@ export const useSmartSuggestions = () => {
   const [categorySuggestions, setCategorySuggestions] = useState<CategorySuggestion[]>([]);
 
   const getSuggestions = useCallback(async (input: string, listCategory?: string) => {
+    // Clear suggestions if input is too short
     if (!input || input.length < 2) {
       setSuggestions([]);
       return;
@@ -33,13 +34,16 @@ export const useSmartSuggestions = () => {
       
       if (error) {
         console.error('AI suggestions error:', error);
-        throw error;
+        // Don't throw - just set empty suggestions to avoid breaking form
+        setSuggestions([]);
+        return;
       }
       
       const suggestions = data?.suggestions || [];
       setSuggestions(suggestions);
     } catch (error) {
       console.error('Error getting smart suggestions:', error);
+      // Gracefully handle errors - don't break the form
       setSuggestions([]);
     } finally {
       setLoading(false);
