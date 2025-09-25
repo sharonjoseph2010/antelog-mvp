@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
+import { AdminDeduplication } from "@/components/AdminDeduplication";
 
 type PendingProfile = {
   id: string;
@@ -116,7 +117,10 @@ const Admin = () => {
           )}
 
           {isAdmin && (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <>
+              <AdminDeduplication />
+              
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {loading && (
                 <Card className="sm:col-span-2 lg:col-span-3">
                   <CardHeader>
@@ -166,6 +170,7 @@ const Admin = () => {
                 </Card>
               ))}
             </div>
+            </>
           )}
         </section>
       </main>
