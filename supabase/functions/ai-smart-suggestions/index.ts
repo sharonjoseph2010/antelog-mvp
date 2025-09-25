@@ -12,10 +12,14 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  console.log('🚀 ai-smart-suggestions function called');
+
   try {
     const { input, listCategory } = await req.json();
+    console.log('📝 Parsed request body:', { input, listCategory });
     
     if (!input || input.length < 2) {
+      console.log('❌ Input validation failed:', { input, length: input?.length });
       return new Response(JSON.stringify({ suggestions: [] }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -25,17 +29,27 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const geminiKey = Deno.env.get('GEMINI_API_KEY')!;
     
+    console.log('🔧 Environment check:', { 
+      hasSupabaseUrl: !!supabaseUrl,
+      hasSupabaseKey: !!supabaseKey, 
+      hasGeminiKey: !!geminiKey 
+    });
+    
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     // First, search existing master directory entries
-    const { data: existingEntries } = await supabase
+    console.log('🔍 Searching existing entries...');
+    const { data: existingEntries, error: searchError } = await supabase
       .from('master_directory_entries')
       .select('display_content, normalized_content, category, mention_count')
       .or(`display_content.ilike.%${input}%,normalized_content.ilike.%${input}%`)
       .order('mention_count', { ascending: false })
       .limit(5);
 
+    console.log('📊 Existing entries result:', { existingEntries, searchError, count: existingEntries?.length });
+
     // Use Gemini to enhance suggestions and provide smart completions
+    console.log('🤖 Calling Gemini API...');
     const geminiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${geminiKey}`, {
       method: 'POST',
       headers: {
@@ -60,18 +74,24 @@ serve(async (req) => {
     });
 
     let aiSuggestions = [];
+    console.log('🌐 Gemini response status:', geminiResponse.status);
     if (geminiResponse.ok) {
       const geminiData = await geminiResponse.json();
+      console.log('🤖 Gemini data:', geminiData);
       const content = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
       if (content) {
         try {
           // Clean up the response to ensure it's valid JSON
           const cleanContent = content.replace(/```json\n?|\n?```/g, '').trim();
+          console.log('🧹 Cleaned content:', cleanContent);
           aiSuggestions = JSON.parse(cleanContent);
+          console.log('✅ Parsed AI suggestions:', aiSuggestions);
         } catch (parseError) {
-          console.error('Failed to parse AI suggestions:', parseError);
+          console.error('❌ Failed to parse AI suggestions:', parseError, 'Content:', content);
         }
       }
+    } else {
+      console.error('❌ Gemini API error:', await geminiResponse.text());
     }
 
     // Combine existing entries with AI suggestions
@@ -94,13 +114,14 @@ serve(async (req) => {
       }));
 
     const allSuggestions = [...existingSuggestions, ...newSuggestions].slice(0, 8);
+    console.log('📋 Final suggestions:', allSuggestions);
 
     return new Response(JSON.stringify({ suggestions: allSuggestions }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
-    console.error('Error in ai-smart-suggestions:', error);
+    console.error('💥 Unhandled error in ai-smart-suggestions:', error);
     return new Response(JSON.stringify({ error: (error as Error).message, suggestions: [] }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

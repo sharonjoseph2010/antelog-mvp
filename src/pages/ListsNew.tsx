@@ -291,33 +291,48 @@ const ListsNew = () => {
                                   <Input 
                                     placeholder="One-line recommendation" 
                                     {...field}
-                                    onChange={(e) => {
-                                      field.onChange(e);
-                                      setActiveInputIndex(index);
-                                      if (e.target.value.length >= 2) {
-                                        getSuggestions(e.target.value, form.getValues('category'));
-                                        setSuggestionsOpen(true);
-                                      } else {
-                                        setSuggestionsOpen(false);
-                                      }
-                                    }}
-                                    onFocus={() => {
-                                      setActiveInputIndex(index);
-                                      if (field.value.length >= 2) {
-                                        getSuggestions(field.value, form.getValues('category'));
-                                        setSuggestionsOpen(true);
-                                      }
-                                    }}
+                                     onChange={(e) => {
+                                       console.log('🎯 Input onChange:', { value: e.target.value, index, length: e.target.value.length });
+                                       field.onChange(e);
+                                       setActiveInputIndex(index);
+                                       if (e.target.value.length >= 2) {
+                                         console.log('✅ Triggering getSuggestions...');
+                                         getSuggestions(e.target.value, form.getValues('category'));
+                                         setSuggestionsOpen(true);
+                                       } else {
+                                         console.log('❌ Input too short, closing suggestions');
+                                         setSuggestionsOpen(false);
+                                       }
+                                     }}
+                                     onFocus={() => {
+                                       console.log('🎯 Input onFocus:', { value: field.value, index, length: field.value.length });
+                                       setActiveInputIndex(index);
+                                       if (field.value.length >= 2) {
+                                         console.log('✅ Triggering getSuggestions on focus...');
+                                         getSuggestions(field.value, form.getValues('category'));
+                                         setSuggestionsOpen(true);
+                                       }
+                                     }}
                                   />
                                 </PopoverTrigger>
                                 <PopoverContent className="w-80 p-0" align="start">
                                   <Command>
                                     <CommandList>
-                                      {suggestionsLoading ? (
-                                        <CommandEmpty>Loading suggestions...</CommandEmpty>
-                                      ) : suggestions.length === 0 ? (
-                                        <CommandEmpty>No suggestions found.</CommandEmpty>
-                                      ) : (
+                                       {(() => {
+                                         console.log('🎨 Rendering suggestions UI:', { 
+                                           suggestionsLoading, 
+                                           suggestionsLength: suggestions.length, 
+                                           suggestions,
+                                           activeInputIndex,
+                                           suggestionsOpen 
+                                         });
+                                         return null;
+                                       })()}
+                                       {suggestionsLoading ? (
+                                         <CommandEmpty>Loading suggestions...</CommandEmpty>
+                                       ) : suggestions.length === 0 ? (
+                                         <CommandEmpty>No suggestions found.</CommandEmpty>
+                                       ) : (
                                         <>
                                           {suggestions.filter(s => s.type === 'existing').length > 0 && (
                                             <CommandGroup heading="Existing entries">
