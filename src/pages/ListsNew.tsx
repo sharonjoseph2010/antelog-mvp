@@ -10,11 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
-import { useState, useEffect } from "react";
-import { useSmartSuggestions } from "@/hooks/useSmartSuggestions";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Sparkles } from "lucide-react";
+import { useState } from "react";
 
 const categoryOptions = [
   { label: "Films", value: "films" as const },
@@ -55,10 +51,6 @@ type ListFormValues = z.infer<typeof ListSchema>;
 const ListsNew = () => {
   const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
-  const { suggestions, loading: suggestionsLoading, getSuggestions, getCategorySuggestions } = useSmartSuggestions();
-  const [activeInputIndex, setActiveInputIndex] = useState<number | null>(null);
-  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
-  const [autoSuggestCategory, setAutoSuggestCategory] = useState(true);
 
   const form = useForm<ListFormValues>({
     resolver: zodResolver(ListSchema),
@@ -76,27 +68,6 @@ const ListsNew = () => {
     name: "items",
   });
 
-  // Auto-suggest category when items change
-  useEffect(() => {
-    if (autoSuggestCategory && fields.length > 0) {
-      const nonEmptyItems = fields.filter(field => field.content.trim());
-      if (nonEmptyItems.length > 0) {
-        const itemContents = nonEmptyItems.map(field => field.content);
-        getCategorySuggestions(itemContents).then(suggestions => {
-          if (suggestions.length > 0 && suggestions[0].confidence > 0.7) {
-            const suggestedCategory = suggestions[0].category;
-            if (form.getValues('category') === 'films') { // Only auto-change from default
-              form.setValue('category', suggestedCategory as any);
-              toast({
-                title: "Smart Category Suggestion",
-                description: `Detected category: ${suggestedCategory}`,
-              });
-            }
-          }
-        });
-      }
-    }
-  }, [fields, autoSuggestCategory, getCategorySuggestions, form, toast]);
 
   const onSubmit = async (values: ListFormValues) => {
     try {
@@ -281,92 +252,12 @@ const ListsNew = () => {
                         name={`items.${index}.content` as const}
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="flex items-center gap-2">
-                              Content
-                              <Sparkles className="h-4 w-4 text-primary" />
-                            </FormLabel>
+                            <FormLabel>Content</FormLabel>
                             <FormControl>
-                              <Popover open={suggestionsOpen && activeInputIndex === index} onOpenChange={setSuggestionsOpen}>
-                                <PopoverTrigger asChild>
-                                  <Input 
-                                    placeholder="One-line recommendation" 
-                                    {...field}
-                                     onChange={(e) => {
-                                        field.onChange(e);
-                                        setActiveInputIndex(index);
-                                        if (e.target.value.length >= 2) {
-                                          getSuggestions(e.target.value, form.getValues('category'));
-                                          setSuggestionsOpen(true);
-                                        } else {
-                                          setSuggestionsOpen(false);
-                                        }
-                                      }}
-                                      onFocus={() => {
-                                        setActiveInputIndex(index);
-                                        if (field.value.length >= 2) {
-                                          getSuggestions(field.value, form.getValues('category'));
-                                          setSuggestionsOpen(true);
-                                        }
-                                      }}
-                                  />
-                                </PopoverTrigger>
-                                <PopoverContent className="w-80 p-0" align="start">
-                                  <Command>
-                                    <CommandList>
-                                       {suggestionsLoading ? (
-                                         <CommandEmpty>Loading suggestions...</CommandEmpty>
-                                       ) : suggestions.length === 0 ? (
-                                         <CommandEmpty>No suggestions found.</CommandEmpty>
-                                       ) : (
-                                        <>
-                                          {suggestions.filter(s => s.type === 'existing').length > 0 && (
-                                            <CommandGroup heading="Existing entries">
-                                              {suggestions
-                                                .filter(s => s.type === 'existing')
-                                                .map((suggestion, i) => (
-                                                  <CommandItem
-                                                    key={i}
-                                                    onSelect={() => {
-                                                      field.onChange(suggestion.text);
-                                                      setSuggestionsOpen(false);
-                                                    }}
-                                                  >
-                                                    <div className="flex justify-between w-full">
-                                                      <span>{suggestion.text}</span>
-                                                      <span className="text-xs text-muted-foreground">
-                                                        {suggestion.mentions} mentions
-                                                      </span>
-                                                    </div>
-                                                  </CommandItem>
-                                                ))}
-                                            </CommandGroup>
-                                          )}
-                                          {suggestions.filter(s => s.type === 'new').length > 0 && (
-                                            <CommandGroup heading="AI suggestions">
-                                              {suggestions
-                                                .filter(s => s.type === 'new')
-                                                .map((suggestion, i) => (
-                                                  <CommandItem
-                                                    key={i}
-                                                    onSelect={() => {
-                                                      field.onChange(suggestion.text);
-                                                      setSuggestionsOpen(false);
-                                                    }}
-                                                  >
-                                                    <div className="flex items-center gap-2">
-                                                      <Sparkles className="h-3 w-3 text-primary" />
-                                                      <span>{suggestion.text}</span>
-                                                    </div>
-                                                  </CommandItem>
-                                                ))}
-                                            </CommandGroup>
-                                          )}
-                                        </>
-                                      )}
-                                    </CommandList>
-                                  </Command>
-                                </PopoverContent>
-                              </Popover>
+                              <Input 
+                                placeholder="One-line recommendation" 
+                                {...field}
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
