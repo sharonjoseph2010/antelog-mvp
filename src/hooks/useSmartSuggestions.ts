@@ -20,37 +20,28 @@ export const useSmartSuggestions = () => {
   const [categorySuggestions, setCategorySuggestions] = useState<CategorySuggestion[]>([]);
 
   const getSuggestions = useCallback(async (input: string, listCategory?: string) => {
-    console.log('🎯 getSuggestions called with:', { input, listCategory, inputLength: input?.length });
-    
     if (!input || input.length < 2) {
-      console.log('❌ Input too short, clearing suggestions');
       setSuggestions([]);
       return;
     }
 
-    console.log('🔄 Starting getSuggestions request...');
     setLoading(true);
     try {
-      console.log('📡 Invoking ai-smart-suggestions edge function...');
       const { data, error } = await supabase.functions.invoke('ai-smart-suggestions', {
         body: { input, listCategory }
       });
-
-      console.log('📨 Edge function response:', { data, error });
       
       if (error) {
-        console.error('❌ Edge function error:', error);
+        console.error('AI suggestions error:', error);
         throw error;
       }
       
       const suggestions = data?.suggestions || [];
-      console.log('✅ Setting suggestions:', suggestions);
       setSuggestions(suggestions);
     } catch (error) {
-      console.error('💥 Error getting smart suggestions:', error);
+      console.error('Error getting smart suggestions:', error);
       setSuggestions([]);
     } finally {
-      console.log('🏁 getSuggestions complete, loading = false');
       setLoading(false);
     }
   }, []);
