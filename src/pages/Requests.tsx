@@ -7,8 +7,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { MessageSquare, Plus, Clock, CheckCircle, XCircle, MapPin, Users, User, UserCheck } from "lucide-react";
+import { MessageSquare, Plus, Clock, CheckCircle, XCircle, MapPin, Users, User, UserCheck, Share2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { NetworkPath } from "@/components/NetworkPath";
+import { ForwardRequestDialog } from "@/components/ForwardRequestDialog";
 
 interface Request {
   id: string;
@@ -19,11 +21,24 @@ interface Request {
   status: string;
   created_at: string;
   updated_at: string;
+  creator_id: string;
   creator_profile?: {
     full_name: string;
     handle: string;
   };
   response_count?: number;
+  forwarding_chain?: Array<{
+    user_id: string;
+    user_name: string;
+    user_handle: string;
+  }>;
+  degree_of_separation?: number | null;
+  connection_path?: string[];
+}
+
+interface Group {
+  id: string;
+  name: string;
 }
 
 export default function Requests() {
@@ -34,10 +49,31 @@ export default function Requests() {
   const [receivedRequests, setReceivedRequests] = useState<Request[]>([]);
   const [sentCount, setSentCount] = useState(0);
   const [receivedCount, setReceivedCount] = useState(0);
+  const [forwardDialogOpen, setForwardDialogOpen] = useState(false);
+  const [selectedRequest, setSelectedRequest] = useState<Request | null>(null);
+  const [userGroups, setUserGroups] = useState<Group[]>([]);
 
   useEffect(() => {
     loadRequests();
+    loadUserGroups();
   }, []);
+
+  const loadUserGroups = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("groups")
+        .select("id, name")
+        .eq("creator_id", user.id);
+
+      if (error) throw error;
+      setUserGroups(data || []);
+    } catch (error) {
+      console.error("Error loading groups:", error);
+    }
+  };
 
   const loadRequests = async () => {
     setIsLoading(true);
@@ -59,7 +95,10 @@ export default function Requests() {
 
       const formattedSentRequests = sentData?.map(request => ({
         ...request,
-        response_count: request.request_responses?.length || 0
+        response_count: request.request_responses?.length || 0,
+        forwarding_chain: Array.isArray(request.forwarding_chain) 
+          ? request.forwarding_chain as Array<{ user_id: string; user_name: string; user_handle: string; }>
+          : []
       })) || [];
 
       setSentRequests(formattedSentRequests);
@@ -77,13 +116,51 @@ export default function Requests() {
 
       if (receivedError) throw receivedError;
 
-      const formattedReceivedRequests = receivedData?.map(request => ({
-        ...request,
-        response_count: request.request_responses?.length || 0
-      })) || [];
+      // Process received requests with network info
+      const processedReceivedRequests = await Promise.all(
+        (receivedData || []).map(async (request) => {
+          // Get creator profile
+          const { data: creatorProfile } = await supabase
+            .from("profiles")
+            .select("full_name, handle")
+            .eq("id", request.creator_id)
+            .single();
 
-      setReceivedRequests(formattedReceivedRequests);
-      setReceivedCount(formattedReceivedRequests.length);
+          // For network requests, get degree of separation and connection path
+          let degreeOfSeparation = null;
+          let connectionPath: string[] = [];
+
+          if (request.audience_type !== "public") {
+            // Get degree of separation
+            const { data: degreeData } = await supabase.rpc(
+              "get_degree_of_separation",
+              { user_a: user.id, user_b: request.creator_id }
+            );
+            degreeOfSeparation = degreeData;
+
+            // Get connection path
+            const { data: pathData } = await supabase.rpc(
+              "get_connection_path",
+              { user_a: user.id, user_b: request.creator_id }
+            );
+            connectionPath = pathData || [];
+          }
+
+          return {
+            ...request,
+            creator_profile: creatorProfile,
+            response_count: request.request_responses?.length || 0,
+            degree_of_separation: degreeOfSeparation,
+            connection_path: connectionPath,
+            forwarding_chain: Array.isArray(request.forwarding_chain) 
+              ? request.forwarding_chain as Array<{ user_id: string; user_name: string; user_handle: string; }>
+              : []
+          };
+        })
+      );
+
+      setReceivedRequests(processedReceivedRequests);
+      setReceivedCount(processedReceivedRequests.length);
 
     } catch (error) {
       console.error("Error loading requests:", error);
@@ -153,6 +230,11 @@ export default function Requests() {
     }
   };
 
+  const handleForward = (request: Request) => {
+    setSelectedRequest(request);
+    setForwardDialogOpen(true);
+  };
+
   const RequestCard = ({ request, showCreator = false }: { request: Request; showCreator?: boolean }) => (
     <Card className="hover:shadow-md transition-shadow">
       <CardHeader className="pb-3">
@@ -161,9 +243,21 @@ export default function Requests() {
             <CardTitle className="text-lg leading-6 mb-2 line-clamp-2">
               {request.title}
             </CardTitle>
-            {showCreator && request.creator_profile && (
+            {showCreator && request.creator_profile && request.audience_type !== "public" && (
+              <div className="space-y-2 mb-2">
+                <p className="text-sm text-muted-foreground">
+                  Requested by {request.creator_profile.full_name} (@{request.creator_profile.handle})
+                </p>
+                <NetworkPath
+                  forwardingChain={request.forwarding_chain}
+                  degreeOfSeparation={request.degree_of_separation}
+                  connectionPath={request.connection_path}
+                />
+              </div>
+            )}
+            {showCreator && request.audience_type === "public" && (
               <p className="text-sm text-muted-foreground mb-2">
-                by {request.creator_profile.full_name} (@{request.creator_profile.handle})
+                Anonymous request
               </p>
             )}
           </div>
@@ -210,12 +304,25 @@ export default function Requests() {
           <div className="flex items-center justify-between pt-2 border-t">
             <div className="flex items-center gap-2">
               {showCreator && (
-                <Button asChild variant="outline" size="sm">
-                  <Link to={`/requests/${request.id}/respond`} className="flex items-center gap-1">
-                    <MessageSquare className="h-3 w-3" />
-                    Respond
-                  </Link>
-                </Button>
+                <>
+                  <Button asChild variant="outline" size="sm">
+                    <Link to={`/requests/${request.id}/respond`} className="flex items-center gap-1">
+                      <MessageSquare className="h-3 w-3" />
+                      Respond
+                    </Link>
+                  </Button>
+                  {request.audience_type !== "public" && (
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => handleForward(request)}
+                      className="flex items-center gap-1"
+                    >
+                      <Share2 className="h-3 w-3" />
+                      Share
+                    </Button>
+                  )}
+                </>
               )}
             </div>
             {!showCreator && request.response_count > 0 && (
@@ -372,6 +479,18 @@ export default function Requests() {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Forward Request Dialog */}
+      {selectedRequest && (
+        <ForwardRequestDialog
+          open={forwardDialogOpen}
+          onOpenChange={setForwardDialogOpen}
+          requestId={selectedRequest.id}
+          requestTitle={selectedRequest.title}
+          userGroups={userGroups}
+          onForwardComplete={loadRequests}
+        />
+      )}
     </div>
   );
 }
