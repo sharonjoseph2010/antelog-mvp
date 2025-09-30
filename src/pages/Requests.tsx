@@ -119,18 +119,33 @@ export default function Requests() {
       // Process received requests with network info
       const processedReceivedRequests = await Promise.all(
         (receivedData || []).map(async (request) => {
-          // Get creator profile
-          const { data: creatorProfile } = await supabase
-            .from("profiles")
-            .select("full_name, handle")
-            .eq("id", request.creator_id)
-            .single();
-
-          // For network requests, get degree of separation and connection path
           let degreeOfSeparation = null;
           let connectionPath: string[] = [];
+          let creatorProfile = null;
 
-          if (request.audience_type !== "public") {
+          // For public requests, get anonymous handle
+          if (request.audience_type === "public") {
+            const { data: anonHandle } = await supabase
+              .from("anonymous_handles")
+              .select("anonymous_handle")
+              .eq("user_id", request.creator_id)
+              .single();
+            
+            if (anonHandle) {
+              creatorProfile = {
+                full_name: anonHandle.anonymous_handle,
+                handle: anonHandle.anonymous_handle.replace('@', '')
+              };
+            }
+          } else {
+            // For network requests, get real profile
+            const { data: profileData } = await supabase
+              .from("profiles")
+              .select("full_name, handle")
+              .eq("id", request.creator_id)
+              .single();
+            creatorProfile = profileData;
+
             // Get degree of separation
             const { data: degreeData } = await supabase.rpc(
               "get_degree_of_separation",
@@ -243,22 +258,26 @@ export default function Requests() {
             <CardTitle className="text-lg leading-6 mb-2 line-clamp-2">
               {request.title}
             </CardTitle>
-            {showCreator && request.creator_profile && request.audience_type !== "public" && (
+            {showCreator && request.creator_profile && (
               <div className="space-y-2 mb-2">
-                <p className="text-sm text-muted-foreground">
-                  Requested by {request.creator_profile.full_name} (@{request.creator_profile.handle})
-                </p>
-                <NetworkPath
-                  forwardingChain={request.forwarding_chain}
-                  degreeOfSeparation={request.degree_of_separation}
-                  connectionPath={request.connection_path}
-                />
+                {request.audience_type === "public" ? (
+                  <p className="text-sm text-muted-foreground flex items-center gap-2">
+                    <Badge variant="secondary" className="text-xs">Anonymous</Badge>
+                    <span>{request.creator_profile.full_name}</span>
+                  </p>
+                ) : (
+                  <>
+                    <p className="text-sm text-muted-foreground">
+                      Requested by {request.creator_profile.full_name} (@{request.creator_profile.handle})
+                    </p>
+                    <NetworkPath
+                      forwardingChain={request.forwarding_chain}
+                      degreeOfSeparation={request.degree_of_separation}
+                      connectionPath={request.connection_path}
+                    />
+                  </>
+                )}
               </div>
-            )}
-            {showCreator && request.audience_type === "public" && (
-              <p className="text-sm text-muted-foreground mb-2">
-                Anonymous request
-              </p>
             )}
           </div>
           <div className="flex items-center gap-1">
