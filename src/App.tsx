@@ -37,6 +37,7 @@ import type { Session, User } from "@supabase/supabase-js";
 import { ProtectedRoute, AdminRoute, InternalRoute, VerifiedRoute } from "@/components/routes/RouteGuards";
 import Directory from "./pages/Directory";
 import GuestSignup from "./pages/GuestSignup";
+import ForYou from "./pages/ForYou";
 
 const queryClient = new QueryClient();
 
@@ -350,6 +351,15 @@ const AppContent = ({
           element={
             <VerifiedRoute isAuthenticated={isAuthenticated} userType={userType}>
               <ListsNew />
+            </VerifiedRoute>
+          }
+        />
+
+        <Route
+          path="/for-you"
+          element={
+            <VerifiedRoute isAuthenticated={isAuthenticated} userType={userType}>
+              <ForYou />
             </VerifiedRoute>
           }
         />

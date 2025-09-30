@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      anonymous_handles: {
+        Row: {
+          anonymous_handle: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          anonymous_handle: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          anonymous_handle?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       colleges: {
         Row: {
           created_at: string
@@ -686,6 +707,33 @@ export type Database = {
         }
         Relationships: []
       }
+      user_expertise: {
+        Row: {
+          confidence_scores: number[]
+          created_at: string
+          expertise_tags: string[]
+          id: string
+          last_updated: string
+          user_id: string
+        }
+        Insert: {
+          confidence_scores?: number[]
+          created_at?: string
+          expertise_tags?: string[]
+          id?: string
+          last_updated?: string
+          user_id: string
+        }
+        Update: {
+          confidence_scores?: number[]
+          created_at?: string
+          expertise_tags?: string[]
+          id?: string
+          last_updated?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -725,13 +773,30 @@ export type Database = {
       }
     }
     Functions: {
+      calculate_request_relevance: {
+        Args: { request_id_param: string; user_id_param: string }
+        Returns: number
+      }
       cleanup_expired_contacts: {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      generate_anonymous_handle: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       get_current_user_role: {
         Args: Record<PropertyKey, never>
         Returns: Database["public"]["Enums"]["app_role"]
+      }
+      get_display_identity: {
+        Args: { profile_id: string; viewer_id: string }
+        Returns: {
+          handle: string
+          is_anonymous: boolean
+          is_verified: boolean
+          name: string
+        }[]
       }
       get_extended_network: {
         Args: { user_id: string }
@@ -802,6 +867,10 @@ export type Database = {
       }
       is_group_member: {
         Args: { group_id: string; user_id: string }
+        Returns: boolean
+      }
+      is_in_network: {
+        Args: { profile_id: string; viewer_id: string }
         Returns: boolean
       }
       log_contact_access: {

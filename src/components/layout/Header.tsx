@@ -33,6 +33,7 @@ const Header = ({ isAuthenticated, isAdmin, userType, onLogout }: HeaderProps) =
           {isAuthenticated && userType === 'verified' ? (
             <>
               <Link to="/dashboard" className="hover:underline">Dashboard</Link>
+              <Link to="/for-you" className="hover:underline">For You</Link>
               <Link to="/lists" className="hover:underline">My Lists</Link>
               <Link to="/friends" className="hover:underline">Friends</Link>
               <Link to="/groups" className="hover:underline">Groups</Link>
