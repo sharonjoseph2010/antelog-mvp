@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, User2 } from "lucide-react";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 
 interface NetworkPathProps {
   forwardingChain?: Array<{
@@ -23,45 +24,80 @@ export function NetworkPath({
 
   return (
     <div className="space-y-2">
-      {/* Connection Path Display */}
-      {connectionPath.length > 0 && (
-        <div className="flex items-center gap-1 text-sm text-muted-foreground flex-wrap">
-          <span className="font-medium">Connection:</span>
-          {connectionPath.map((name, index) => (
-            <div key={index} className="flex items-center">
-              <span className="text-foreground">{name}</span>
-              {index < connectionPath.length - 1 && (
-                <ChevronRight className="h-3 w-3 mx-1" />
+      {/* Forwarding Chain Display - Shows the sharing path */}
+      {forwardingChain.length > 0 && (
+        <div className="flex items-center gap-2 flex-wrap p-2 rounded-md bg-muted/50 border">
+          <span className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+            <User2 className="h-3 w-3" />
+            Shared by:
+          </span>
+          {forwardingChain.map((user, index) => (
+            <div key={user.user_id} className="flex items-center">
+              <HoverCard>
+                <HoverCardTrigger asChild>
+                  <Link 
+                    to={`/profile/${user.user_handle}`}
+                    className="text-xs font-medium text-primary hover:underline"
+                  >
+                    {user.user_name}
+                  </Link>
+                </HoverCardTrigger>
+                <HoverCardContent className="w-64">
+                  <div className="space-y-2">
+                    <h4 className="text-sm font-semibold">{user.user_name}</h4>
+                    <p className="text-xs text-muted-foreground">@{user.user_handle}</p>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Forwarded this request to help expand its reach
+                    </p>
+                  </div>
+                </HoverCardContent>
+              </HoverCard>
+              {index < forwardingChain.length - 1 && (
+                <ChevronRight className="h-3 w-3 mx-1 text-muted-foreground" />
               )}
             </div>
           ))}
         </div>
       )}
 
-      {/* Degree of Separation Badge */}
-      {degreeOfSeparation !== null && degreeOfSeparation !== undefined && degreeOfSeparation > 0 && (
-        <Badge variant="secondary" className="text-xs">
-          {degreeOfSeparation === 1 ? "Direct Friend" : `${degreeOfSeparation}${degreeOfSeparation === 2 ? "nd" : degreeOfSeparation === 3 ? "rd" : "th"} Degree`}
-        </Badge>
-      )}
+      {/* Connection Path and Degree Display - Shows how you're connected */}
+      {(connectionPath.length > 0 || degreeOfSeparation) && (
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Degree Badge */}
+          {degreeOfSeparation !== null && degreeOfSeparation !== undefined && degreeOfSeparation > 0 && (
+            <Badge variant="secondary" className="text-xs">
+              {degreeOfSeparation === 1 ? "Direct Friend" : `${degreeOfSeparation}${degreeOfSeparation === 2 ? "nd" : degreeOfSeparation === 3 ? "rd" : "th"} Degree`}
+            </Badge>
+          )}
 
-      {/* Forwarding Chain Display */}
-      {forwardingChain.length > 0 && (
-        <div className="flex items-center gap-1 text-sm text-muted-foreground flex-wrap">
-          <span className="font-medium">Shared by:</span>
-          {forwardingChain.map((user, index) => (
-            <div key={user.user_id} className="flex items-center">
-              <Link 
-                to={`/profile/${user.user_handle}`}
-                className="text-foreground hover:underline font-medium"
-              >
-                {user.user_name}
-              </Link>
-              {index < forwardingChain.length - 1 && (
-                <ChevronRight className="h-3 w-3 mx-1" />
-              )}
+          {/* Connection Path */}
+          {connectionPath.length > 1 && (
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <span>via</span>
+              {connectionPath.slice(1, -1).map((name, index) => (
+                <div key={index} className="flex items-center">
+                  <HoverCard>
+                    <HoverCardTrigger asChild>
+                      <button className="font-medium text-primary hover:underline">
+                        {name}
+                      </button>
+                    </HoverCardTrigger>
+                    <HoverCardContent className="w-64">
+                      <div className="space-y-1">
+                        <h4 className="text-sm font-semibold">{name}</h4>
+                        <p className="text-xs text-muted-foreground">
+                          Mutual connection
+                        </p>
+                      </div>
+                    </HoverCardContent>
+                  </HoverCard>
+                  {index < connectionPath.length - 3 && (
+                    <ChevronRight className="h-3 w-3 mx-1" />
+                  )}
+                </div>
+              ))}
             </div>
-          ))}
+          )}
         </div>
       )}
     </div>
