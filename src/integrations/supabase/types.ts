@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      anonymous_handles: {
+        Row: {
+          anonymous_handle: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          anonymous_handle: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          anonymous_handle?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       colleges: {
         Row: {
           created_at: string
@@ -67,10 +88,15 @@ export type Database = {
       }
       contact_imports: {
         Row: {
+          consent_given: boolean | null
+          consent_timestamp: string | null
           contact_email: string | null
           contact_name: string
           contact_phone: string | null
           created_at: string
+          data_retention_expires_at: string | null
+          encrypted_email: string | null
+          encrypted_phone: string | null
           id: string
           import_source: string
           is_matched: boolean
@@ -79,10 +105,15 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          consent_given?: boolean | null
+          consent_timestamp?: string | null
           contact_email?: string | null
           contact_name: string
           contact_phone?: string | null
           created_at?: string
+          data_retention_expires_at?: string | null
+          encrypted_email?: string | null
+          encrypted_phone?: string | null
           id?: string
           import_source?: string
           is_matched?: boolean
@@ -91,16 +122,87 @@ export type Database = {
           user_id: string
         }
         Update: {
+          consent_given?: boolean | null
+          consent_timestamp?: string | null
           contact_email?: string | null
           contact_name?: string
           contact_phone?: string | null
           created_at?: string
+          data_retention_expires_at?: string | null
+          encrypted_email?: string | null
+          encrypted_phone?: string | null
           id?: string
           import_source?: string
           is_matched?: boolean
           matched_user_id?: string | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      directory_entries: {
+        Row: {
+          category: Database["public"]["Enums"]["list_category"]
+          content: string
+          contributor_id: string
+          created_at: string
+          id: string
+          list_id: string
+          list_item_id: string
+          search_count: number
+          updated_at: string
+          url: string | null
+          vote_count: number
+        }
+        Insert: {
+          category: Database["public"]["Enums"]["list_category"]
+          content: string
+          contributor_id: string
+          created_at?: string
+          id?: string
+          list_id: string
+          list_item_id: string
+          search_count?: number
+          updated_at?: string
+          url?: string | null
+          vote_count?: number
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["list_category"]
+          content?: string
+          contributor_id?: string
+          created_at?: string
+          id?: string
+          list_id?: string
+          list_item_id?: string
+          search_count?: number
+          updated_at?: string
+          url?: string | null
+          vote_count?: number
+        }
+        Relationships: []
+      }
+      directory_votes: {
+        Row: {
+          created_at: string
+          entry_id: string
+          id: string
+          vote_type: string
+          voter_id: string
+        }
+        Insert: {
+          created_at?: string
+          entry_id: string
+          id?: string
+          vote_type: string
+          voter_id: string
+        }
+        Update: {
+          created_at?: string
+          entry_id?: string
+          id?: string
+          vote_type?: string
+          voter_id?: string
         }
         Relationships: []
       }
@@ -317,6 +419,51 @@ export type Database = {
           },
         ]
       }
+      master_directory_entries: {
+        Row: {
+          category: Database["public"]["Enums"]["list_category"]
+          created_at: string
+          display_content: string
+          id: string
+          latest_mention_at: string
+          mention_count: number
+          mentioned_by_users: string[]
+          normalized_content: string
+          searchable_text: string | null
+          total_search_count: number
+          updated_at: string
+          url: string | null
+        }
+        Insert: {
+          category: Database["public"]["Enums"]["list_category"]
+          created_at?: string
+          display_content: string
+          id?: string
+          latest_mention_at: string
+          mention_count?: number
+          mentioned_by_users?: string[]
+          normalized_content: string
+          searchable_text?: string | null
+          total_search_count?: number
+          updated_at?: string
+          url?: string | null
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["list_category"]
+          created_at?: string
+          display_content?: string
+          id?: string
+          latest_mention_at?: string
+          mention_count?: number
+          mentioned_by_users?: string[]
+          normalized_content?: string
+          searchable_text?: string | null
+          total_search_count?: number
+          updated_at?: string
+          url?: string | null
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           created_at: string
@@ -364,6 +511,7 @@ export type Database = {
           student_id_number: string | null
           trial_ends_at: string | null
           updated_at: string
+          user_type: Database["public"]["Enums"]["user_type"]
           verification_status: Database["public"]["Enums"]["verification_status"]
         }
         Insert: {
@@ -379,6 +527,7 @@ export type Database = {
           student_id_number?: string | null
           trial_ends_at?: string | null
           updated_at?: string
+          user_type?: Database["public"]["Enums"]["user_type"]
           verification_status?: Database["public"]["Enums"]["verification_status"]
         }
         Update: {
@@ -394,6 +543,7 @@ export type Database = {
           student_id_number?: string | null
           trial_ends_at?: string | null
           updated_at?: string
+          user_type?: Database["public"]["Enums"]["user_type"]
           verification_status?: Database["public"]["Enums"]["verification_status"]
         }
         Relationships: [
@@ -402,6 +552,48 @@ export type Database = {
             columns: ["college_id"]
             isOneToOne: false
             referencedRelation: "colleges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      request_forwards: {
+        Row: {
+          created_at: string
+          forwarded_by_user_id: string
+          forwarded_to_audience: Database["public"]["Enums"]["request_audience_type"]
+          forwarded_to_group_id: string | null
+          id: string
+          request_id: string
+        }
+        Insert: {
+          created_at?: string
+          forwarded_by_user_id: string
+          forwarded_to_audience: Database["public"]["Enums"]["request_audience_type"]
+          forwarded_to_group_id?: string | null
+          id?: string
+          request_id: string
+        }
+        Update: {
+          created_at?: string
+          forwarded_by_user_id?: string
+          forwarded_to_audience?: Database["public"]["Enums"]["request_audience_type"]
+          forwarded_to_group_id?: string | null
+          id?: string
+          request_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "request_forwards_forwarded_to_group_id_fkey"
+            columns: ["forwarded_to_group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "request_forwards_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "requests"
             referencedColumns: ["id"]
           },
         ]
@@ -489,6 +681,7 @@ export type Database = {
           category: Database["public"]["Enums"]["request_category"]
           created_at: string
           creator_id: string
+          forwarding_chain: Json | null
           group_id: string | null
           id: string
           location: string | null
@@ -501,6 +694,7 @@ export type Database = {
           category: Database["public"]["Enums"]["request_category"]
           created_at?: string
           creator_id: string
+          forwarding_chain?: Json | null
           group_id?: string | null
           id?: string
           location?: string | null
@@ -513,6 +707,7 @@ export type Database = {
           category?: Database["public"]["Enums"]["request_category"]
           created_at?: string
           creator_id?: string
+          forwarding_chain?: Json | null
           group_id?: string | null
           id?: string
           location?: string | null
@@ -529,6 +724,60 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      search_analytics: {
+        Row: {
+          category: Database["public"]["Enums"]["list_category"] | null
+          created_at: string
+          id: string
+          results_count: number
+          search_query: string
+          user_id: string | null
+        }
+        Insert: {
+          category?: Database["public"]["Enums"]["list_category"] | null
+          created_at?: string
+          id?: string
+          results_count?: number
+          search_query: string
+          user_id?: string | null
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["list_category"] | null
+          created_at?: string
+          id?: string
+          results_count?: number
+          search_query?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      user_expertise: {
+        Row: {
+          confidence_scores: number[]
+          created_at: string
+          expertise_tags: string[]
+          id: string
+          last_updated: string
+          user_id: string
+        }
+        Insert: {
+          confidence_scores?: number[]
+          created_at?: string
+          expertise_tags?: string[]
+          id?: string
+          last_updated?: string
+          user_id: string
+        }
+        Update: {
+          confidence_scores?: number[]
+          created_at?: string
+          expertise_tags?: string[]
+          id?: string
+          last_updated?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {
@@ -553,12 +802,54 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      master_directory_view: {
+        Row: {
+          category: Database["public"]["Enums"]["list_category"] | null
+          display_content: string | null
+          latest_mention_at: string | null
+          mention_count: number | null
+          mentioned_by_users: string[] | null
+          normalized_content: string | null
+          searchable_text: string | null
+          total_search_count: number | null
+          url: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
+      calculate_request_relevance: {
+        Args: { request_id_param: string; user_id_param: string }
+        Returns: number
+      }
+      cleanup_expired_contacts: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      generate_anonymous_handle: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      get_connection_path: {
+        Args: { user_a: string; user_b: string }
+        Returns: string[]
+      }
       get_current_user_role: {
         Args: Record<PropertyKey, never>
         Returns: Database["public"]["Enums"]["app_role"]
+      }
+      get_degree_of_separation: {
+        Args: { user_a: string; user_b: string }
+        Returns: number
+      }
+      get_display_identity: {
+        Args: { profile_id: string; viewer_id: string }
+        Returns: {
+          handle: string
+          is_anonymous: boolean
+          is_verified: boolean
+          name: string
+        }[]
       }
       get_extended_network: {
         Args: { user_id: string }
@@ -567,6 +858,30 @@ export type Database = {
           handle: string
           mutual_friends: string[]
           profile_id: string
+        }[]
+      }
+      get_network_contributors: {
+        Args: { contributor_ids: string[]; user_id_param: string }
+        Returns: {
+          contributor_id: string
+          full_name: string
+          handle: string
+          is_extended_network: boolean
+          is_friend: boolean
+        }[]
+      }
+      get_safe_profile_data: {
+        Args: { profile_id: string }
+        Returns: {
+          batch: string
+          full_name: string
+          handle: string
+          id: string
+          id_card_image_url: string
+          is_verified: boolean
+          phone_number: string
+          student_id_number: string
+          user_type: Database["public"]["Enums"]["user_type"]
         }[]
       }
       get_safe_profile_view: {
@@ -591,8 +906,32 @@ export type Database = {
         Args: { contact_value: string }
         Returns: string
       }
+      increment_master_directory_search_count: {
+        Args: { entry_ids: string[] }
+        Returns: undefined
+      }
+      increment_search_count: {
+        Args: { entry_ids: string[] }
+        Returns: undefined
+      }
+      is_group_creator: {
+        Args: { group_id: string; user_id: string }
+        Returns: boolean
+      }
+      is_group_member: {
+        Args: { group_id: string; user_id: string }
+        Returns: boolean
+      }
+      is_in_network: {
+        Args: { profile_id: string; viewer_id: string }
+        Returns: boolean
+      }
       log_contact_access: {
         Args: { action_type: string; contact_id?: string }
+        Returns: undefined
+      }
+      refresh_master_directory: {
+        Args: Record<PropertyKey, never>
         Returns: undefined
       }
       validate_authenticated_user: {
@@ -604,10 +943,15 @@ export type Database = {
       app_role: "admin" | "moderator" | "user"
       list_category: "films" | "places" | "products" | "services" | "other"
       list_visibility: "private" | "friends" | "public"
-      request_audience_type: "friends" | "extended_network" | "specific_group"
+      request_audience_type:
+        | "friends"
+        | "extended_network"
+        | "specific_group"
+        | "public"
       request_category: "films" | "places" | "products" | "services" | "other"
       request_status: "open" | "responded" | "closed"
       response_type: "existing_list" | "new_recommendations" | "comment"
+      user_type: "verified" | "guest"
       verification_status: "pending" | "verified" | "rejected"
       vote_type: "helpful" | "not_helpful"
     }
@@ -740,10 +1084,16 @@ export const Constants = {
       app_role: ["admin", "moderator", "user"],
       list_category: ["films", "places", "products", "services", "other"],
       list_visibility: ["private", "friends", "public"],
-      request_audience_type: ["friends", "extended_network", "specific_group"],
+      request_audience_type: [
+        "friends",
+        "extended_network",
+        "specific_group",
+        "public",
+      ],
       request_category: ["films", "places", "products", "services", "other"],
       request_status: ["open", "responded", "closed"],
       response_type: ["existing_list", "new_recommendations", "comment"],
+      user_type: ["verified", "guest"],
       verification_status: ["pending", "verified", "rejected"],
       vote_type: ["helpful", "not_helpful"],
     },
