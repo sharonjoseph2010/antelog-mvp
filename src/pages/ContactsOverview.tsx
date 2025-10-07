@@ -8,7 +8,17 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Search, UserPlus, Mail, Phone, Users, Send } from "lucide-react";
+import { Search, UserPlus, Mail, Phone, Users, Send, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface ContactWithStatus {
   id: string;
@@ -32,6 +42,7 @@ const ContactsOverview = () => {
   const [contacts, setContacts] = useState<ContactWithStatus[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
+  const [contactToDelete, setContactToDelete] = useState<ContactWithStatus | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -145,6 +156,44 @@ const ContactsOverview = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const deleteContact = async (contactId: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({
+          title: "Authentication required",
+          description: "Please log in to delete contacts",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const { error } = await supabase
+        .from('contact_imports')
+        .delete()
+        .eq('id', contactId)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Contact removed",
+        description: "The contact has been removed from your list",
+      });
+
+      // Update UI immediately
+      setContacts(prev => prev.filter(c => c.id !== contactId));
+      setContactToDelete(null);
+    } catch (error) {
+      console.error('Error deleting contact:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete contact",
+        variant: "destructive",
+      });
     }
   };
 
@@ -339,12 +388,20 @@ const ContactsOverview = () => {
                             <div className="ml-auto">
                               {getStatusBadge(contact)}
                             </div>
-                          </div>
-                        </div>
-                        <div className="ml-4">
-                          {getActionButton(contact)}
-                        </div>
-                      </div>
+                           </div>
+                         </div>
+                         <div className="ml-4 flex items-center gap-2">
+                           {getActionButton(contact)}
+                           <Button
+                             variant="ghost"
+                             size="icon"
+                             onClick={() => setContactToDelete(contact)}
+                             className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                           >
+                             <Trash2 className="w-4 h-4" />
+                           </Button>
+                         </div>
+                       </div>
                       {index < onAntelogContacts.length - 1 && <Separator />}
                     </div>
                   ))}
@@ -386,13 +443,23 @@ const ContactsOverview = () => {
                                 {contact.contact_phone}
                               </span>
                             )}
-                          </div>
-                        </div>
-                        <Button variant="outline" size="sm">
-                          <Send className="w-4 h-4 mr-1" />
-                          Invite
-                        </Button>
-                      </div>
+                           </div>
+                         </div>
+                         <div className="flex items-center gap-2">
+                           <Button variant="outline" size="sm">
+                             <Send className="w-4 h-4 mr-1" />
+                             Invite
+                           </Button>
+                           <Button
+                             variant="ghost"
+                             size="icon"
+                             onClick={() => setContactToDelete(contact)}
+                             className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                           >
+                             <Trash2 className="w-4 h-4" />
+                           </Button>
+                         </div>
+                       </div>
                       {index < notOnAntelogContacts.length - 1 && <Separator />}
                     </div>
                   ))}
@@ -402,6 +469,32 @@ const ContactsOverview = () => {
           </Card>
         </div>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!contactToDelete} onOpenChange={(open) => !open && setContactToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove {contactToDelete?.contact_name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove the contact from your imported contacts list.
+              {contactToDelete?.is_friends && (
+                <span className="block mt-2 text-amber-600 dark:text-amber-400">
+                  Note: This will not unfriend them if they're already your friend on Antelog.
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => contactToDelete && deleteContact(contactToDelete.id)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Remove Contact
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };
