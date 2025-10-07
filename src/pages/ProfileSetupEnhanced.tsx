@@ -20,7 +20,14 @@ const profileSchema = z.object({
     .max(30, "Handle must be at most 30 characters")
     .regex(/^[a-zA-Z0-9_]+$/, "Use letters, numbers, or underscores"),
   student_id_number: z.string().min(1, "Student registration number is required").max(80, "Too long"),
-  phone_number: z.string().min(10, "Please enter a valid phone number").max(15, "Phone number too long"),
+  phone_number: z
+    .string()
+    .min(1, "Phone number is required")
+    .regex(/^[\d\s\-\+\(\)]+$/, "Phone number can only contain digits, spaces, dashes, +, and parentheses")
+    .refine((val) => {
+      const digits = val.replace(/\D/g, '');
+      return digits.length >= 10;
+    }, "Phone number must have at least 10 digits"),
 });
 
 type ProfileValues = z.infer<typeof profileSchema>;
@@ -89,6 +96,24 @@ const ProfileSetupEnhanced = () => {
     return () => subscription.subscription.unsubscribe();
   }, [navigate, form]);
 
+  // Normalize phone number (same logic as contact imports)
+  const normalizePhone = (phone: string): string => {
+    if (!phone) return '';
+    // Remove all non-digit characters except +
+    let cleaned = phone.replace(/[^\d+]/g, '');
+    
+    // Add +91 if it's a 10-digit Indian number
+    if (cleaned.length === 10 && !cleaned.startsWith('+')) {
+      cleaned = '+91' + cleaned;
+    } else if (cleaned.length === 12 && cleaned.startsWith('91')) {
+      cleaned = '+' + cleaned;
+    } else if (!cleaned.startsWith('+') && cleaned.length > 10) {
+      cleaned = '+' + cleaned;
+    }
+    
+    return cleaned;
+  };
+
   const onSubmit = async (values: ProfileValues) => {
     if (!userId) {
       toast.error("You need to be signed in to set up your profile.");
@@ -118,12 +143,15 @@ const ProfileSetupEnhanced = () => {
         imagePath = uploadData?.path;
       }
 
+      // Normalize phone number before saving
+      const normalizedPhone = normalizePhone(values.phone_number);
+      
       const payload: any = {
         id: userId,
         full_name: values.full_name.trim(),
         handle: values.handle.trim().toLowerCase(),
         student_id_number: values.student_id_number.trim(),
-        phone_number: values.phone_number.trim(),
+        phone_number: normalizedPhone,
         verification_status: "pending",
       };
 
@@ -224,14 +252,19 @@ const ProfileSetupEnhanced = () => {
                       <FormItem>
                         <FormLabel className="flex items-center gap-2">
                           <Phone className="h-4 w-4" />
-                          Phone Number
+                          Phone Number *
                         </FormLabel>
                         <FormControl>
-                          <Input type="tel" placeholder="+1234567890" {...field} />
+                          <Input type="tel" placeholder="+91 98765 43210" {...field} />
                         </FormControl>
-                        <p className="text-sm text-muted-foreground">
-                          We'll use this to help you find friends who already have your contact
-                        </p>
+                        <div className="space-y-1">
+                          <p className="text-sm text-muted-foreground">
+                            We use your phone number to connect you with friends who have you in their contacts.
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            🔒 Your phone number is private and only used for matching.
+                          </p>
+                        </div>
                         <FormMessage />
                       </FormItem>
                     )}
