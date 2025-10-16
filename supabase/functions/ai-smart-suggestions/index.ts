@@ -50,7 +50,7 @@ serve(async (req) => {
 
     // Use Gemini to enhance suggestions and provide smart completions
     console.log('🤖 Calling Gemini API...');
-    const geminiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${geminiKey}`, {
+    const geminiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -68,7 +68,7 @@ serve(async (req) => {
         }],
         generationConfig: {
           temperature: 0.7,
-          maxOutputTokens: 200,
+          maxOutputTokens: 1000,
         },
       }),
     });
