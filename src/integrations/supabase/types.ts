@@ -556,6 +556,48 @@ export type Database = {
           },
         ]
       }
+      request_forwards: {
+        Row: {
+          created_at: string
+          forwarded_by_user_id: string
+          forwarded_to_audience: Database["public"]["Enums"]["request_audience_type"]
+          forwarded_to_group_id: string | null
+          id: string
+          request_id: string
+        }
+        Insert: {
+          created_at?: string
+          forwarded_by_user_id: string
+          forwarded_to_audience: Database["public"]["Enums"]["request_audience_type"]
+          forwarded_to_group_id?: string | null
+          id?: string
+          request_id: string
+        }
+        Update: {
+          created_at?: string
+          forwarded_by_user_id?: string
+          forwarded_to_audience?: Database["public"]["Enums"]["request_audience_type"]
+          forwarded_to_group_id?: string | null
+          id?: string
+          request_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "request_forwards_forwarded_to_group_id_fkey"
+            columns: ["forwarded_to_group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "request_forwards_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       request_responses: {
         Row: {
           content: string
@@ -639,6 +681,7 @@ export type Database = {
           category: Database["public"]["Enums"]["request_category"]
           created_at: string
           creator_id: string
+          forwarding_chain: Json | null
           group_id: string | null
           id: string
           location: string | null
@@ -651,6 +694,7 @@ export type Database = {
           category: Database["public"]["Enums"]["request_category"]
           created_at?: string
           creator_id: string
+          forwarding_chain?: Json | null
           group_id?: string | null
           id?: string
           location?: string | null
@@ -663,6 +707,7 @@ export type Database = {
           category?: Database["public"]["Enums"]["request_category"]
           created_at?: string
           creator_id?: string
+          forwarding_chain?: Json | null
           group_id?: string | null
           id?: string
           location?: string | null
@@ -785,9 +830,17 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      get_connection_path: {
+        Args: { user_a: string; user_b: string }
+        Returns: string[]
+      }
       get_current_user_role: {
         Args: Record<PropertyKey, never>
         Returns: Database["public"]["Enums"]["app_role"]
+      }
+      get_degree_of_separation: {
+        Args: { user_a: string; user_b: string }
+        Returns: number
       }
       get_display_identity: {
         Args: { profile_id: string; viewer_id: string }

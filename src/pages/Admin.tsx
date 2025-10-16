@@ -55,7 +55,7 @@ const Admin = () => {
     (async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!mounted) return;
-      
+
       // If not logged in, send to login
       if (!session?.user) {
         navigate("/login", { replace: true });
@@ -65,14 +65,14 @@ const Admin = () => {
       // Check if user has admin role using the new role-based system
       const { data: userRole } = await supabase
         .rpc('get_current_user_role');
-      
+
       const hasAdminRole = userRole === 'admin';
       setIsAdmin(hasAdminRole);
-      
+
       if (hasAdminRole) {
         await loadPending();
       }
-      
+
       setLoading(false);
     })();
     return () => { mounted = false; };
@@ -119,7 +119,7 @@ const Admin = () => {
           {isAdmin && (
             <>
               <AdminDeduplication />
-              
+
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {loading && (
                 <Card className="sm:col-span-2 lg:col-span-3">

@@ -104,40 +104,112 @@ export default function ContactsImportHub() {
     return contacts.filter(c => c.name.trim());
   };
 
+  const normalizePhone = (phone: string): string | null => {
+    if (!phone) return null;
+    // Remove all non-digit characters except +
+    let cleaned = phone.replace(/[^\d+]/g, '');
+    
+    // Add +91 if it's a 10-digit Indian number
+    if (cleaned.length === 10 && !cleaned.startsWith('+')) {
+      cleaned = '+91' + cleaned;
+    } else if (cleaned.length === 12 && cleaned.startsWith('91')) {
+      cleaned = '+' + cleaned;
+    } else if (!cleaned.startsWith('+') && cleaned.length > 10) {
+      cleaned = '+' + cleaned;
+    }
+    
+    return cleaned || null;
+  };
+
+  const normalizeEmail = (email: string): string | null => {
+    if (!email) return null;
+    const cleaned = email.trim().toLowerCase();
+    // Basic email validation
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleaned)) {
+      console.warn('Invalid email format:', email);
+      return null;
+    }
+    return cleaned;
+  };
+
   const saveContacts = async (contacts: ManualContact[], source: string) => {
     setIsLoading(true);
     try {
+      console.log('Starting contact import...', { source, contactCount: contacts.length });
+      
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
+      if (!user) {
+        console.error('User not authenticated');
+        throw new Error('Not authenticated');
+      }
+      
+      console.log('User authenticated:', user.id);
 
+      // Validate and normalize contacts
       const contactsToSave = contacts
-        .filter(c => c.name.trim())
-        .map(contact => ({
-          user_id: user.id,
-          contact_name: contact.name,
-          contact_phone: contact.phone || null,
-          contact_email: contact.email || null,
-          import_source: source
-        }));
+        .filter(c => {
+          if (!c.name.trim()) {
+            console.warn('Skipping contact with empty name');
+            return false;
+          }
+          return true;
+        })
+        .map(contact => {
+          const normalized = {
+            user_id: user.id,
+            contact_name: contact.name.trim(),
+            contact_phone: normalizePhone(contact.phone),
+            contact_email: normalizeEmail(contact.email),
+            import_source: source
+          };
+          console.log('Normalized contact:', normalized);
+          return normalized;
+        });
 
-      const { error } = await supabase
+      if (contactsToSave.length === 0) {
+        toast({
+          title: "No valid contacts",
+          description: "Please ensure at least one contact has a name",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      console.log('Inserting contacts into database...', contactsToSave);
+
+      const { error, data } = await supabase
         .from('contact_imports')
-        .insert(contactsToSave);
+        .insert(contactsToSave)
+        .select();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Database error:', error);
+        throw error;
+      }
+
+      console.log('Contacts saved successfully:', data);
 
       toast({
         title: "Contacts imported successfully",
         description: `${contactsToSave.length} contacts have been added to your network`,
       });
 
-      // Navigate to dashboard after successful import
-      navigate('/dashboard');
-    } catch (error) {
+      // Navigate to contacts overview after successful import
+      navigate('/contacts-overview');
+    } catch (error: any) {
       console.error('Error saving contacts:', error);
+      
+      let errorMessage = "Please try again";
+      if (error.message) {
+        errorMessage = error.message;
+      }
+      if (error.code === 'PGRST301') {
+        errorMessage = "Permission denied. Please ensure you're logged in.";
+      }
+      
       toast({
         title: "Error importing contacts",
-        description: "Please try again",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
