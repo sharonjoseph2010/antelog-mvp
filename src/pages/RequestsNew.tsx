@@ -132,7 +132,8 @@ export default function RequestsNew() {
   const audienceOptions = [
     { value: "friends", label: "Friends", description: "Send to your direct connections" },
     { value: "extended_network", label: "Extended Network", description: "Send to friends of friends" },
-    { value: "specific_group", label: "Specific Group", description: "Send to a group you created" }
+    { value: "specific_group", label: "Specific Group", description: "Send to a group you created" },
+    { value: "public", label: "Public", description: "Send to all verified users (anonymous request)" }
   ];
 
   return (

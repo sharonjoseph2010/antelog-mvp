@@ -1,1 +1,13 @@
 project_id = "bzeomaxcafiqwxlskwvz"
+
+[functions.ai-smart-suggestions]
+verify_jwt = true
+
+[functions.ai-suggest-category]
+verify_jwt = true
+
+[functions.ai-normalize-entries]
+verify_jwt = true
+
+[functions.ai-update-user-expertise]
+verify_jwt = true

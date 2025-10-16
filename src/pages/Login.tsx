@@ -28,37 +28,7 @@ const Login = () => {
     mode: "onSubmit",
   });
 
-  const postLoginRedirect = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    const userId = session?.user?.id;
-    if (!userId) return;
-
-    const { data: profile, error } = await supabase
-      .from("profiles")
-      .select("full_name, handle, verification_status")
-      .eq("id", userId)
-      .maybeSingle();
-
-    if (error) {
-      // If we can't fetch profile, default to setup
-      navigate("/profile-setup", { replace: true });
-      return;
-    }
-
-    // No profile or missing essentials -> setup
-    if (!profile || !profile.full_name || !profile.handle) {
-      navigate("/profile-setup", { replace: true });
-      return;
-    }
-
-    if (profile.verification_status === "verified") {
-      navigate("/dashboard", { replace: true });
-      return;
-    }
-
-    // Otherwise pending/rejected -> verify
-    navigate("/verify", { replace: true });
-  };
+  // Remove postLoginRedirect - let App.tsx handle routing based on auth state
 
   const onSubmit = async (values: LoginValues) => {
     setLoading(true);
@@ -74,19 +44,21 @@ const Login = () => {
             ? "Invalid email or password."
             : error.message;
         toast.error(msg);
+        setLoading(false);
         return;
       }
 
       if (data?.user) {
         toast.success("Welcome back!");
-        await postLoginRedirect();
+        // Let App.tsx handle navigation via auth state changes
+        setLoading(false);
         return;
       }
 
       toast.error("Could not sign in. Please try again.");
+      setLoading(false);
     } catch (e) {
       toast.error("Something went wrong. Please try again.");
-    } finally {
       setLoading(false);
     }
   };

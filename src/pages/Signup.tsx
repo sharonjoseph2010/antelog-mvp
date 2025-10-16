@@ -37,6 +37,9 @@ const onSubmit = async (values: SignupValues) => {
       password: values.password,
       options: {
         emailRedirectTo: redirectUrl,
+        data: {
+          user_type: 'verified'
+        }
       },
     });
 
