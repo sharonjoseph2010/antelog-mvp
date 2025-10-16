@@ -41,7 +41,7 @@ import ForYou from "./pages/ForYou";
 
 const queryClient = new QueryClient();
 
-const App = () => {
+function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [userType, setUserType] = useState<'verified' | 'guest' | null>(null);
@@ -163,9 +163,9 @@ const App = () => {
       </QueryClientProvider>
     </HelmetProvider>
   );
-};
+}
 
-const AppContent = ({ 
+function AppContent({ 
   session, setSession, user, setUser, userType, setUserType, initializing, setInitializing 
 }: {
   session: Session | null;
@@ -176,7 +176,7 @@ const AppContent = ({
   setUserType: (type: 'verified' | 'guest' | null) => void;
   initializing: boolean;
   setInitializing: (init: boolean) => void;
-}) => {
+}) {
   const navigate = useNavigate();
 
   // Handle navigation after authentication state is set
@@ -497,6 +497,6 @@ const AppContent = ({
       <Footer isAuthenticated={isAuthenticated} />
     </>
   );
-};
+}
 
 export default App;

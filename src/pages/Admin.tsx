@@ -22,34 +22,6 @@ const Admin = () => {
   const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
   const [isAdmin, setIsAdmin] = useState(false);
 
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!mounted) return;
-      
-      // If not logged in, send to login
-      if (!session?.user) {
-        navigate("/login", { replace: true });
-        return;
-      }
-
-      // Check if user has admin role using the new role-based system
-      const { data: userRole } = await supabase
-        .rpc('get_current_user_role');
-      
-      const hasAdminRole = userRole === 'admin';
-      setIsAdmin(hasAdminRole);
-      
-      if (hasAdminRole) {
-        await loadPending();
-      }
-      
-      setLoading(false);
-    })();
-    return () => { mounted = false; };
-  }, [navigate]);
-
   const loadPending = async () => {
     const { data, error } = await supabase
       .from("profiles")
@@ -77,6 +49,34 @@ const Admin = () => {
     );
     setImageUrls(Object.fromEntries(entries));
   };
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!mounted) return;
+      
+      // If not logged in, send to login
+      if (!session?.user) {
+        navigate("/login", { replace: true });
+        return;
+      }
+
+      // Check if user has admin role using the new role-based system
+      const { data: userRole } = await supabase
+        .rpc('get_current_user_role');
+      
+      const hasAdminRole = userRole === 'admin';
+      setIsAdmin(hasAdminRole);
+      
+      if (hasAdminRole) {
+        await loadPending();
+      }
+      
+      setLoading(false);
+    })();
+    return () => { mounted = false; };
+  }, [navigate, loadPending]);
 
   const updateStatus = async (profileId: string, status: "verified" | "rejected") => {
     const { error } = await supabase
