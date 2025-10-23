@@ -62,7 +62,7 @@ export type Database = {
           contact_id: string | null
           created_at: string | null
           id: string
-          ip_address: unknown | null
+          ip_address: unknown
           user_agent: string | null
           user_id: string
         }
@@ -71,7 +71,7 @@ export type Database = {
           contact_id?: string | null
           created_at?: string | null
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           user_agent?: string | null
           user_id: string
         }
@@ -80,7 +80,7 @@ export type Database = {
           contact_id?: string | null
           created_at?: string | null
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           user_agent?: string | null
           user_id?: string
         }
@@ -822,20 +822,14 @@ export type Database = {
         Args: { request_id_param: string; user_id_param: string }
         Returns: number
       }
-      cleanup_expired_contacts: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      generate_anonymous_handle: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
+      cleanup_expired_contacts: { Args: never; Returns: undefined }
+      generate_anonymous_handle: { Args: never; Returns: string }
       get_connection_path: {
         Args: { user_a: string; user_b: string }
         Returns: string[]
       }
       get_current_user_role: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: Database["public"]["Enums"]["app_role"]
       }
       get_degree_of_separation: {
@@ -902,10 +896,7 @@ export type Database = {
         }
         Returns: boolean
       }
-      hash_contact_info: {
-        Args: { contact_value: string }
-        Returns: string
-      }
+      hash_contact_info: { Args: { contact_value: string }; Returns: string }
       increment_master_directory_search_count: {
         Args: { entry_ids: string[] }
         Returns: undefined
@@ -930,14 +921,8 @@ export type Database = {
         Args: { action_type: string; contact_id?: string }
         Returns: undefined
       }
-      refresh_master_directory: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      validate_authenticated_user: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
+      refresh_master_directory: { Args: never; Returns: undefined }
+      validate_authenticated_user: { Args: never; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
