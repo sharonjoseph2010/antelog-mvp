@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Import phone input styles */
+@import 'react-phone-number-input/style.css';
+
 /* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
 All colors MUST be HSL.
 */
@@ -101,5 +104,32 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+/* Custom styles for react-phone-number-input */
+@layer components {
+  .PhoneInput {
+    @apply flex items-center gap-2;
+  }
+
+  .PhoneInputCountry {
+    @apply flex items-center gap-1 px-2 py-1 rounded-md border border-input bg-background;
+  }
+
+  .PhoneInputCountryIcon {
+    @apply w-5 h-4;
+  }
+
+  .PhoneInputCountrySelect {
+    @apply bg-transparent border-none outline-none cursor-pointer;
+  }
+
+  .PhoneInputInput {
+    @apply flex-1 h-10 px-3 py-2 text-base bg-transparent outline-none md:text-sm;
+  }
+
+  .PhoneInputInput:focus {
+    @apply outline-none;
   }
 }
