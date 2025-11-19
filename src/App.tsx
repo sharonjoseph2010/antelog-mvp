@@ -14,7 +14,7 @@ import Signup from "./pages/Signup";
 import Login from "./pages/Login";
 import Verify from "./pages/Verify";
 import AuthCallback from "./pages/AuthCallback";
-import ProfileSetup from "./pages/ProfileSetup";
+import ProfileSetupEnhanced from "./pages/ProfileSetupEnhanced";
 import Admin from "./pages/Admin";
 import Dashboard from "./pages/Dashboard";
 import Lists from "./pages/Lists";
@@ -476,7 +476,7 @@ function AppContent({
           path="/profile-setup"
           element={
             <InternalRoute isAuthenticated={isAuthenticated}>
-              <ProfileSetup />
+              <ProfileSetupEnhanced />
             </InternalRoute>
           }
         />

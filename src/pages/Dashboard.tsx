@@ -3,9 +3,11 @@ import { Helmet } from "react-helmet-async";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
 import { FriendSuggestions } from "@/components/FriendSuggestions";
 import { NotificationCenter } from "@/components/NotificationCenter";
+import { Users } from "lucide-react";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -13,6 +15,7 @@ const Dashboard = () => {
   const [userName, setUserName] = useState<string>("");
   const [listCount, setListCount] = useState<number>(0);
   const [recentLists, setRecentLists] = useState<Array<{ id: string; title: string; created_at: string }>>([]);
+  const [hasImportedContacts, setHasImportedContacts] = useState<boolean>(true);
 
 useEffect(() => {
   let mounted = true;
@@ -70,6 +73,13 @@ useEffect(() => {
       console.warn("[Dashboard] recent lists error", recentError);
     }
     setRecentLists((recent ?? []) as any);
+
+    // Check if user has imported contacts
+    const { count: contactCount } = await supabase
+      .from("contact_imports")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId);
+    setHasImportedContacts((contactCount ?? 0) > 0);
 
     setChecking(false);
   })();

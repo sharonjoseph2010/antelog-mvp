@@ -14,6 +14,14 @@ import { Input } from "@/components/ui/input";
 const signupSchema = z.object({
   email: z.string().min(1, "Email is required").email("Enter a valid email"),
   password: z.string().min(8, "Password must be at least 8 characters"),
+  phone_number: z
+    .string()
+    .min(1, "Phone number is required")
+    .regex(/^[\d\s\-\+\(\)]+$/, "Phone number can only contain digits, spaces, dashes, +, and parentheses")
+    .refine((val) => {
+      const digits = val.replace(/\D/g, '');
+      return digits.length >= 10;
+    }, "Phone number must have at least 10 digits"),
 });
 
 type SignupValues = z.infer<typeof signupSchema>;
@@ -24,13 +32,21 @@ const Signup = () => {
 
   const form = useForm<SignupValues>({
     resolver: zodResolver(signupSchema),
-    defaultValues: { email: "", password: "" },
+    defaultValues: { email: "", password: "", phone_number: "" },
     mode: "onSubmit",
   });
 
 const onSubmit = async (values: SignupValues) => {
   setLoading(true);
   try {
+    // Normalize phone number
+    let normalizedPhone = values.phone_number.replace(/[^\d+]/g, '');
+    if (normalizedPhone.length === 10 && !normalizedPhone.startsWith('+')) {
+      normalizedPhone = '+91' + normalizedPhone;
+    } else if (normalizedPhone.length === 12 && normalizedPhone.startsWith('91')) {
+      normalizedPhone = '+' + normalizedPhone;
+    }
+
     const redirectUrl = `${window.location.origin}/auth/callback`;
     const { data, error } = await supabase.auth.signUp({
       email: values.email.toLowerCase(),
@@ -38,7 +54,8 @@ const onSubmit = async (values: SignupValues) => {
       options: {
         emailRedirectTo: redirectUrl,
         data: {
-          user_type: 'verified'
+          user_type: 'verified',
+          phone_number: normalizedPhone
         }
       },
     });
@@ -109,6 +126,23 @@ const onSubmit = async (values: SignupValues) => {
                         <FormControl>
                           <Input type="password" placeholder="••••••••" autoComplete="new-password" {...field} />
                         </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="phone_number"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Phone Number *</FormLabel>
+                        <FormControl>
+                          <Input type="tel" placeholder="+91 98765 43210" autoComplete="tel" {...field} />
+                        </FormControl>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          We'll use this to connect you with friends who have you in their contacts
+                        </p>
                         <FormMessage />
                       </FormItem>
                     )}

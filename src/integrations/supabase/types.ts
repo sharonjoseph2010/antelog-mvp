@@ -818,6 +818,10 @@ export type Database = {
       }
     }
     Functions: {
+      admin_delete_user: {
+        Args: { user_id_to_delete: string }
+        Returns: undefined
+      }
       calculate_request_relevance: {
         Args: { request_id_param: string; user_id_param: string }
         Returns: number
