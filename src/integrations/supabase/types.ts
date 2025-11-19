@@ -827,6 +827,15 @@ export type Database = {
         Returns: number
       }
       cleanup_expired_contacts: { Args: never; Returns: undefined }
+      find_profile_by_normalized_phone: {
+        Args: { exclude_user_id: string; input_phone: string }
+        Returns: {
+          full_name: string
+          handle: string
+          id: string
+          phone_number: string
+        }[]
+      }
       generate_anonymous_handle: { Args: never; Returns: string }
       get_connection_path: {
         Args: { user_a: string; user_b: string }

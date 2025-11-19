@@ -34,6 +34,7 @@ export function normalizePhone(phone: string): string {
 
 /**
  * Format phone number for display with spaces
+ * Uses normalized format as base
  * Example: +91 98765 43210
  */
 export function formatPhoneForDisplay(phone: string): string {
@@ -41,11 +42,9 @@ export function formatPhoneForDisplay(phone: string): string {
   if (!normalized) return '';
   
   // Format Indian numbers: +91 XXXXX XXXXX
-  if (normalized.startsWith('+91')) {
+  if (normalized.startsWith('+91') && normalized.length === 13) {
     const number = normalized.slice(3);
-    if (number.length === 10) {
-      return `+91 ${number.slice(0, 5)} ${number.slice(5)}`;
-    }
+    return `+91 ${number.slice(0, 5)} ${number.slice(5)}`;
   }
   
   return normalized;
