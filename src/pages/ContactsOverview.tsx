@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Search, UserPlus, Mail, Phone, Users, Send, Trash2 } from "lucide-react";
+import { Search, UserPlus, Mail, Phone, Users, Send, Trash2, RefreshCw } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -43,6 +43,7 @@ const ContactsOverview = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const [contactToDelete, setContactToDelete] = useState<ContactWithStatus | null>(null);
+  const [isRematching, setIsRematching] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -225,6 +226,40 @@ const ContactsOverview = () => {
     }
   };
 
+  const rematchContacts = async () => {
+    setIsRematching(true);
+    try {
+      console.log('Starting contact re-matching...');
+      
+      const { data, error } = await supabase.functions.invoke('rematch-contacts', {
+        body: {}
+      });
+
+      if (error) throw error;
+
+      console.log('Re-match result:', data);
+
+      toast({
+        title: "Contacts re-matched!",
+        description: data?.stats 
+          ? `Found ${data.stats.matchesFound} matches, updated ${data.stats.contactsUpdated} contacts`
+          : "Contacts have been re-checked for matches",
+      });
+
+      // Reload contacts to show updated matches
+      await loadContacts();
+    } catch (error) {
+      console.error('Error re-matching contacts:', error);
+      toast({
+        title: "Error",
+        description: "Failed to re-match contacts. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRematching(false);
+    }
+  };
+
   useEffect(() => {
     loadContacts();
   }, []);
@@ -236,8 +271,8 @@ const ContactsOverview = () => {
     contact.handle?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const onAntelogContacts = filteredContacts.filter(c => c.is_matched);
-  const notOnAntelogContacts = filteredContacts.filter(c => !c.is_matched);
+  const onAntelogContacts = filteredContacts.filter(c => c.is_matched && c.matched_user_id);
+  const notOnAntelogContacts = filteredContacts.filter(c => !c.is_matched || !c.matched_user_id);
 
   const getStatusBadge = (contact: ContactWithStatus) => {
     if (contact.is_friends) {
@@ -321,13 +356,23 @@ const ContactsOverview = () => {
               {contacts.length} contacts imported • {onAntelogContacts.length} on Antelog
             </p>
           </div>
-          <Button 
-            variant="outline"
-            onClick={() => navigate('/contacts-import-hub')}
-          >
-            <UserPlus className="w-4 h-4 mr-2" />
-            Import More
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline"
+              onClick={rematchContacts}
+              disabled={isRematching}
+            >
+              <RefreshCw className={`w-4 h-4 mr-2 ${isRematching ? 'animate-spin' : ''}`} />
+              {isRematching ? 'Refreshing...' : 'Refresh Matches'}
+            </Button>
+            <Button 
+              variant="outline"
+              onClick={() => navigate('/contacts-import-hub')}
+            >
+              <UserPlus className="w-4 h-4 mr-2" />
+              Import More
+            </Button>
+          </div>
         </div>
 
         <div className="mb-6">

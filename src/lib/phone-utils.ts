@@ -7,7 +7,7 @@ export function normalizePhone(phone: string): string {
   if (!phone) return '';
   
   // Remove all non-digit characters except +
-  let cleaned = phone.replace(/[^\\d+]/g, '');
+  let cleaned = phone.replace(/[^\d+]/g, '');
   
   // If already has + at start, return as is
   if (cleaned.startsWith('+')) {
