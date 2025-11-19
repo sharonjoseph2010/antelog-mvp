@@ -255,9 +255,7 @@ const ContactsOverview = () => {
       console.log('🔄 Starting contact re-matching...');
       console.log('📱 This will normalize and re-match all phone numbers');
       
-      const { data, error } = await supabase.functions.invoke('rematch-contacts', {
-        body: {}
-      });
+      const { data, error } = await supabase.rpc('refresh_contact_matches');
 
       if (error) {
         console.error('❌ Re-match error:', error);
@@ -266,14 +264,13 @@ const ContactsOverview = () => {
 
       console.log('✅ Re-match completed:', data);
 
-      const matchesFound = data?.stats?.matchesFound || 0;
-      const contactsUpdated = data?.stats?.contactsUpdated || 0;
+      const result = data as { success: boolean; matches_found: number; contacts_processed: number } | null;
+      const matchesFound = result?.matches_found || 0;
+      const contactsProcessed = result?.contacts_processed || 0;
 
       toast({
         title: matchesFound > 0 ? "New matches found!" : "Re-match complete",
-        description: data?.stats 
-          ? `Found ${matchesFound} match${matchesFound !== 1 ? 'es' : ''}, updated ${contactsUpdated} contact${contactsUpdated !== 1 ? 's' : ''}`
-          : "All contacts have been re-checked for matches",
+        description: `Found ${matchesFound} match${matchesFound !== 1 ? 'es' : ''} out of ${contactsProcessed} contact${contactsProcessed !== 1 ? 's' : ''}`,
         variant: matchesFound > 0 ? "default" : "default",
       });
 
@@ -281,11 +278,11 @@ const ContactsOverview = () => {
       console.log('🔄 Reloading contacts to show updated matches...');
       await loadContacts();
       console.log('✅ Contacts reloaded');
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Fatal error re-matching contacts:', error);
       toast({
         title: "Error",
-        description: "Failed to re-match contacts. Check console for details.",
+        description: error.message || "Failed to re-match contacts. Check console for details.",
         variant: "destructive",
       });
     } finally {
