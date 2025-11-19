@@ -11,19 +11,17 @@ export interface PhoneInputProps
 const PhoneInput = React.forwardRef<HTMLInputElement, PhoneInputProps>(
   ({ className, onChange, value, ...props }, ref) => {
     return (
-      <div className={cn("relative", className)}>
-        <PhoneInputWithCountry
-          international
-          defaultCountry="IN"
-          value={value}
-          onChange={onChange}
-          className="flex h-10 w-full rounded-md border border-input bg-background"
-          numberInputProps={{
-            className: "flex-1 h-full px-3 py-2 text-base bg-transparent outline-none placeholder:text-muted-foreground md:text-sm disabled:cursor-not-allowed disabled:opacity-50",
-            ...props,
-          }}
-        />
-      </div>
+      <PhoneInputWithCountry
+        international
+        defaultCountry="IN"
+        value={value}
+        onChange={onChange}
+        className={cn("flex items-center h-10 w-full rounded-md border border-input bg-background px-3", className)}
+        numberInputProps={{
+          className: "flex-1 h-full text-base bg-transparent outline-none placeholder:text-muted-foreground md:text-sm disabled:cursor-not-allowed disabled:opacity-50 border-none focus:outline-none focus:ring-0",
+          ...props,
+        }}
+      />
     );
   }
 );
