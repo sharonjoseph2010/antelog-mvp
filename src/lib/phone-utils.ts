@@ -1,31 +1,35 @@
 /**
- * Normalize phone number to E.164 format
- * E.164 format: +[country code][subscriber number]
- * Example: +919876543210
+ * Aggressive phone number normalization matching server-side logic
+ * Ensures consistent format regardless of input variations
+ * Final format: +[country code][number] with NO spaces
+ * Example: +917829068522
  */
 export function normalizePhone(phone: string): string {
-  if (!phone) return '';
+  if (!phone || phone.trim() === '') return '';
   
   // Remove all non-digit characters except +
   let cleaned = phone.replace(/[^\d+]/g, '');
   
-  // If already has + at start, return as is
-  if (cleaned.startsWith('+')) {
-    return cleaned;
+  // Remove leading zeros
+  cleaned = cleaned.replace(/^0+/, '');
+  
+  // If no + at start, add country code
+  if (!cleaned.startsWith('+')) {
+    // If starts with 91 and has 12 digits total, just add +
+    if (cleaned.startsWith('91') && cleaned.length === 12) {
+      cleaned = '+' + cleaned;
+    }
+    // If 10 digits, add +91 (India default)
+    else if (cleaned.length === 10) {
+      cleaned = '+91' + cleaned;
+    }
+    // Otherwise just add +
+    else {
+      cleaned = '+' + cleaned;
+    }
   }
   
-  // If starts with 91 (India) and is 12 digits, add +
-  if (cleaned.startsWith('91') && cleaned.length === 12) {
-    return '+' + cleaned;
-  }
-  
-  // If 10 digits, assume India and add +91
-  if (cleaned.length === 10) {
-    return '+91' + cleaned;
-  }
-  
-  // Otherwise add + if not present
-  return '+' + cleaned;
+  return cleaned;
 }
 
 /**

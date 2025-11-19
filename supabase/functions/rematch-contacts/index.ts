@@ -47,13 +47,15 @@ Deno.serve(async (req) => {
 
       console.log(`Processing contact ${contact.id} with phone ${contact.contact_phone}`)
 
-      // Find matching profile by phone number
+      // Find matching profile using normalized phone comparison
+      // This query uses the normalize_phone_number function to ensure matching works
+      // regardless of format differences (spaces, leading zeros, etc.)
       const { data: profile, error: profileError } = await supabaseClient
-        .from('profiles')
-        .select('id, full_name, handle, phone_number')
-        .eq('phone_number', contact.contact_phone)
-        .neq('id', contact.user_id) // Don't match with self
-        .single()
+        .rpc('find_profile_by_normalized_phone', {
+          input_phone: contact.contact_phone,
+          exclude_user_id: contact.user_id
+        })
+        .maybeSingle()
 
       if (profileError && profileError.code !== 'PGRST116') {
         console.error(`Error finding profile for contact ${contact.id}:`, profileError)
