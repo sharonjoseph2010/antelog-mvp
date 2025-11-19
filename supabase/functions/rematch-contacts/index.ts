@@ -46,61 +46,85 @@ Deno.serve(async (req) => {
       if (!contact.contact_phone) continue
 
       console.log(`\n=== Processing contact ${contact.id} ===`)
-      console.log(`  Name: ${contact.user_id}`)
-      console.log(`  Original phone: "${contact.contact_phone}"`)
+      console.log(`📋 Contact name: ${contact.user_id}`)
+      console.log(`📱 Original phone (as stored): "${contact.contact_phone}"`)
 
       // Get normalized version for debugging
-      const { data: debugData, error: debugError } = await supabaseClient
+      const { data: normalizedContactPhone, error: debugError } = await supabaseClient
         .rpc('normalize_phone_number', { phone_input: contact.contact_phone })
 
-      if (!debugError && debugData) {
-        console.log(`  Normalized phone: "${debugData}"`)
-      }
-
-      // Find matching profile using normalized phone comparison
-      // This query uses the normalize_phone_number function to ensure matching works
-      // regardless of format differences (spaces, leading zeros, etc.)
-      const { data: profile, error: profileError } = await supabaseClient
-        .rpc('find_profile_by_normalized_phone', {
-          input_phone: contact.contact_phone,
-          exclude_user_id: contact.user_id
-        })
-        .maybeSingle()
-
-      if (profileError && profileError.code !== 'PGRST116') {
-        console.error(`  ❌ Error finding profile:`, profileError)
+      if (debugError) {
+        console.error(`❌ Error normalizing contact phone:`, debugError)
         continue
       }
 
-      if (profile) {
-        console.log(`  ✅ MATCH FOUND!`)
-        console.log(`  → Profile ID: ${profile.id}`)
-        console.log(`  → Name: ${profile.full_name}`)
-        console.log(`  → Handle: @${profile.handle}`)
-        console.log(`  → Profile phone: "${profile.phone_number}"`)
-        matchedCount++
+      console.log(`🔄 Normalized contact phone: "${normalizedContactPhone}"`)
 
+      // Get all profiles to check against with detailed logging
+      console.log(`\n🔍 Searching for matching profiles...`)
+      const { data: allProfiles, error: profilesError } = await supabaseClient
+        .from('profiles')
+        .select('id, full_name, handle, phone_number')
+        .not('phone_number', 'is', null)
+        .neq('id', contact.user_id)
+
+      if (profilesError) {
+        console.error(`❌ Error fetching profiles:`, profilesError)
+        continue
+      }
+
+      console.log(`📊 Checking against ${allProfiles?.length || 0} profiles with phone numbers`)
+
+      let foundMatch = false
+      let matchedProfile = null
+
+      // Check each profile for a match
+      for (const profile of allProfiles || []) {
+        const { data: normalizedProfilePhone } = await supabaseClient
+          .rpc('normalize_phone_number', { phone_input: profile.phone_number })
+
+        console.log(`\n  👤 Checking profile: ${profile.full_name} (@${profile.handle})`)
+        console.log(`     Original phone (as stored): "${profile.phone_number}"`)
+        console.log(`     Normalized phone: "${normalizedProfilePhone}"`)
+
+        if (normalizedProfilePhone === normalizedContactPhone) {
+          console.log(`     ✅ MATCH FOUND! Normalized phones are identical`)
+          foundMatch = true
+          matchedProfile = profile
+          matchedCount++
+          break
+        } else {
+          console.log(`     ❌ No match - normalized phones differ`)
+          console.log(`        Contact: "${normalizedContactPhone}"`)
+          console.log(`        Profile: "${normalizedProfilePhone}"`)
+        }
+      }
+
+      if (foundMatch && matchedProfile) {
+        console.log(`\n✅ Updating contact with match...`)
+        console.log(`   → Matched to: ${matchedProfile.full_name} (@${matchedProfile.handle})`)
+        
         // Update contact with match
         const { error: updateError } = await supabaseClient
           .from('contact_imports')
           .update({
             is_matched: true,
-            matched_user_id: profile.id
+            matched_user_id: matchedProfile.id
           })
           .eq('id', contact.id)
 
         if (updateError) {
-          console.error(`  ❌ Error updating contact:`, updateError)
+          console.error(`❌ Error updating contact:`, updateError)
         } else {
           updatedCount++
-          console.log(`  ✅ Contact updated successfully`)
+          console.log(`✅ Contact updated successfully`)
         }
       } else {
-        console.log(`  ⚠️  No match found`)
+        console.log(`\n⚠️  No match found for this contact`)
         
         // No match found - ensure is_matched is false
         if (contact.is_matched) {
-          console.log(`  → Clearing previous match status`)
+          console.log(`→ Clearing previous match status`)
           const { error: updateError } = await supabaseClient
             .from('contact_imports')
             .update({
@@ -110,10 +134,10 @@ Deno.serve(async (req) => {
             .eq('id', contact.id)
 
           if (updateError) {
-            console.error(`  ❌ Error clearing match:`, updateError)
+            console.error(`❌ Error clearing match:`, updateError)
           } else {
             updatedCount++
-            console.log(`  ✅ Match status cleared`)
+            console.log(`✅ Match status cleared`)
           }
         }
       }
