@@ -11,3 +11,6 @@ verify_jwt = true
 
 [functions.ai-update-user-expertise]
 verify_jwt = true
+
+[functions.rematch-contacts]
+verify_jwt = true
