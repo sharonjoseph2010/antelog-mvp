@@ -945,6 +945,10 @@ export type Database = {
         Returns: undefined
       }
       normalize_phone_number: { Args: { phone_input: string }; Returns: string }
+      refresh_contact_matches: {
+        Args: { user_id_param?: string }
+        Returns: Json
+      }
       refresh_master_directory: { Args: never; Returns: undefined }
       validate_authenticated_user: { Args: never; Returns: boolean }
     }
