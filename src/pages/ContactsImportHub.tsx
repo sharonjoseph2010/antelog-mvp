@@ -179,8 +179,8 @@ export default function ContactsImportHub() {
         description: `${contactsToSave.length} contacts have been added to your network`,
       });
 
-      // Navigate to contacts overview after successful import
-      navigate('/contacts-overview');
+      // Navigate to contacts page after successful import
+      navigate('/contacts');
     } catch (error: any) {
       console.error('Error saving contacts:', error);
       
