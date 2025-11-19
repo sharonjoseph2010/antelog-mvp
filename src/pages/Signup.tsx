@@ -40,8 +40,10 @@ const Signup = () => {
 const onSubmit = async (values: SignupValues) => {
   setLoading(true);
   try {
-    // Phone is already in E.164 format from PhoneInput component
+    // Phone is already in E.164 format from PhoneInput component (+919876543210)
     const normalizedPhone = values.phone_number;
+    
+    console.log('Signup - Phone number being submitted:', normalizedPhone);
 
     const redirectUrl = `${window.location.origin}/auth/callback`;
     const { data, error } = await supabase.auth.signUp({
@@ -51,10 +53,12 @@ const onSubmit = async (values: SignupValues) => {
         emailRedirectTo: redirectUrl,
         data: {
           user_type: 'verified',
-          phone_number: normalizedPhone
+          phone_number: normalizedPhone // Store in auth metadata for trigger to extract
         }
       },
     });
+    
+    console.log('Signup - Auth response:', { userId: data?.user?.id, hasSession: !!data?.session });
 
     if (error) {
       const msg = error.message?.toLowerCase().includes("already registered")
