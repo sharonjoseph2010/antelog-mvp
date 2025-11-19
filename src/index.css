@@ -106,30 +106,3 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
   }
 }
-
-/* Custom styles for react-phone-number-input */
-@layer components {
-  .PhoneInput {
-    @apply flex items-center gap-2;
-  }
-
-  .PhoneInputCountry {
-    @apply flex items-center gap-1 shrink-0;
-  }
-
-  .PhoneInputCountryIcon {
-    @apply w-5 h-4 shrink-0;
-  }
-
-  .PhoneInputCountrySelect {
-    @apply bg-transparent border-none outline-none cursor-pointer text-sm appearance-none;
-  }
-
-  .PhoneInputCountrySelectArrow {
-    @apply hidden;
-  }
-
-  .PhoneInputInput {
-    @apply flex-1 h-full text-base bg-transparent outline-none placeholder:text-muted-foreground md:text-sm border-none focus:outline-none focus:ring-0;
-  }
-}
