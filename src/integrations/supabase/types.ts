@@ -827,6 +827,16 @@ export type Database = {
         Returns: number
       }
       cleanup_expired_contacts: { Args: never; Returns: undefined }
+      debug_phone_match: {
+        Args: { contact_phone_input: string; profile_phone_input: string }
+        Returns: {
+          contact_normalized: string
+          contact_original: string
+          matches: boolean
+          profile_normalized: string
+          profile_original: string
+        }[]
+      }
       find_profile_by_normalized_phone: {
         Args: { exclude_user_id: string; input_phone: string }
         Returns: {
