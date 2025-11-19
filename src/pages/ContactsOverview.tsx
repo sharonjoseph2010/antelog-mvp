@@ -19,6 +19,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import ContactDebugPanel from "@/components/ContactDebugPanel";
 
 interface ContactWithStatus {
   id: string;
@@ -44,8 +45,30 @@ const ContactsOverview = () => {
   const [loading, setLoading] = useState(true);
   const [contactToDelete, setContactToDelete] = useState<ContactWithStatus | null>(null);
   const [isRematching, setIsRematching] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    checkAdminStatus();
+  }, []);
+
+  const checkAdminStatus = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: roleData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .single();
+
+      setIsAdmin(roleData?.role === 'admin');
+    } catch (error) {
+      console.error('Error checking admin status:', error);
+    }
+  };
 
   const loadContacts = async () => {
     try {
@@ -523,6 +546,9 @@ const ContactsOverview = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Admin Debug Panel */}
+        {isAdmin && <ContactDebugPanel />}
       </div>
 
       {/* Delete Confirmation Dialog */}
