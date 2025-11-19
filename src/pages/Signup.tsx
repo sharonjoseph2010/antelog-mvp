@@ -18,7 +18,11 @@ const signupSchema = z.object({
   phone_number: z
     .string()
     .min(1, "Phone number is required")
-    .refine((val) => val && val.startsWith('+') && val.length >= 12, "Enter a valid phone number with country code"),
+    .refine((val) => {
+      // Check if it's in +91XXXXXXXXXX format with exactly 10 digits after +91
+      const match = val.match(/^\+91(\d{10})$/);
+      return match !== null;
+    }, "Please enter a valid 10-digit phone number"),
 });
 
 type SignupValues = z.infer<typeof signupSchema>;
