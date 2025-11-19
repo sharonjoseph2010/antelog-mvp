@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/ui/phone-input";
 
 const signupSchema = z.object({
   email: z.string().min(1, "Email is required").email("Enter a valid email"),
@@ -17,11 +18,7 @@ const signupSchema = z.object({
   phone_number: z
     .string()
     .min(1, "Phone number is required")
-    .regex(/^[\d\s\-\+\(\)]+$/, "Phone number can only contain digits, spaces, dashes, +, and parentheses")
-    .refine((val) => {
-      const digits = val.replace(/\D/g, '');
-      return digits.length >= 10;
-    }, "Phone number must have at least 10 digits"),
+    .refine((val) => val && val.startsWith('+') && val.length >= 12, "Enter a valid phone number with country code"),
 });
 
 type SignupValues = z.infer<typeof signupSchema>;
@@ -39,13 +36,8 @@ const Signup = () => {
 const onSubmit = async (values: SignupValues) => {
   setLoading(true);
   try {
-    // Normalize phone number
-    let normalizedPhone = values.phone_number.replace(/[^\d+]/g, '');
-    if (normalizedPhone.length === 10 && !normalizedPhone.startsWith('+')) {
-      normalizedPhone = '+91' + normalizedPhone;
-    } else if (normalizedPhone.length === 12 && normalizedPhone.startsWith('91')) {
-      normalizedPhone = '+' + normalizedPhone;
-    }
+    // Phone is already in E.164 format from PhoneInput component
+    const normalizedPhone = values.phone_number;
 
     const redirectUrl = `${window.location.origin}/auth/callback`;
     const { data, error } = await supabase.auth.signUp({
@@ -138,7 +130,7 @@ const onSubmit = async (values: SignupValues) => {
                       <FormItem>
                         <FormLabel>Phone Number *</FormLabel>
                         <FormControl>
-                          <Input type="tel" placeholder="+91 98765 43210" autoComplete="tel" {...field} />
+                          <PhoneInput {...field} />
                         </FormControl>
                         <p className="text-xs text-muted-foreground mt-1">
                           We'll use this to connect you with friends who have you in their contacts

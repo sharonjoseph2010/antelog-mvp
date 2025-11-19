@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { Phone, Users } from "lucide-react";
 
 const profileSchema = z.object({
@@ -23,11 +24,7 @@ const profileSchema = z.object({
   phone_number: z
     .string()
     .min(1, "Phone number is required")
-    .regex(/^[\d\s\-\+\(\)]+$/, "Phone number can only contain digits, spaces, dashes, +, and parentheses")
-    .refine((val) => {
-      const digits = val.replace(/\D/g, '');
-      return digits.length >= 10;
-    }, "Phone number must have at least 10 digits"),
+    .refine((val) => val && val.startsWith('+') && val.length >= 12, "Enter a valid phone number with country code"),
 });
 
 type ProfileValues = z.infer<typeof profileSchema>;
@@ -96,24 +93,6 @@ const ProfileSetupEnhanced = () => {
     return () => subscription.subscription.unsubscribe();
   }, [navigate, form]);
 
-  // Normalize phone number (same logic as contact imports)
-  const normalizePhone = (phone: string): string => {
-    if (!phone) return '';
-    // Remove all non-digit characters except +
-    let cleaned = phone.replace(/[^\d+]/g, '');
-    
-    // Add +91 if it's a 10-digit Indian number
-    if (cleaned.length === 10 && !cleaned.startsWith('+')) {
-      cleaned = '+91' + cleaned;
-    } else if (cleaned.length === 12 && cleaned.startsWith('91')) {
-      cleaned = '+' + cleaned;
-    } else if (!cleaned.startsWith('+') && cleaned.length > 10) {
-      cleaned = '+' + cleaned;
-    }
-    
-    return cleaned;
-  };
-
   const onSubmit = async (values: ProfileValues) => {
     if (!userId) {
       toast.error("You need to be signed in to set up your profile.");
@@ -143,8 +122,8 @@ const ProfileSetupEnhanced = () => {
         imagePath = uploadData?.path;
       }
 
-      // Normalize phone number before saving
-      const normalizedPhone = normalizePhone(values.phone_number);
+      // Phone is already in E.164 format from PhoneInput component
+      const normalizedPhone = values.phone_number;
       
       const payload: any = {
         id: userId,
@@ -255,7 +234,7 @@ const ProfileSetupEnhanced = () => {
                           Phone Number *
                         </FormLabel>
                         <FormControl>
-                          <Input type="tel" placeholder="+91 98765 43210" {...field} />
+                          <PhoneInput {...field} />
                         </FormControl>
                         <div className="space-y-1">
                           <p className="text-sm text-muted-foreground">
