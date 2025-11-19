@@ -229,30 +229,40 @@ const ContactsOverview = () => {
   const rematchContacts = async () => {
     setIsRematching(true);
     try {
-      console.log('Starting contact re-matching...');
+      console.log('🔄 Starting contact re-matching...');
+      console.log('📱 This will normalize and re-match all phone numbers');
       
       const { data, error } = await supabase.functions.invoke('rematch-contacts', {
         body: {}
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Re-match error:', error);
+        throw error;
+      }
 
-      console.log('Re-match result:', data);
+      console.log('✅ Re-match completed:', data);
+
+      const matchesFound = data?.stats?.matchesFound || 0;
+      const contactsUpdated = data?.stats?.contactsUpdated || 0;
 
       toast({
-        title: "Contacts re-matched!",
+        title: matchesFound > 0 ? "New matches found!" : "Re-match complete",
         description: data?.stats 
-          ? `Found ${data.stats.matchesFound} matches, updated ${data.stats.contactsUpdated} contacts`
-          : "Contacts have been re-checked for matches",
+          ? `Found ${matchesFound} match${matchesFound !== 1 ? 'es' : ''}, updated ${contactsUpdated} contact${contactsUpdated !== 1 ? 's' : ''}`
+          : "All contacts have been re-checked for matches",
+        variant: matchesFound > 0 ? "default" : "default",
       });
 
       // Reload contacts to show updated matches
+      console.log('🔄 Reloading contacts to show updated matches...');
       await loadContacts();
+      console.log('✅ Contacts reloaded');
     } catch (error) {
-      console.error('Error re-matching contacts:', error);
+      console.error('❌ Fatal error re-matching contacts:', error);
       toast({
         title: "Error",
-        description: "Failed to re-match contacts. Please try again.",
+        description: "Failed to re-match contacts. Check console for details.",
         variant: "destructive",
       });
     } finally {

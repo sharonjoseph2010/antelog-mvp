@@ -1,33 +1,54 @@
 /**
- * Aggressive phone number normalization matching server-side logic
+ * BULLETPROOF phone number normalization matching server-side logic
  * Ensures consistent format regardless of input variations
- * Final format: +[country code][number] with NO spaces
- * Example: +917829068522
+ * Removes ALL spaces, dashes, dots, parentheses, and special characters
+ * Final format: +[country code][number] with NO spaces, NO special chars
+ * Examples that ALL become +917829068522:
+ * - "+91 7829068522"
+ * - "+917829068522" 
+ * - "917829068522"
+ * - "7829068522"
+ * - "07829068522"
+ * - "+91-7829-068522"
+ * - "(+91) 7829 068522"
  */
 export function normalizePhone(phone: string): string {
   if (!phone || phone.trim() === '') return '';
   
-  // Remove all non-digit characters except +
+  // AGGRESSIVE: Remove ALL non-digit characters except +
+  // This removes spaces, dashes, dots, parentheses, EVERYTHING
   let cleaned = phone.replace(/[^\d+]/g, '');
   
-  // Remove leading zeros
+  // Remove ALL leading zeros
   cleaned = cleaned.replace(/^0+/, '');
   
-  // If no + at start, add country code
-  if (!cleaned.startsWith('+')) {
+  // If already has +, ensure format is correct
+  if (cleaned.startsWith('+')) {
+    // Remove any + signs that aren't at the start
+    const digitsOnly = cleaned.substring(1).replace(/[^\d]/g, '');
+    cleaned = '+' + digitsOnly;
+  } else {
+    // No + prefix, add country code logic
     // If starts with 91 and has 12 digits total, just add +
     if (cleaned.startsWith('91') && cleaned.length === 12) {
       cleaned = '+' + cleaned;
     }
-    // If 10 digits, add +91 (India default)
+    // If exactly 10 digits, add +91 (India default)
     else if (cleaned.length === 10) {
       cleaned = '+91' + cleaned;
     }
-    // Otherwise just add +
+    // If 11 digits starting with 1 (US/Canada), add +
+    else if (cleaned.length === 11 && cleaned.startsWith('1')) {
+      cleaned = '+' + cleaned;
+    }
+    // Otherwise just add + prefix
     else {
       cleaned = '+' + cleaned;
     }
   }
+  
+  // Final cleanup: ensure no spaces or special characters remain
+  cleaned = cleaned.replace(/[^\d+]/g, '');
   
   return cleaned;
 }
