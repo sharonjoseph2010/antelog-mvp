@@ -331,7 +331,7 @@ const ContactsOverview = () => {
           </p>
         </div>
 
-        <div className="flex gap-2 mb-6">
+        <div className="mb-6">
           <Button 
             onClick={rematchContacts}
             disabled={isRematching}
@@ -339,13 +339,6 @@ const ContactsOverview = () => {
           >
             <Users className="mr-2 h-4 w-4" />
             {isRematching ? "Rematching..." : "Refresh Matches"}
-          </Button>
-          
-          <Button 
-            onClick={() => navigate('/contacts-import-hub')}
-            variant="default"
-          >
-            Import More Contacts
           </Button>
         </div>
 
