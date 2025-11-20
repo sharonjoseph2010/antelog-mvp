@@ -19,7 +19,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import ContactDebugPanel from "@/components/ContactDebugPanel";
-import { normalizePhone } from "@/lib/phone-utils";
+import { getLast10Digits } from "@/lib/phone-utils";
 
 interface ContactWithStatus {
   id: string;
@@ -143,7 +143,7 @@ const ContactsOverview = () => {
       console.log('  Full Name:', profile.full_name);
       console.log('  Handle:', profile.handle);
       console.log('  Phone (RAW):', profile.phone_number);
-      console.log('  Phone (normalized):', normalizePhone(profile.phone_number || ''));
+      console.log('  Phone (last 10 digits):', getLast10Digits(profile.phone_number || ''));
       console.log('  Is Verified:', profile.is_verified);
       console.log('  User Type:', profile.user_type);
       console.log('  Is Current User?:', profile.id === user.id ? '✅ YES' : '❌ NO');
@@ -385,7 +385,7 @@ const ContactsOverview = () => {
         full_name: p.full_name,
         handle: p.handle,
         phone: p.phone_number,
-        normalized_phone: normalizePhone(p.phone_number || '')
+        last_10_digits: getLast10Digits(p.phone_number || '')
       })));
       
       // Check if there's a mismatch between ALL profiles and filtered profiles
@@ -400,37 +400,33 @@ const ContactsOverview = () => {
 
       let matchesFound = 0;
 
-      console.log('\n=== STEP 4: CHECKING EACH CONTACT ===');
+      console.log('\n=== STEP 4: CHECKING EACH CONTACT (USING LAST 10 DIGITS) ===');
       for (const contact of contactsData || []) {
         console.log('\n--- Checking Contact ---');
         console.log('Contact ID:', contact.id);
         console.log('Contact Name:', contact.contact_name);
         console.log('Contact Phone (RAW from DB):', contact.contact_phone);
-        console.log('Contact Phone (after toString):', contact.contact_phone?.toString());
         
-        const normalizedContactPhone = normalizePhone(contact.contact_phone || '');
-        console.log('Contact Phone (after normalization):', normalizedContactPhone);
-        console.log('Normalization function output length:', normalizedContactPhone?.length);
-        console.log('Type of contact phone:', typeof normalizedContactPhone);
+        const contactLast10 = getLast10Digits(contact.contact_phone || '');
+        console.log('Contact Phone Last 10 Digits:', contactLast10);
+        console.log('Contact Phone Last 10 Length:', contactLast10?.length);
 
         let matchFound = false;
 
-        console.log('\n  === Comparing with profiles ===');
+        console.log('\n  === Comparing with profiles (last 10 digits) ===');
         for (const profile of profilesData || []) {
           console.log('  Comparing with Profile:', profile.full_name || profile.handle);
           console.log('  Profile ID:', profile.id);
           console.log('  Profile Phone (RAW from DB):', profile.phone_number);
           
-          const normalizedProfilePhone = normalizePhone(profile.phone_number || '');
-          console.log('  Profile Phone (after normalization):', normalizedProfilePhone);
-          console.log('  Type of profile phone:', typeof normalizedProfilePhone);
+          const profileLast10 = getLast10Digits(profile.phone_number || '');
+          console.log('  Profile Phone Last 10 Digits:', profileLast10);
           
-          console.log('  Contact Normalized:', normalizedContactPhone);
-          console.log('  Profile Normalized:', normalizedProfilePhone);
-          console.log('  Are they equal?:', normalizedContactPhone === normalizedProfilePhone);
-          console.log('  Strict comparison result:', normalizedContactPhone === normalizedProfilePhone);
+          console.log('  Contact Last 10:', contactLast10);
+          console.log('  Profile Last 10:', profileLast10);
+          console.log('  Match?:', contactLast10 === profileLast10);
 
-          if (normalizedContactPhone === normalizedProfilePhone) {
+          if (contactLast10 && profileLast10 && contactLast10 === profileLast10) {
             console.log('\n✅ MATCH FOUND!');
             console.log('Setting matched_user_id:', profile.id);
             console.log('Updating contact ID:', contact.id);
