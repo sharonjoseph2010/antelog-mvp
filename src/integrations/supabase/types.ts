@@ -948,10 +948,6 @@ export type Database = {
         Args: { user_id_input: string }
         Returns: {
           contact_id: string
-          contact_phone: string
-          matched_phone: string
-          matched_profile_handle: string
-          matched_profile_name: string
           matched_user_id: string
         }[]
       }
@@ -961,6 +957,10 @@ export type Database = {
         Returns: Json
       }
       refresh_master_directory: { Args: never; Returns: undefined }
+      update_matched_contacts: {
+        Args: { user_id_input: string }
+        Returns: number
+      }
       validate_authenticated_user: { Args: never; Returns: boolean }
     }
     Enums: {
