@@ -69,7 +69,7 @@ const ContactsOverview = () => {
   };
 
   const debugPhoneMatching = async () => {
-    console.log('\n=== DEBUG PHONE MATCHING - DATABASE QUERY ===');
+    console.log('\n=== DEBUG PHONE MATCHING - COMPREHENSIVE CHECK ===');
     
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
@@ -83,25 +83,60 @@ const ContactsOverview = () => {
     
     console.log('Current logged in user ID:', user.id);
     
+    // STEP 1: Check if Jeff's specific profile exists
+    console.log('\n--- STEP 1: Looking for Jeff\'s profile specifically ---');
+    const jeffPhones = ['+918075268971', '918075268971', '8075268971'];
+    console.log('Searching for phones:', jeffPhones);
+    
+    const { data: jeffProfile, error: jeffError } = await supabase
+      .from('profiles')
+      .select('id, full_name, handle, phone_number, is_verified, user_type, verification_status')
+      .or(`phone_number.eq.${jeffPhones[0]},phone_number.eq.${jeffPhones[1]},phone_number.eq.${jeffPhones[2]}`);
+    
+    console.log('Jeff\'s profile query result:', jeffProfile);
+    console.log('Jeff\'s profile error:', jeffError);
+    
+    if (jeffProfile && jeffProfile.length > 0) {
+      console.log('✅ FOUND Jeff\'s profile:');
+      jeffProfile.forEach(p => {
+        console.log('  ID:', p.id);
+        console.log('  Name:', p.full_name);
+        console.log('  Phone:', p.phone_number);
+        console.log('  Verified:', p.is_verified);
+        console.log('  User Type:', p.user_type);
+        console.log('  Verification Status:', p.verification_status);
+      });
+    } else {
+      console.log('❌ Jeff\'s profile NOT FOUND in query result');
+      console.log('This could mean:');
+      console.log('  1. Profile doesn\'t exist in database');
+      console.log('  2. Phone number is stored in different format');
+      console.log('  3. RLS policy is blocking access');
+    }
+    
+    // STEP 2: Check RLS - Try to get ALL profiles (will be filtered by RLS)
+    console.log('\n--- STEP 2: Checking what RLS allows us to see ---');
     const { data: profiles, error } = await supabase
       .from('profiles')
-      .select('id, full_name, handle, phone_number')
+      .select('id, full_name, handle, phone_number, is_verified, user_type')
       .not('phone_number', 'is', null)
       .neq('phone_number', '');
 
     if (error) {
-      console.error('Error fetching profiles:', error);
+      console.error('❌ Error fetching profiles:', error);
+      console.error('Error details:', JSON.stringify(error, null, 2));
       toast({
         title: "Error",
-        description: "Failed to fetch profiles for debugging",
+        description: `Failed to fetch profiles: ${error.message}`,
         variant: "destructive"
       });
       return;
     }
 
-    console.log('=== ALL PROFILES WITH PHONE NUMBERS ===');
+    console.log('=== PROFILES VISIBLE WITH CURRENT RLS ===');
     console.log('Total profiles found:', profiles?.length || 0);
-    console.log('\nProfile details:');
+    console.log('⚠️ If this is only 1, RLS is likely blocking other profiles');
+    
     profiles?.forEach((profile, index) => {
       console.log(`\n[${index + 1}] Profile:`);
       console.log('  ID:', profile.id);
@@ -109,24 +144,45 @@ const ContactsOverview = () => {
       console.log('  Handle:', profile.handle);
       console.log('  Phone (RAW):', profile.phone_number);
       console.log('  Phone (normalized):', normalizePhone(profile.phone_number || ''));
-      console.log('  Phone data type:', typeof profile.phone_number);
+      console.log('  Is Verified:', profile.is_verified);
+      console.log('  User Type:', profile.user_type);
       console.log('  Is Current User?:', profile.id === user.id ? '✅ YES' : '❌ NO');
-      console.log('  Phone is null?:', profile.phone_number === null);
-      console.log('  Phone is empty string?:', profile.phone_number === '');
     });
+    
+    // STEP 3: Try to count total profiles (admin view)
+    console.log('\n--- STEP 3: Checking if user is admin ---');
+    const { data: roleData } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id)
+      .single();
+    
+    console.log('User role:', roleData?.role || 'none');
+    
+    if (roleData?.role !== 'admin') {
+      console.log('\n⚠️⚠️⚠️ CRITICAL ISSUE IDENTIFIED ⚠️⚠️⚠️');
+      console.log('You are NOT an admin, so RLS policy "View basic profile info only" applies.');
+      console.log('This policy ONLY shows profiles that are:');
+      console.log('  1. Your own profile, OR');
+      console.log('  2. Profiles where ALL of these are true:');
+      console.log('     - is_verified = true');
+      console.log('     - full_name IS NOT NULL');
+      console.log('     - handle IS NOT NULL');
+      console.log('     - AND either:');
+      console.log('       a) You are friends with them, OR');
+      console.log('       b) They have a public list AND are in your extended network');
+      console.log('\nIf Jeff doesn\'t meet these conditions, you CANNOT see his profile.');
+      console.log('SOLUTION: Contact matching needs a security definer function to bypass RLS.');
+    }
     
     console.log('\n=== PROFILES EXCLUDING CURRENT USER ===');
     const otherProfiles = profiles?.filter(p => p.id !== user.id);
     console.log('Count (excluding current user):', otherProfiles?.length || 0);
-    otherProfiles?.forEach((profile, index) => {
-      console.log(`\n[${index + 1}] Other Profile:`);
-      console.log('  Name:', profile.full_name);
-      console.log('  Phone (normalized):', normalizePhone(profile.phone_number || ''));
-    });
 
     toast({
       title: "Debug Complete",
-      description: `Found ${profiles?.length || 0} total profiles, ${otherProfiles?.length || 0} excluding you. Check console.`
+      description: `Found ${profiles?.length || 0} total profiles, ${otherProfiles?.length || 0} excluding you. Check console for RLS analysis.`,
+      duration: 5000
     });
   };
 
