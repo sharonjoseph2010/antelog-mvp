@@ -252,32 +252,128 @@ const ContactsOverview = () => {
   const rematchContacts = async () => {
     setIsRematching(true);
     try {
-      console.log('🔄 Starting contact re-matching...');
-      console.log('📱 This will normalize and re-match all phone numbers');
+      console.log('========================================');
+      console.log('🔄 STARTING CONTACT RE-MATCHING');
+      console.log('========================================');
       
-      const { data, error } = await supabase.rpc('refresh_contact_matches');
-
-      if (error) {
-        console.error('❌ Re-match error:', error);
-        throw error;
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('No authenticated user');
       }
-
-      console.log('✅ Re-match completed:', data);
-
-      const result = data as { success: boolean; matches_found: number; contacts_processed: number } | null;
-      const matchesFound = result?.matches_found || 0;
-      const contactsProcessed = result?.contacts_processed || 0;
+      console.log('👤 Current User ID:', user.id);
+      
+      // Get all contacts for this user
+      const { data: contactsData, error: contactsError } = await supabase
+        .from('contact_imports')
+        .select('id, contact_name, contact_phone, is_matched, matched_user_id')
+        .eq('user_id', user.id);
+      
+      if (contactsError) throw contactsError;
+      
+      console.log(`\n📋 Found ${contactsData?.length || 0} total contacts`);
+      const contactsWithPhone = contactsData?.filter(c => c.contact_phone) || [];
+      console.log(`📞 ${contactsWithPhone.length} contacts have phone numbers\n`);
+      
+      // Get all profiles with phone numbers
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, handle, full_name, phone_number')
+        .not('phone_number', 'is', null);
+      
+      if (profilesError) throw profilesError;
+      
+      console.log(`👥 Found ${profilesData?.length || 0} profiles with phone numbers\n`);
+      
+      // Import normalization function
+      const { normalizePhone } = await import('@/lib/phone-utils');
+      
+      // Process each contact
+      let matchesFound = 0;
+      for (const contact of contactsWithPhone) {
+        console.log('─────────────────────────────────────');
+        console.log(`📇 Checking Contact: "${contact.contact_name}"`);
+        console.log(`   Original Phone: ${contact.contact_phone}`);
+        
+        const normalizedContactPhone = normalizePhone(contact.contact_phone || '');
+        console.log(`   Normalized Phone: ${normalizedContactPhone}`);
+        console.log(`   Currently Matched: ${contact.is_matched}`);
+        console.log(`   Current matched_user_id: ${contact.matched_user_id || 'none'}`);
+        
+        // Check against all profiles
+        console.log(`\n   🔍 Checking against ${profilesData?.length || 0} profiles...`);
+        let foundMatch = false;
+        
+        for (const profile of profilesData || []) {
+          // Skip self
+          if (profile.id === user.id) continue;
+          
+          const normalizedProfilePhone = normalizePhone(profile.phone_number || '');
+          
+          console.log(`\n   👤 Profile: @${profile.handle} (${profile.full_name || 'no name'})`);
+          console.log(`      Profile ID: ${profile.id}`);
+          console.log(`      Original Phone: ${profile.phone_number}`);
+          console.log(`      Normalized Phone: ${normalizedProfilePhone}`);
+          console.log(`      Comparison: "${normalizedContactPhone}" === "${normalizedProfilePhone}"`);
+          console.log(`      Match: ${normalizedContactPhone === normalizedProfilePhone}`);
+          
+          if (normalizedContactPhone === normalizedProfilePhone) {
+            console.log(`\n   ✅ MATCH FOUND!`);
+            console.log(`      Contact "${contact.contact_name}" matches @${profile.handle}`);
+            console.log(`      Setting matched_user_id to ${profile.id}`);
+            foundMatch = true;
+            matchesFound++;
+            
+            // Update the contact
+            const { error: updateError } = await supabase
+              .from('contact_imports')
+              .update({ 
+                is_matched: true, 
+                matched_user_id: profile.id 
+              })
+              .eq('id', contact.id);
+            
+            if (updateError) {
+              console.error(`      ❌ Update Error:`, updateError);
+            } else {
+              console.log(`      ✅ Database updated successfully`);
+            }
+            break;
+          }
+        }
+        
+        if (!foundMatch) {
+          console.log(`\n   ❌ No match found for "${contact.contact_name}"`);
+          
+          // Clear previous match if exists
+          if (contact.is_matched) {
+            console.log(`   🔄 Clearing previous match...`);
+            await supabase
+              .from('contact_imports')
+              .update({ 
+                is_matched: false, 
+                matched_user_id: null 
+              })
+              .eq('id', contact.id);
+            console.log(`   ✅ Previous match cleared`);
+          }
+        }
+      }
+      
+      console.log('\n========================================');
+      console.log('✅ CONTACT MATCHING COMPLETE');
+      console.log(`   Contacts Processed: ${contactsWithPhone.length}`);
+      console.log(`   Matches Found: ${matchesFound}`);
+      console.log('========================================\n');
 
       toast({
         title: matchesFound > 0 ? "New matches found!" : "Re-match complete",
-        description: `Found ${matchesFound} match${matchesFound !== 1 ? 'es' : ''} out of ${contactsProcessed} contact${contactsProcessed !== 1 ? 's' : ''}`,
+        description: `Found ${matchesFound} match${matchesFound !== 1 ? 'es' : ''} out of ${contactsWithPhone.length} contact${contactsWithPhone.length !== 1 ? 's' : ''}`,
         variant: matchesFound > 0 ? "default" : "default",
       });
 
       // Reload contacts to show updated matches
-      console.log('🔄 Reloading contacts to show updated matches...');
       await loadContacts();
-      console.log('✅ Contacts reloaded');
     } catch (error: any) {
       console.error('❌ Fatal error re-matching contacts:', error);
       toast({
