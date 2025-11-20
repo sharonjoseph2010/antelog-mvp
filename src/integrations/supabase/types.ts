@@ -944,6 +944,17 @@ export type Database = {
         Args: { action_type: string; contact_id?: string }
         Returns: undefined
       }
+      match_contacts_by_phone: {
+        Args: { user_id_input: string }
+        Returns: {
+          contact_id: string
+          contact_phone: string
+          matched_phone: string
+          matched_profile_handle: string
+          matched_profile_name: string
+          matched_user_id: string
+        }[]
+      }
       normalize_phone_number: { Args: { phone_input: string }; Returns: string }
       refresh_contact_matches: {
         Args: { user_id_param?: string }
