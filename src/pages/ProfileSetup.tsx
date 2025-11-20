@@ -112,7 +112,7 @@ const ProfileSetup = () => {
 
         if (uploadError) {
           console.error(uploadError);
-          toast.error("Failed to upload ID card. Please try again.");
+          toast.error("Could not upload your ID card. Please try again.");
           setLoading(false);
           return;
         }
@@ -141,7 +141,19 @@ const ProfileSetup = () => {
         return;
       }
 
-      toast.success("Profile saved. We’ll verify your details soon.");
+      // Reverse match: Update existing contacts who have this user's phone number
+      if (values.phone_number) {
+        const { data: reverseMatchCount } = await supabase.rpc('match_new_user_to_contacts', {
+          new_user_id: userId,
+          new_user_phone: values.phone_number
+        });
+        
+        if (reverseMatchCount && reverseMatchCount > 0) {
+          console.log(`New user matched to ${reverseMatchCount} existing contacts`);
+        }
+      }
+
+      toast.success("Profile saved. We'll verify your details soon.");
       navigate("/verify", { replace: true, state: { internal: true } });
     } catch (e) {
       console.error(e);
@@ -221,7 +233,9 @@ const ProfileSetup = () => {
                             }}
                           />
                         </FormControl>
-                        <p className="text-sm text-muted-foreground">Only letters, numbers, and underscores. Will be lowercased.</p>
+                        <p className="text-sm text-muted-foreground">
+                          Your unique handle (alphanumeric and underscores only).
+                        </p>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -234,25 +248,32 @@ const ProfileSetup = () => {
                       <FormItem>
                         <FormLabel>Student registration number</FormLabel>
                         <FormControl>
-                          <Input type="text" placeholder="e.g. SRFTI-23-XXXX" {...field} />
+                          <Input type="text" placeholder="e.g., REG2024001" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
 
-                  <div className="space-y-2">
-                    <FormLabel>Student ID photo</FormLabel>
+                  <div>
+                    <label htmlFor="id-card-upload" className="block text-sm font-medium mb-2">
+                      Upload Student ID Card (optional)
+                    </label>
                     <Input
+                      id="id-card-upload"
                       type="file"
                       accept="image/*"
                       onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
                     />
-                    <p className="text-sm text-muted-foreground">Upload a clear photo of your SRFTI ID card.</p>
+                    {selectedFile && (
+                      <p className="text-sm text-muted-foreground mt-2">
+                        Selected: {selectedFile.name}
+                      </p>
+                    )}
                   </div>
 
                   <Button type="submit" className="w-full" disabled={loading}>
-                    {loading ? "Saving…" : "Save and continue"}
+                    {loading ? "Saving profile…" : "Continue"}
                   </Button>
                 </form>
               </Form>

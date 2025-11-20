@@ -951,6 +951,10 @@ export type Database = {
           matched_user_id: string
         }[]
       }
+      match_new_user_to_contacts: {
+        Args: { new_user_id: string; new_user_phone: string }
+        Returns: number
+      }
       normalize_phone_number: { Args: { phone_input: string }; Returns: string }
       refresh_contact_matches: {
         Args: { user_id_param?: string }
