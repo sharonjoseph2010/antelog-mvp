@@ -70,6 +70,19 @@ const ContactsOverview = () => {
 
   const debugPhoneMatching = async () => {
     console.log('\n=== DEBUG PHONE MATCHING - DATABASE QUERY ===');
+    
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      toast({
+        title: "Error",
+        description: "You must be logged in",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    console.log('Current logged in user ID:', user.id);
+    
     const { data: profiles, error } = await supabase
       .from('profiles')
       .select('id, full_name, handle, phone_number')
@@ -97,13 +110,23 @@ const ContactsOverview = () => {
       console.log('  Phone (RAW):', profile.phone_number);
       console.log('  Phone (normalized):', normalizePhone(profile.phone_number || ''));
       console.log('  Phone data type:', typeof profile.phone_number);
+      console.log('  Is Current User?:', profile.id === user.id ? '✅ YES' : '❌ NO');
       console.log('  Phone is null?:', profile.phone_number === null);
       console.log('  Phone is empty string?:', profile.phone_number === '');
+    });
+    
+    console.log('\n=== PROFILES EXCLUDING CURRENT USER ===');
+    const otherProfiles = profiles?.filter(p => p.id !== user.id);
+    console.log('Count (excluding current user):', otherProfiles?.length || 0);
+    otherProfiles?.forEach((profile, index) => {
+      console.log(`\n[${index + 1}] Other Profile:`);
+      console.log('  Name:', profile.full_name);
+      console.log('  Phone (normalized):', normalizePhone(profile.phone_number || ''));
     });
 
     toast({
       title: "Debug Complete",
-      description: `Found ${profiles?.length || 0} profiles with phone numbers. Check console for details.`
+      description: `Found ${profiles?.length || 0} total profiles, ${otherProfiles?.length || 0} excluding you. Check console.`
     });
   };
 
@@ -258,6 +281,30 @@ const ContactsOverview = () => {
       console.log('Contacts data:', JSON.stringify(contactsData, null, 2));
 
       console.log('\n=== STEP 3: FETCHING PROFILES WITH PHONES ===');
+      console.log('Current user ID (will be excluded):', user.id);
+      
+      // First, check ALL profiles with phones (no filter)
+      console.log('\n--- Checking ALL profiles with phones (no filter) ---');
+      const { data: allProfilesData, error: allProfilesError } = await supabase
+        .from('profiles')
+        .select('id, full_name, handle, phone_number')
+        .not('phone_number', 'is', null);
+      
+      console.log('ALL profiles with phones (including current user):', allProfilesData?.length || 0);
+      console.log('ALL profile details:', allProfilesData?.map(p => ({
+        id: p.id,
+        full_name: p.full_name,
+        handle: p.handle,
+        phone: p.phone_number,
+        is_current_user: p.id === user.id
+      })));
+      
+      if (allProfilesError) {
+        console.error('Error fetching ALL profiles:', allProfilesError);
+      }
+      
+      // Now fetch profiles excluding current user
+      console.log('\n--- Fetching profiles EXCLUDING current user ---');
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
         .select('id, full_name, handle, phone_number')
@@ -266,6 +313,7 @@ const ContactsOverview = () => {
 
       if (profilesError) {
         console.error('Error fetching profiles:', profilesError);
+        console.error('Error details:', JSON.stringify(profilesError, null, 2));
         toast({
           title: "Error",
           description: "Failed to fetch profiles",
@@ -274,14 +322,25 @@ const ContactsOverview = () => {
         return;
       }
 
-      console.log('Profiles query executed');
+      console.log('Profiles query executed (excluding current user)');
       console.log('Profiles found:', profilesData?.length || 0);
       console.log('Profile details:', profilesData?.map(p => ({
         id: p.id,
         full_name: p.full_name,
         handle: p.handle,
-        phone: p.phone_number
+        phone: p.phone_number,
+        normalized_phone: normalizePhone(p.phone_number || '')
       })));
+      
+      // Check if there's a mismatch between ALL profiles and filtered profiles
+      const expectedCount = (allProfilesData?.length || 0) - 1; // -1 for current user
+      const actualCount = profilesData?.length || 0;
+      if (expectedCount !== actualCount) {
+        console.warn(`⚠️ MISMATCH DETECTED!`);
+        console.warn(`Expected ${expectedCount} profiles (all profiles minus current user)`);
+        console.warn(`Actually got ${actualCount} profiles`);
+        console.warn('This might indicate an RLS policy issue or data inconsistency');
+      }
 
       let matchesFound = 0;
 
