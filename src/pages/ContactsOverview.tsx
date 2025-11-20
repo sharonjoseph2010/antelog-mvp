@@ -5,10 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Search, UserPlus, Mail, Phone, Users, Send, Trash2, RefreshCw } from "lucide-react";
+import { Search, UserPlus, Mail, Phone, Users, Send, Trash2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,6 +19,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import ContactDebugPanel from "@/components/ContactDebugPanel";
+import { normalizePhone } from "@/lib/phone-utils";
 
 interface ContactWithStatus {
   id: string;
@@ -28,10 +28,8 @@ interface ContactWithStatus {
   contact_phone?: string;
   is_matched: boolean;
   matched_user_id?: string;
-  // Joined user info
   full_name?: string;
   handle?: string;
-  // Relationship status
   friend_request_status?: 'pending' | 'accepted' | 'rejected';
   friendship_id?: string;
   is_friends: boolean;
@@ -70,6 +68,45 @@ const ContactsOverview = () => {
     }
   };
 
+  const debugPhoneMatching = async () => {
+    console.log('\n=== DEBUG PHONE MATCHING - DATABASE QUERY ===');
+    const { data: profiles, error } = await supabase
+      .from('profiles')
+      .select('id, full_name, handle, phone_number')
+      .not('phone_number', 'is', null)
+      .neq('phone_number', '');
+
+    if (error) {
+      console.error('Error fetching profiles:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch profiles for debugging",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    console.log('=== ALL PROFILES WITH PHONE NUMBERS ===');
+    console.log('Total profiles found:', profiles?.length || 0);
+    console.log('\nProfile details:');
+    profiles?.forEach((profile, index) => {
+      console.log(`\n[${index + 1}] Profile:`);
+      console.log('  ID:', profile.id);
+      console.log('  Full Name:', profile.full_name);
+      console.log('  Handle:', profile.handle);
+      console.log('  Phone (RAW):', profile.phone_number);
+      console.log('  Phone (normalized):', normalizePhone(profile.phone_number || ''));
+      console.log('  Phone data type:', typeof profile.phone_number);
+      console.log('  Phone is null?:', profile.phone_number === null);
+      console.log('  Phone is empty string?:', profile.phone_number === '');
+    });
+
+    toast({
+      title: "Debug Complete",
+      description: `Found ${profiles?.length || 0} profiles with phone numbers. Check console for details.`
+    });
+  };
+
   const loadContacts = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -84,9 +121,9 @@ const ContactsOverview = () => {
         return;
       }
 
-      console.log('Loading contacts for user:', user.id);
+      console.log('=== STEP 1: FETCHING CONTACTS ===');
+      console.log('User ID:', user.id);
 
-      // First, get basic contacts data
       const { data: contactsData, error } = await supabase
         .from('contact_imports')
         .select('*')
@@ -94,7 +131,9 @@ const ContactsOverview = () => {
         .order('is_matched', { ascending: false })
         .order('contact_name');
 
-      console.log('Contacts query result:', { contactsData, error });
+      console.log('Contacts query executed');
+      console.log('Contacts found:', contactsData?.length || 0);
+      console.log('Contacts data:', JSON.stringify(contactsData, null, 2));
 
       if (error) {
         console.error('Contacts query error:', error);
@@ -108,7 +147,6 @@ const ContactsOverview = () => {
         return;
       }
 
-      // Now get profile data for matched contacts
       const processedContacts: ContactWithStatus[] = [];
       
       for (const contact of contactsData) {
@@ -118,40 +156,39 @@ const ContactsOverview = () => {
         let hasReceivedRequest = false;
 
         if (contact.is_matched && contact.matched_user_id) {
-          // Get profile data
           const { data: profileData } = await supabase
             .from('profiles')
-            .select('full_name, handle')
+            .select('id, full_name, handle, is_verified')
             .eq('id', contact.matched_user_id)
             .single();
-          
+
           profile = profileData;
 
-          // Check friendship status
           const { data: friendshipData } = await supabase
             .from('friendships')
-            .select('*')
-            .or(`and(user1_id.eq.${user.id},user2_id.eq.${contact.matched_user_id}),and(user1_id.eq.${contact.matched_user_id},user2_id.eq.${user.id})`);
-          
-          isFriends = friendshipData && friendshipData.length > 0;
+            .select('id')
+            .or(`and(user1_id.eq.${user.id},user2_id.eq.${contact.matched_user_id}),and(user1_id.eq.${contact.matched_user_id},user2_id.eq.${user.id})`)
+            .maybeSingle();
 
-          // Check friend request status
+          isFriends = !!friendshipData;
+
           const { data: sentRequestData } = await supabase
             .from('friend_requests')
-            .select('*')
+            .select('status')
             .eq('requester_id', user.id)
             .eq('addressee_id', contact.matched_user_id)
-            .eq('status', 'pending');
-          
+            .maybeSingle();
+
+          hasSentRequest = !!sentRequestData && sentRequestData.status === 'pending';
+
           const { data: receivedRequestData } = await supabase
             .from('friend_requests')
-            .select('*')
+            .select('status')
             .eq('requester_id', contact.matched_user_id)
             .eq('addressee_id', user.id)
-            .eq('status', 'pending');
+            .maybeSingle();
 
-          hasSentRequest = sentRequestData && sentRequestData.length > 0;
-          hasReceivedRequest = receivedRequestData && receivedRequestData.length > 0;
+          hasReceivedRequest = !!receivedRequestData && receivedRequestData.status === 'pending';
         }
 
         processedContacts.push({
@@ -166,16 +203,16 @@ const ContactsOverview = () => {
           is_friends: isFriends,
           has_sent_request: hasSentRequest,
           has_received_request: hasReceivedRequest,
-          friend_request_status: hasSentRequest ? 'pending' : hasReceivedRequest ? 'pending' : undefined
         });
       }
 
+      console.log('Processed contacts:', processedContacts);
       setContacts(processedContacts);
     } catch (error) {
       console.error('Error loading contacts:', error);
       toast({
-        title: "Error",
-        description: "Failed to load contacts",
+        title: "Error loading contacts",
+        description: "Please try again later",
         variant: "destructive",
       });
     } finally {
@@ -183,41 +220,203 @@ const ContactsOverview = () => {
     }
   };
 
-  const deleteContact = async (contactId: string) => {
+  const rematchContacts = async () => {
     try {
+      setIsRematching(true);
       const { data: { user } } = await supabase.auth.getUser();
+      
       if (!user) {
         toast({
           title: "Authentication required",
-          description: "Please log in to delete contacts",
-          variant: "destructive",
+          description: "You must be logged in",
+          variant: "destructive"
         });
         return;
       }
 
+      console.log('=== STARTING CONTACT REMATCH ===');
+      console.log('User ID:', user.id);
+
+      console.log('\n=== STEP 2: FETCHING CONTACTS ===');
+      const { data: contactsData, error: contactsError } = await supabase
+        .from('contact_imports')
+        .select('id, contact_name, contact_phone, is_matched, matched_user_id')
+        .eq('user_id', user.id)
+        .not('contact_phone', 'is', null);
+
+      if (contactsError) {
+        console.error('Error fetching contacts:', contactsError);
+        toast({
+          title: "Error",
+          description: "Failed to fetch contacts",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      console.log('Contacts found:', contactsData?.length || 0);
+      console.log('Contacts data:', JSON.stringify(contactsData, null, 2));
+
+      console.log('\n=== STEP 3: FETCHING PROFILES WITH PHONES ===');
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, full_name, handle, phone_number')
+        .neq('id', user.id)
+        .not('phone_number', 'is', null);
+
+      if (profilesError) {
+        console.error('Error fetching profiles:', profilesError);
+        toast({
+          title: "Error",
+          description: "Failed to fetch profiles",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      console.log('Profiles query executed');
+      console.log('Profiles found:', profilesData?.length || 0);
+      console.log('Profile details:', profilesData?.map(p => ({
+        id: p.id,
+        full_name: p.full_name,
+        handle: p.handle,
+        phone: p.phone_number
+      })));
+
+      let matchesFound = 0;
+
+      console.log('\n=== STEP 4: CHECKING EACH CONTACT ===');
+      for (const contact of contactsData || []) {
+        console.log('\n--- Checking Contact ---');
+        console.log('Contact ID:', contact.id);
+        console.log('Contact Name:', contact.contact_name);
+        console.log('Contact Phone (RAW from DB):', contact.contact_phone);
+        console.log('Contact Phone (after toString):', contact.contact_phone?.toString());
+        
+        const normalizedContactPhone = normalizePhone(contact.contact_phone || '');
+        console.log('Contact Phone (after normalization):', normalizedContactPhone);
+        console.log('Normalization function output length:', normalizedContactPhone?.length);
+        console.log('Type of contact phone:', typeof normalizedContactPhone);
+
+        let matchFound = false;
+
+        console.log('\n  === Comparing with profiles ===');
+        for (const profile of profilesData || []) {
+          console.log('  Comparing with Profile:', profile.full_name || profile.handle);
+          console.log('  Profile ID:', profile.id);
+          console.log('  Profile Phone (RAW from DB):', profile.phone_number);
+          
+          const normalizedProfilePhone = normalizePhone(profile.phone_number || '');
+          console.log('  Profile Phone (after normalization):', normalizedProfilePhone);
+          console.log('  Type of profile phone:', typeof normalizedProfilePhone);
+          
+          console.log('  Contact Normalized:', normalizedContactPhone);
+          console.log('  Profile Normalized:', normalizedProfilePhone);
+          console.log('  Are they equal?:', normalizedContactPhone === normalizedProfilePhone);
+          console.log('  Strict comparison result:', normalizedContactPhone === normalizedProfilePhone);
+
+          if (normalizedContactPhone === normalizedProfilePhone) {
+            console.log('\n✅ MATCH FOUND!');
+            console.log('Setting matched_user_id:', profile.id);
+            console.log('Updating contact ID:', contact.id);
+            
+            const { data: updateResult, error: updateError } = await supabase
+              .from('contact_imports')
+              .update({ 
+                is_matched: true, 
+                matched_user_id: profile.id 
+              })
+              .eq('id', contact.id)
+              .select();
+
+            console.log('Update result:', updateResult);
+            console.log('Update error:', updateError);
+
+            if (updateError) {
+              console.error('❌ Error updating contact:', updateError);
+            } else {
+              console.log('✅ Update successful');
+              matchesFound++;
+              matchFound = true;
+            }
+            break;
+          }
+        }
+
+        if (!matchFound && contact.is_matched) {
+          console.log(`\n✗ No match found, clearing previous match for: ${contact.contact_name}`);
+          const { error: clearError } = await supabase
+            .from('contact_imports')
+            .update({ 
+              is_matched: false, 
+              matched_user_id: null 
+            })
+            .eq('id', contact.id);
+          
+          if (clearError) {
+            console.error('Error clearing match:', clearError);
+          }
+        } else if (!matchFound) {
+          console.log(`\n✗ No match found for: ${contact.contact_name}`);
+        }
+      }
+
+      console.log('\n=== STEP 6: FINAL CONTACTS STATE ===');
+      const { data: finalContacts } = await supabase
+        .from('contact_imports')
+        .select('id, contact_name, is_matched, matched_user_id')
+        .eq('user_id', user.id);
+      
+      const contactsWithMatches = finalContacts?.filter(c => c.is_matched) || [];
+      const contactsWithoutMatches = finalContacts?.filter(c => !c.is_matched) || [];
+      
+      console.log('Contacts with matched_user_id:', contactsWithMatches);
+      console.log('Contacts without matches:', contactsWithoutMatches);
+
+      console.log(`\n=== REMATCH COMPLETE ===`);
+      console.log(`Total matches found: ${matchesFound}`);
+      
+      toast({
+        title: "Rematch Complete",
+        description: `Found ${matchesFound} matches`
+      });
+      await loadContacts();
+    } catch (error) {
+      console.error('Error in rematchContacts:', error);
+      toast({
+        title: "Error",
+        description: "An error occurred during rematching",
+        variant: "destructive"
+      });
+    } finally {
+      setIsRematching(false);
+    }
+  };
+
+  const deleteContact = async (contactId: string) => {
+    try {
       const { error } = await supabase
         .from('contact_imports')
         .delete()
-        .eq('id', contactId)
-        .eq('user_id', user.id);
+        .eq('id', contactId);
 
       if (error) throw error;
 
       toast({
-        title: "Contact removed",
-        description: "The contact has been removed from your list",
+        title: "Contact deleted",
+        description: "The contact has been removed from your list"
       });
-
-      // Update UI immediately
-      setContacts(prev => prev.filter(c => c.id !== contactId));
-      setContactToDelete(null);
+      
+      setContacts(contacts.filter(c => c.id !== contactId));
     } catch (error) {
       console.error('Error deleting contact:', error);
       toast({
         title: "Error",
         description: "Failed to delete contact",
-        variant: "destructive",
+        variant: "destructive"
       });
+    } finally {
+      setContactToDelete(null);
     }
   };
 
@@ -226,7 +425,7 @@ const ContactsOverview = () => {
       const { error } = await supabase
         .from('friend_requests')
         .insert({
-          requester_id: (await supabase.auth.getUser()).data.user?.id,
+          requester_id: (await supabase.auth.getUser()).data.user?.id!,
           addressee_id: userId,
           status: 'pending'
         });
@@ -234,155 +433,26 @@ const ContactsOverview = () => {
       if (error) throw error;
 
       toast({
-        title: "Friend request sent!",
-        description: `Friend request sent to ${contactName}`,
+        title: "Friend request sent",
+        description: `Request sent to ${contactName}`
       });
-
-      loadContacts(); // Refresh the list
-    } catch (error) {
-      console.error('Error sending friend request:', error);
-      toast({
-        title: "Error",
-        description: "Failed to send friend request",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const rematchContacts = async () => {
-    setIsRematching(true);
-    try {
-      console.log('========================================');
-      console.log('🔄 STARTING CONTACT RE-MATCHING');
-      console.log('========================================');
       
-      // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        throw new Error('No authenticated user');
-      }
-      console.log('👤 Current User ID:', user.id);
-      
-      // Get all contacts for this user
-      const { data: contactsData, error: contactsError } = await supabase
-        .from('contact_imports')
-        .select('id, contact_name, contact_phone, is_matched, matched_user_id')
-        .eq('user_id', user.id);
-      
-      if (contactsError) throw contactsError;
-      
-      console.log(`\n📋 Found ${contactsData?.length || 0} total contacts`);
-      const contactsWithPhone = contactsData?.filter(c => c.contact_phone) || [];
-      console.log(`📞 ${contactsWithPhone.length} contacts have phone numbers\n`);
-      
-      // Get all profiles with phone numbers
-      const { data: profilesData, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, handle, full_name, phone_number')
-        .not('phone_number', 'is', null);
-      
-      if (profilesError) throw profilesError;
-      
-      console.log(`👥 Found ${profilesData?.length || 0} profiles with phone numbers\n`);
-      
-      // Import normalization function
-      const { normalizePhone } = await import('@/lib/phone-utils');
-      
-      // Process each contact
-      let matchesFound = 0;
-      for (const contact of contactsWithPhone) {
-        console.log('─────────────────────────────────────');
-        console.log(`📇 Checking Contact: "${contact.contact_name}"`);
-        console.log(`   Original Phone: ${contact.contact_phone}`);
-        
-        const normalizedContactPhone = normalizePhone(contact.contact_phone || '');
-        console.log(`   Normalized Phone: ${normalizedContactPhone}`);
-        console.log(`   Currently Matched: ${contact.is_matched}`);
-        console.log(`   Current matched_user_id: ${contact.matched_user_id || 'none'}`);
-        
-        // Check against all profiles
-        console.log(`\n   🔍 Checking against ${profilesData?.length || 0} profiles...`);
-        let foundMatch = false;
-        
-        for (const profile of profilesData || []) {
-          // Skip self
-          if (profile.id === user.id) continue;
-          
-          const normalizedProfilePhone = normalizePhone(profile.phone_number || '');
-          
-          console.log(`\n   👤 Profile: @${profile.handle} (${profile.full_name || 'no name'})`);
-          console.log(`      Profile ID: ${profile.id}`);
-          console.log(`      Original Phone: ${profile.phone_number}`);
-          console.log(`      Normalized Phone: ${normalizedProfilePhone}`);
-          console.log(`      Comparison: "${normalizedContactPhone}" === "${normalizedProfilePhone}"`);
-          console.log(`      Match: ${normalizedContactPhone === normalizedProfilePhone}`);
-          
-          if (normalizedContactPhone === normalizedProfilePhone) {
-            console.log(`\n   ✅ MATCH FOUND!`);
-            console.log(`      Contact "${contact.contact_name}" matches @${profile.handle}`);
-            console.log(`      Setting matched_user_id to ${profile.id}`);
-            foundMatch = true;
-            matchesFound++;
-            
-            // Update the contact
-            const { error: updateError } = await supabase
-              .from('contact_imports')
-              .update({ 
-                is_matched: true, 
-                matched_user_id: profile.id 
-              })
-              .eq('id', contact.id);
-            
-            if (updateError) {
-              console.error(`      ❌ Update Error:`, updateError);
-            } else {
-              console.log(`      ✅ Database updated successfully`);
-            }
-            break;
-          }
-        }
-        
-        if (!foundMatch) {
-          console.log(`\n   ❌ No match found for "${contact.contact_name}"`);
-          
-          // Clear previous match if exists
-          if (contact.is_matched) {
-            console.log(`   🔄 Clearing previous match...`);
-            await supabase
-              .from('contact_imports')
-              .update({ 
-                is_matched: false, 
-                matched_user_id: null 
-              })
-              .eq('id', contact.id);
-            console.log(`   ✅ Previous match cleared`);
-          }
-        }
-      }
-      
-      console.log('\n========================================');
-      console.log('✅ CONTACT MATCHING COMPLETE');
-      console.log(`   Contacts Processed: ${contactsWithPhone.length}`);
-      console.log(`   Matches Found: ${matchesFound}`);
-      console.log('========================================\n');
-
-      toast({
-        title: matchesFound > 0 ? "New matches found!" : "Re-match complete",
-        description: `Found ${matchesFound} match${matchesFound !== 1 ? 'es' : ''} out of ${contactsWithPhone.length} contact${contactsWithPhone.length !== 1 ? 's' : ''}`,
-        variant: matchesFound > 0 ? "default" : "default",
-      });
-
-      // Reload contacts to show updated matches
       await loadContacts();
     } catch (error: any) {
-      console.error('❌ Fatal error re-matching contacts:', error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to re-match contacts. Check console for details.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsRematching(false);
+      console.error('Error sending friend request:', error);
+      if (error.code === '23505') {
+        toast({
+          title: "Request already sent",
+          description: "You've already sent a request to this user",
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to send friend request",
+          variant: "destructive"
+        });
+      }
     }
   };
 
@@ -393,117 +463,51 @@ const ContactsOverview = () => {
   const filteredContacts = contacts.filter(contact =>
     contact.contact_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     contact.contact_email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    contact.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    contact.handle?.toLowerCase().includes(searchTerm.toLowerCase())
+    contact.contact_phone?.includes(searchTerm)
   );
 
-  const onAntelogContacts = filteredContacts.filter(c => c.is_matched && c.matched_user_id);
-  const notOnAntelogContacts = filteredContacts.filter(c => !c.is_matched || !c.matched_user_id);
-
-  const getStatusBadge = (contact: ContactWithStatus) => {
-    if (contact.is_friends) {
-      return <Badge variant="secondary" className="bg-green-100 text-green-800">Friends</Badge>;
-    }
-    if (contact.has_sent_request) {
-      return <Badge variant="outline">Request Sent</Badge>;
-    }
-    if (contact.has_received_request) {
-      return <Badge variant="default">Request Received</Badge>;
-    }
-    return null;
-  };
-
-  const getActionButton = (contact: ContactWithStatus) => {
-    if (contact.is_friends) {
-      return (
-        <Button variant="outline" size="sm" disabled>
-          <Users className="w-4 h-4 mr-1" />
-          Friends
-        </Button>
-      );
-    }
-    if (contact.has_sent_request) {
-      return (
-        <Button variant="outline" size="sm" disabled>
-          Request Sent
-        </Button>
-      );
-    }
-    if (contact.has_received_request) {
-      return (
-        <Button 
-          variant="default" 
-          size="sm"
-          onClick={() => navigate('/friends?tab=received')}
-        >
-          View Request
-        </Button>
-      );
-    }
-    return (
-      <Button 
-        variant="default" 
-        size="sm"
-        onClick={() => sendFriendRequest(contact.matched_user_id!, contact.contact_name)}
-      >
-        <UserPlus className="w-4 h-4 mr-1" />
-        Send Request
-      </Button>
-    );
-  };
-
-  if (loading) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="animate-pulse">
-          <div className="h-8 bg-muted rounded w-1/4 mb-6"></div>
-          <div className="space-y-4">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="h-16 bg-muted rounded"></div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const matchedContacts = filteredContacts.filter(c => c.is_matched);
+  const unmatchedContacts = filteredContacts.filter(c => !c.is_matched);
 
   return (
     <>
       <Helmet>
-        <title>Contacts - Antelog</title>
-        <meta name="description" content="Manage your imported contacts and see who's on Antelog" />
+        <title>My Contacts - Antelog</title>
       </Helmet>
-
+      
       <div className="container mx-auto px-4 py-8">
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h1 className="text-3xl font-bold">Your Contacts</h1>
-            <p className="text-muted-foreground mt-1">
-              {contacts.length} contacts imported • {onAntelogContacts.length} on Antelog
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button 
-              variant="outline"
-              onClick={rematchContacts}
-              disabled={isRematching}
-            >
-              <RefreshCw className={`w-4 h-4 mr-2 ${isRematching ? 'animate-spin' : ''}`} />
-              {isRematching ? 'Refreshing...' : 'Refresh Matches'}
-            </Button>
-            <Button 
-              variant="outline"
-              onClick={() => navigate('/contacts-import-hub')}
-            >
-              <UserPlus className="w-4 h-4 mr-2" />
-              Import More
-            </Button>
-          </div>
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold mb-2">My Contacts</h1>
+          <p className="text-muted-foreground">
+            Manage your imported contacts and connect with friends on Antelog
+          </p>
+        </div>
+
+        <div className="flex gap-2 mb-6">
+          <Button 
+            onClick={rematchContacts}
+            disabled={isRematching}
+            variant="outline"
+          >
+            {isRematching ? "Refreshing..." : "Refresh Matches"}
+          </Button>
+          <Button 
+            onClick={debugPhoneMatching}
+            variant="outline"
+          >
+            Debug Phone Matching
+          </Button>
+          <Button 
+            onClick={() => navigate('/contacts-import-hub')}
+            variant="default"
+          >
+            Import More Contacts
+          </Button>
         </div>
 
         <div className="mb-6">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search contacts..."
               value={searchTerm}
@@ -513,158 +517,155 @@ const ContactsOverview = () => {
           </div>
         </div>
 
-        <div className="space-y-8">
-          {/* On Antelog Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="w-5 h-5 text-green-600" />
-                On Antelog ({onAntelogContacts.length})
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {onAntelogContacts.length === 0 ? (
-                <p className="text-muted-foreground text-center py-6">
-                  None of your contacts have joined Antelog yet
-                </p>
-              ) : (
-                <div className="space-y-3">
-                  {onAntelogContacts.map((contact, index) => (
-                    <div key={contact.id}>
-                      <div className="flex items-center justify-between p-3 hover:bg-muted/50 rounded-lg">
+        {loading ? (
+          <div className="text-center py-8">
+            <p className="text-muted-foreground">Loading contacts...</p>
+          </div>
+        ) : (
+          <>
+            {matchedContacts.length > 0 && (
+              <Card className="mb-6">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5" />
+                    On Antelog ({matchedContacts.length})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {matchedContacts.map((contact) => (
+                      <div key={contact.id} className="flex items-center justify-between p-4 border rounded-lg">
                         <div className="flex-1">
-                          <div className="flex items-center gap-3">
-                            <div>
-                              <h3 className="font-medium">
-                                {contact.contact_name}
-                              </h3>
-                              <p className="text-sm text-muted-foreground">
-                                @{contact.handle} • {contact.full_name}
-                              </p>
-                              <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
-                                {contact.contact_email && (
-                                  <span className="flex items-center gap-1">
-                                    <Mail className="w-3 h-3" />
-                                    {contact.contact_email}
-                                  </span>
-                                )}
-                                {contact.contact_phone && (
-                                  <span className="flex items-center gap-1">
-                                    <Phone className="w-3 h-3" />
-                                    {contact.contact_phone}
-                                  </span>
-                                )}
-                              </div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <h3 className="font-semibold">{contact.contact_name}</h3>
+                            <Badge variant="secondary">
+                              @{contact.handle}
+                            </Badge>
+                            {contact.is_friends && (
+                              <Badge variant="default">Friends</Badge>
+                            )}
+                          </div>
+                          {contact.contact_email && (
+                            <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                              <Mail className="h-3 w-3" />
+                              {contact.contact_email}
                             </div>
-                            <div className="ml-auto">
-                              {getStatusBadge(contact)}
+                          )}
+                          {contact.contact_phone && (
+                            <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                              <Phone className="h-3 w-3" />
+                              {contact.contact_phone}
                             </div>
-                           </div>
-                         </div>
-                         <div className="ml-4 flex items-center gap-2">
-                           {getActionButton(contact)}
-                           <Button
-                             variant="ghost"
-                             size="icon"
-                             onClick={() => setContactToDelete(contact)}
-                             className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                           >
-                             <Trash2 className="w-4 h-4" />
-                           </Button>
-                         </div>
-                       </div>
-                      {index < onAntelogContacts.length - 1 && <Separator />}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {!contact.is_friends && !contact.has_sent_request && !contact.has_received_request && (
+                            <Button 
+                              size="sm"
+                              onClick={() => sendFriendRequest(contact.matched_user_id!, contact.contact_name)}
+                            >
+                              <Send className="h-4 w-4 mr-1" />
+                              Send Request
+                            </Button>
+                          )}
+                          {contact.has_sent_request && (
+                            <Badge variant="outline">Request Pending</Badge>
+                          )}
+                          {contact.has_received_request && (
+                            <Button 
+                              size="sm"
+                              onClick={() => navigate('/friends')}
+                            >
+                              View Request
+                            </Button>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setContactToDelete(contact)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
-          {/* Not on Antelog Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Send className="w-5 h-5 text-blue-600" />
-                Not on Antelog Yet ({notOnAntelogContacts.length})
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {notOnAntelogContacts.length === 0 ? (
-                <p className="text-muted-foreground text-center py-6">
-                  All your contacts are on Antelog! 🎉
-                </p>
-              ) : (
-                <div className="space-y-3">
-                  {notOnAntelogContacts.map((contact, index) => (
-                    <div key={contact.id}>
-                      <div className="flex items-center justify-between p-3 hover:bg-muted/50 rounded-lg">
+            {unmatchedContacts.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <UserPlus className="h-5 w-5" />
+                    Not on Antelog Yet ({unmatchedContacts.length})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {unmatchedContacts.map((contact) => (
+                      <div key={contact.id} className="flex items-center justify-between p-4 border rounded-lg opacity-60">
                         <div className="flex-1">
-                          <h3 className="font-medium">{contact.contact_name}</h3>
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
-                            {contact.contact_email && (
-                              <span className="flex items-center gap-1">
-                                <Mail className="w-3 h-3" />
-                                {contact.contact_email}
-                              </span>
-                            )}
-                            {contact.contact_phone && (
-                              <span className="flex items-center gap-1">
-                                <Phone className="w-3 h-3" />
-                                {contact.contact_phone}
-                              </span>
-                            )}
-                           </div>
-                         </div>
-                         <div className="flex items-center gap-2">
-                           <Button variant="outline" size="sm">
-                             <Send className="w-4 h-4 mr-1" />
-                             Invite
-                           </Button>
-                           <Button
-                             variant="ghost"
-                             size="icon"
-                             onClick={() => setContactToDelete(contact)}
-                             className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                           >
-                             <Trash2 className="w-4 h-4" />
-                           </Button>
-                         </div>
-                       </div>
-                      {index < notOnAntelogContacts.length - 1 && <Separator />}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+                          <h3 className="font-semibold mb-1">{contact.contact_name}</h3>
+                          {contact.contact_email && (
+                            <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                              <Mail className="h-3 w-3" />
+                              {contact.contact_email}
+                            </div>
+                          )}
+                          {contact.contact_phone && (
+                            <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                              <Phone className="h-3 w-3" />
+                              {contact.contact_phone}
+                            </div>
+                          )}
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setContactToDelete(contact)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
-        {/* Admin Debug Panel */}
+            {filteredContacts.length === 0 && (
+              <Card>
+                <CardContent className="py-8 text-center">
+                  <p className="text-muted-foreground">No contacts found</p>
+                  <Button 
+                    onClick={() => navigate('/contacts-import-hub')}
+                    className="mt-4"
+                  >
+                    Import Contacts
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+          </>
+        )}
+
         {isAdmin && <ContactDebugPanel />}
       </div>
 
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={!!contactToDelete} onOpenChange={(open) => !open && setContactToDelete(null)}>
+      <AlertDialog open={!!contactToDelete} onOpenChange={() => setContactToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove {contactToDelete?.contact_name}?</AlertDialogTitle>
+            <AlertDialogTitle>Delete Contact</AlertDialogTitle>
             <AlertDialogDescription>
-              This will remove the contact from your imported contacts list.
-              {contactToDelete?.is_friends && (
-                <span className="block mt-2 text-amber-600 dark:text-amber-400">
-                  Note: This will not unfriend them if they're already your friend on Antelog.
-                </span>
-              )}
+              Are you sure you want to delete {contactToDelete?.contact_name}? This will only remove them from your contacts list. If you're already friends, this won't affect your friendship.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => contactToDelete && deleteContact(contactToDelete.id)}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Remove Contact
+            <AlertDialogAction onClick={() => contactToDelete && deleteContact(contactToDelete.id)}>
+              Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
