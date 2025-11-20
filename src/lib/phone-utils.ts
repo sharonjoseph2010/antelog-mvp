@@ -1,4 +1,26 @@
 /**
+ * Extract last 10 digits from phone number for reliable matching
+ * This approach ignores country codes and formatting variations
+ * Examples:
+ * - "+91 8075268971" → "8075268971"
+ * - "918075268971" → "8075268971"
+ * - "+918075268971" → "8075268971"
+ * - "8075268971" → "8075268971"
+ */
+export function getLast10Digits(phone: string): string {
+  if (!phone || phone.trim() === '') return '';
+  
+  // Remove ALL non-digit characters
+  const digitsOnly = phone.replace(/\D/g, '');
+  
+  // Get last 10 digits
+  const last10 = digitsOnly.slice(-10);
+  
+  return last10;
+}
+
+/**
+ * DEPRECATED: Use getLast10Digits() instead for more reliable matching
  * BULLETPROOF phone number normalization matching server-side logic
  * Ensures consistent format regardless of input variations
  * Removes ALL spaces, dashes, dots, parentheses, and special characters
