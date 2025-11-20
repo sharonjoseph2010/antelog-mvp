@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
+import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,6 +47,7 @@ const ContactsOverview = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     checkAdminStatus();
@@ -313,190 +315,64 @@ const ContactsOverview = () => {
         return;
       }
 
-      console.log('=== STARTING CONTACT REMATCH ===');
-      console.log('User ID:', user.id);
+      console.log('=== Starting Contact Rematch (using RPC) ===');
 
-      console.log('\n=== STEP 2: FETCHING CONTACTS ===');
-      const { data: contactsData, error: contactsError } = await supabase
-        .from('contact_imports')
-        .select('id, contact_name, contact_phone, is_matched, matched_user_id')
-        .eq('user_id', user.id)
-        .not('contact_phone', 'is', null);
+      // Call the SECURITY DEFINER function to bypass RLS and match contacts
+      const { data: matches, error: matchError } = await supabase
+        .rpc('match_contacts_by_phone', { user_id_input: user.id });
 
-      if (contactsError) {
-        console.error('Error fetching contacts:', contactsError);
+      if (matchError) {
+        console.error('Error matching contacts:', matchError);
         toast({
           title: "Error",
-          description: "Failed to fetch contacts",
-          variant: "destructive"
+          description: "Failed to match contacts",
+          variant: "destructive",
         });
         return;
       }
 
-      console.log('Contacts found:', contactsData?.length || 0);
-      console.log('Contacts data:', JSON.stringify(contactsData, null, 2));
-
-      console.log('\n=== STEP 3: FETCHING PROFILES WITH PHONES ===');
-      console.log('Current user ID (will be excluded):', user.id);
-      
-      // First, check ALL profiles with phones (no filter)
-      console.log('\n--- Checking ALL profiles with phones (no filter) ---');
-      const { data: allProfilesData, error: allProfilesError } = await supabase
-        .from('profiles')
-        .select('id, full_name, handle, phone_number')
-        .not('phone_number', 'is', null);
-      
-      console.log('ALL profiles with phones (including current user):', allProfilesData?.length || 0);
-      console.log('ALL profile details:', allProfilesData?.map(p => ({
-        id: p.id,
-        full_name: p.full_name,
-        handle: p.handle,
-        phone: p.phone_number,
-        is_current_user: p.id === user.id
+      console.log('RPC returned matches:', matches?.length || 0);
+      console.log('Match details:', matches?.map((m: any) => ({
+        contact_phone_last10: getLast10Digits(m.contact_phone),
+        matched_name: m.matched_profile_name,
+        matched_phone_last10: getLast10Digits(m.matched_phone)
       })));
-      
-      if (allProfilesError) {
-        console.error('Error fetching ALL profiles:', allProfilesError);
-      }
-      
-      // Now fetch profiles excluding current user
-      console.log('\n--- Fetching profiles EXCLUDING current user ---');
-      const { data: profilesData, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, full_name, handle, phone_number')
-        .neq('id', user.id)
-        .not('phone_number', 'is', null);
 
-      if (profilesError) {
-        console.error('Error fetching profiles:', profilesError);
-        console.error('Error details:', JSON.stringify(profilesError, null, 2));
-        toast({
-          title: "Error",
-          description: "Failed to fetch profiles",
-          variant: "destructive"
-        });
-        return;
-      }
+      let updateCount = 0;
 
-      console.log('Profiles query executed (excluding current user)');
-      console.log('Profiles found:', profilesData?.length || 0);
-      console.log('Profile details:', profilesData?.map(p => ({
-        id: p.id,
-        full_name: p.full_name,
-        handle: p.handle,
-        phone: p.phone_number,
-        last_10_digits: getLast10Digits(p.phone_number || '')
-      })));
-      
-      // Check if there's a mismatch between ALL profiles and filtered profiles
-      const expectedCount = (allProfilesData?.length || 0) - 1; // -1 for current user
-      const actualCount = profilesData?.length || 0;
-      if (expectedCount !== actualCount) {
-        console.warn(`⚠️ MISMATCH DETECTED!`);
-        console.warn(`Expected ${expectedCount} profiles (all profiles minus current user)`);
-        console.warn(`Actually got ${actualCount} profiles`);
-        console.warn('This might indicate an RLS policy issue or data inconsistency');
-      }
+      // Update each matched contact
+      for (const match of matches || []) {
+        const { error: updateError } = await supabase
+          .from('contact_imports')
+          .update({
+            is_matched: true,
+            matched_user_id: match.matched_user_id,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', match.contact_id);
 
-      let matchesFound = 0;
-
-      console.log('\n=== STEP 4: CHECKING EACH CONTACT (USING LAST 10 DIGITS) ===');
-      for (const contact of contactsData || []) {
-        console.log('\n--- Checking Contact ---');
-        console.log('Contact ID:', contact.id);
-        console.log('Contact Name:', contact.contact_name);
-        console.log('Contact Phone (RAW from DB):', contact.contact_phone);
-        
-        const contactLast10 = getLast10Digits(contact.contact_phone || '');
-        console.log('Contact Phone Last 10 Digits:', contactLast10);
-        console.log('Contact Phone Last 10 Length:', contactLast10?.length);
-
-        let matchFound = false;
-
-        console.log('\n  === Comparing with profiles (last 10 digits) ===');
-        for (const profile of profilesData || []) {
-          console.log('  Comparing with Profile:', profile.full_name || profile.handle);
-          console.log('  Profile ID:', profile.id);
-          console.log('  Profile Phone (RAW from DB):', profile.phone_number);
-          
-          const profileLast10 = getLast10Digits(profile.phone_number || '');
-          console.log('  Profile Phone Last 10 Digits:', profileLast10);
-          
-          console.log('  Contact Last 10:', contactLast10);
-          console.log('  Profile Last 10:', profileLast10);
-          console.log('  Match?:', contactLast10 === profileLast10);
-
-          if (contactLast10 && profileLast10 && contactLast10 === profileLast10) {
-            console.log('\n✅ MATCH FOUND!');
-            console.log('Setting matched_user_id:', profile.id);
-            console.log('Updating contact ID:', contact.id);
-            
-            const { data: updateResult, error: updateError } = await supabase
-              .from('contact_imports')
-              .update({ 
-                is_matched: true, 
-                matched_user_id: profile.id 
-              })
-              .eq('id', contact.id)
-              .select();
-
-            console.log('Update result:', updateResult);
-            console.log('Update error:', updateError);
-
-            if (updateError) {
-              console.error('❌ Error updating contact:', updateError);
-            } else {
-              console.log('✅ Update successful');
-              matchesFound++;
-              matchFound = true;
-            }
-            break;
-          }
-        }
-
-        if (!matchFound && contact.is_matched) {
-          console.log(`\n✗ No match found, clearing previous match for: ${contact.contact_name}`);
-          const { error: clearError } = await supabase
-            .from('contact_imports')
-            .update({ 
-              is_matched: false, 
-              matched_user_id: null 
-            })
-            .eq('id', contact.id);
-          
-          if (clearError) {
-            console.error('Error clearing match:', clearError);
-          }
-        } else if (!matchFound) {
-          console.log(`\n✗ No match found for: ${contact.contact_name}`);
+        if (updateError) {
+          console.error('Error updating contact:', updateError);
+        } else {
+          updateCount++;
         }
       }
 
-      console.log('\n=== STEP 6: FINAL CONTACTS STATE ===');
-      const { data: finalContacts } = await supabase
-        .from('contact_imports')
-        .select('id, contact_name, is_matched, matched_user_id')
-        .eq('user_id', user.id);
-      
-      const contactsWithMatches = finalContacts?.filter(c => c.is_matched) || [];
-      const contactsWithoutMatches = finalContacts?.filter(c => !c.is_matched) || [];
-      
-      console.log('Contacts with matched_user_id:', contactsWithMatches);
-      console.log('Contacts without matches:', contactsWithoutMatches);
+      console.log('=== Rematch Complete ===');
+      console.log('Total matches found:', matches?.length || 0);
+      console.log('Contacts updated:', updateCount);
 
-      console.log(`\n=== REMATCH COMPLETE ===`);
-      console.log(`Total matches found: ${matchesFound}`);
-      
       toast({
-        title: "Rematch Complete",
-        description: `Found ${matchesFound} matches`
+        title: "Contacts Rematched",
+        description: `Found ${matches?.length || 0} matches`,
       });
+      
       await loadContacts();
     } catch (error) {
       console.error('Error in rematchContacts:', error);
       toast({
         title: "Error",
-        description: "An error occurred during rematching",
+        description: "An unexpected error occurred while rematching contacts",
         variant: "destructive"
       });
     } finally {
