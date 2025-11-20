@@ -315,11 +315,11 @@ const ContactsOverview = () => {
         return;
       }
 
-      console.log('=== Starting Contact Rematch (using RPC) ===');
+      console.log('=== Starting Contact Rematch (using secure function) ===');
 
-      // Call the SECURITY DEFINER function to bypass RLS and match contacts
-      const { data: matches, error: matchError } = await supabase
-        .rpc('match_contacts_by_phone', { user_id_input: user.id });
+      // Call the SECURITY DEFINER function that bypasses RLS and updates matches
+      const { data: matchCount, error: matchError } = await supabase
+        .rpc('update_matched_contacts', { user_id_input: user.id });
 
       if (matchError) {
         console.error('Error matching contacts:', matchError);
@@ -331,40 +331,12 @@ const ContactsOverview = () => {
         return;
       }
 
-      console.log('RPC returned matches:', matches?.length || 0);
-      console.log('Match details:', matches?.map((m: any) => ({
-        contact_phone_last10: getLast10Digits(m.contact_phone),
-        matched_name: m.matched_profile_name,
-        matched_phone_last10: getLast10Digits(m.matched_phone)
-      })));
-
-      let updateCount = 0;
-
-      // Update each matched contact
-      for (const match of matches || []) {
-        const { error: updateError } = await supabase
-          .from('contact_imports')
-          .update({
-            is_matched: true,
-            matched_user_id: match.matched_user_id,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', match.contact_id);
-
-        if (updateError) {
-          console.error('Error updating contact:', updateError);
-        } else {
-          updateCount++;
-        }
-      }
-
       console.log('=== Rematch Complete ===');
-      console.log('Total matches found:', matches?.length || 0);
-      console.log('Contacts updated:', updateCount);
+      console.log('Total matches found and updated:', matchCount);
 
       toast({
         title: "Contacts Rematched",
-        description: `Found ${matches?.length || 0} matches`,
+        description: `Found ${matchCount || 0} matches`,
       });
       
       await loadContacts();
