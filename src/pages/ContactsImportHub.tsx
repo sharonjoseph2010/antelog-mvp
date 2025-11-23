@@ -188,6 +188,9 @@ export default function ContactsImportHub() {
         description: `${contactsToSave.length} contacts added. ${matchCount || 0} are already on Antelog.`,
       });
 
+      // Dispatch event to notify contacts page to reload
+      window.dispatchEvent(new Event('contacts-updated'));
+
       // Navigate to contacts page after successful import
       navigate('/contacts');
     } catch (error: any) {
