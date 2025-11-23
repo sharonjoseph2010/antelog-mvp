@@ -174,9 +174,18 @@ export default function ContactsImportHub() {
 
       console.log('Contacts saved successfully:', data);
 
+      // Automatically match the newly imported contacts
+      const { data: matchCount, error: matchError } = await supabase.rpc('update_matched_contacts', {
+        user_id_input: user.id
+      });
+
+      if (matchError) {
+        console.error('Error auto-matching contacts:', matchError);
+      }
+
       toast({
         title: "Contacts imported successfully",
-        description: `${contactsToSave.length} contacts have been added to your network`,
+        description: `${contactsToSave.length} contacts added. ${matchCount || 0} are already on Antelog.`,
       });
 
       // Navigate to contacts page after successful import
