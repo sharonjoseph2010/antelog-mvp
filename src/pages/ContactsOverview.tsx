@@ -220,6 +220,17 @@ const ContactsOverview = () => {
 
   useEffect(() => {
     loadContacts();
+    
+    // Listen for contact updates from import page
+    const handleContactsUpdated = () => {
+      loadContacts();
+    };
+    
+    window.addEventListener('contacts-updated', handleContactsUpdated);
+    
+    return () => {
+      window.removeEventListener('contacts-updated', handleContactsUpdated);
+    };
   }, []);
 
   const deleteContact = async (contactId: string) => {
