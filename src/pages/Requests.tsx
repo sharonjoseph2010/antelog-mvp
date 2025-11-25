@@ -20,6 +20,7 @@ interface Request {
   category: string;
   location: string | null;
   audience_type: string;
+  audience_types?: string[]; // Multiple audiences support
   status: string;
   created_at: string;
   updated_at: string;
@@ -36,6 +37,8 @@ interface Request {
   }>;
   degree_of_separation?: number | null;
   connection_path?: string[];
+  group_id?: string;
+  group_name?: string;
 }
 
 interface Group {
@@ -91,7 +94,8 @@ export default function Requests() {
         .from("requests")
         .select(`
           *,
-          request_responses(count)
+          request_responses(count),
+          groups(name)
         `)
         .eq("creator_id", user.id)
         .order("created_at", { ascending: false });
@@ -101,6 +105,7 @@ export default function Requests() {
       const formattedSentRequests = sentData?.map(request => ({
         ...request,
         response_count: request.request_responses?.length || 0,
+        group_name: request.groups?.name,
         forwarding_chain: Array.isArray(request.forwarding_chain) 
           ? request.forwarding_chain as Array<{ user_id: string; user_name: string; user_handle: string; }>
           : []
@@ -114,7 +119,8 @@ export default function Requests() {
         .from("requests")
         .select(`
           *,
-          request_responses(count)
+          request_responses(count),
+          groups(name)
         `)
         .neq("creator_id", user.id)
         .order("created_at", { ascending: false });
@@ -170,6 +176,7 @@ export default function Requests() {
             ...request,
             creator_profile: creatorProfile,
             response_count: request.request_responses?.length || 0,
+            group_name: request.groups?.name,
             degree_of_separation: degreeOfSeparation,
             connection_path: connectionPath,
             forwarding_chain: Array.isArray(request.forwarding_chain) 
@@ -239,14 +246,38 @@ export default function Requests() {
 
   const formatAudienceType = (audienceType: string) => {
     switch (audienceType) {
+      case "first_network":
+        return "1st Network";
       case "friends":
         return "Friends";
       case "extended_network":
         return "Extended Network";
       case "specific_group":
+      case "group":
         return "Group";
+      case "specific_people":
+        return "Specific People";
+      case "public":
+        return "Public";
       default:
         return audienceType;
+    }
+  };
+
+  const getAudienceBadgeColor = (audienceType: string) => {
+    switch (audienceType) {
+      case "first_network":
+      case "friends":
+        return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200";
+      case "group":
+      case "specific_group":
+        return "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200";
+      case "specific_people":
+        return "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200";
+      case "public":
+        return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200";
+      default:
+        return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200";
     }
   };
 
@@ -340,11 +371,26 @@ export default function Requests() {
             )}
           </div>
 
-          {/* Audience and Response Count */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1 text-sm text-muted-foreground">
-              {getAudienceIcon(request.audience_type)}
-              <span>Sent to {formatAudienceType(request.audience_type)}</span>
+          {/* Audience Badges and Response Count */}
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="flex flex-wrap items-center gap-1.5">
+              {(request.audience_types || [request.audience_type]).map((audienceType, index) => {
+                // Show group name if this is a group audience
+                const label = audienceType === 'group' && request.group_name
+                  ? `Group: ${request.group_name}`
+                  : formatAudienceType(audienceType);
+                
+                return (
+                  <Badge 
+                    key={index} 
+                    variant="secondary" 
+                    className={`text-xs ${getAudienceBadgeColor(audienceType)}`}
+                  >
+                    {getAudienceIcon(audienceType)}
+                    <span className="ml-1">{label}</span>
+                  </Badge>
+                );
+              })}
             </div>
             
             <div className="flex items-center gap-4 text-sm">
