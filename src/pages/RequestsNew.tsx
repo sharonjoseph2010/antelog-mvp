@@ -36,6 +36,8 @@ export default function RequestsNew() {
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [userGroups, setUserGroups] = useState<Group[]>([]);
+  const [networkCount, setNetworkCount] = useState(0);
+  const [totalUsersCount, setTotalUsersCount] = useState(0);
   const [formData, setFormData] = useState({
     title: '',
     category: '' as 'films' | 'places' | 'products' | 'services' | 'other',
@@ -48,6 +50,7 @@ export default function RequestsNew() {
 
   useEffect(() => {
     loadUserGroups();
+    loadNetworkCounts();
   }, []);
 
   const loadUserGroups = async () => {
@@ -75,6 +78,33 @@ export default function RequestsNew() {
       setUserGroups(formattedGroups);
     } catch (error) {
       console.error('Error loading groups:', error);
+    }
+  };
+
+  const loadNetworkCounts = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Count 1st network connections
+      const { count: friendshipsCount, error: friendshipsError } = await supabase
+        .from('friendships')
+        .select('*', { count: 'exact', head: true })
+        .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`);
+
+      if (friendshipsError) throw friendshipsError;
+      setNetworkCount(friendshipsCount || 0);
+
+      // Count total verified users on platform
+      const { count: usersCount, error: usersError } = await supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true })
+        .eq('is_verified', true);
+
+      if (usersError) throw usersError;
+      setTotalUsersCount(usersCount || 0);
+    } catch (error) {
+      console.error('Error loading network counts:', error);
     }
   };
 
@@ -221,8 +251,7 @@ export default function RequestsNew() {
   const estimateReach = () => {
     let count = 0;
     if (formData.audience_types.includes('first_network')) {
-      // This would need to be fetched from friendships table
-      count += 24; // Placeholder
+      count += networkCount;
     }
     if (formData.audience_types.includes('group') && formData.group_id) {
       const group = userGroups.find(g => g.id === formData.group_id);
@@ -232,9 +261,18 @@ export default function RequestsNew() {
       count += formData.selected_users.length;
     }
     if (formData.audience_types.includes('public')) {
-      count += 1000; // Placeholder for public reach
+      count += totalUsersCount;
     }
     return count;
+  };
+
+  const formatReachCount = (count: number) => {
+    if (count === 0) return '0 people';
+    if (count === 1) return '1 person';
+    if (count >= 1000) {
+      return `${(count / 1000).toFixed(1)}k+ people`;
+    }
+    return `${count} people`;
   };
 
   return (
@@ -427,7 +465,7 @@ export default function RequestsNew() {
               <div className="p-4 bg-muted/50 rounded-lg">
                 <p className="text-sm font-medium mb-1">Estimated Reach</p>
                 <p className="text-xs text-muted-foreground">
-                  This request will reach approximately <span className="font-semibold">{estimateReach()} people</span> across {formData.audience_types.length} {formData.audience_types.length === 1 ? 'audience' : 'audiences'}
+                  This request will reach approximately <span className="font-semibold">{formatReachCount(estimateReach())}</span> across {formData.audience_types.length} {formData.audience_types.length === 1 ? 'audience' : 'audiences'}
                 </p>
               </div>
             )}
