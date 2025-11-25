@@ -279,17 +279,17 @@ const Friends = () => {
   return (
     <>
       <Helmet>
-        <title>Friends - Antelog</title>
-        <meta name="description" content="Manage your friends and friend requests on Antelog" />
+        <title>Network - Antelog</title>
+        <meta name="description" content="Manage your network connections on Antelog" />
       </Helmet>
 
       <div className="container mx-auto py-8 px-4 max-w-4xl">
         <div className="mb-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
             <div>
-              <h1 className="text-3xl font-bold mb-2">Friends</h1>
+              <h1 className="text-3xl font-bold mb-2">Network</h1>
               <p className="text-muted-foreground">
-                Manage your friend connections and requests
+                Manage your network connections
               </p>
             </div>
             
@@ -309,7 +309,7 @@ const Friends = () => {
                   className="flex items-center justify-center gap-2 px-4 py-3 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none bg-transparent text-muted-foreground data-[state=active]:text-foreground hover:text-foreground transition-colors"
                 >
                   <Users className="h-4 w-4" />
-                  <span className="hidden xs:inline">Friends</span>
+                  <span className="hidden xs:inline">1st Network</span>
                   <Badge variant="secondary" className="ml-1 text-xs">
                     {friendships.length}
                   </Badge>
@@ -353,18 +353,18 @@ const Friends = () => {
           <TabsContent value="friends">
             <Card>
               <CardHeader>
-                <CardTitle>Your Friends</CardTitle>
+                <CardTitle>Your 1st Network</CardTitle>
                 <CardDescription>
-                  People you're connected with on Antelog
+                  People you trust for recommendations
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 {friendships.length === 0 ? (
                   <div className="text-center py-8">
                     <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                    <h3 className="text-lg font-medium mb-2">No friends yet</h3>
+                    <h3 className="text-lg font-medium mb-2">No one in your 1st network yet</h3>
                     <p className="text-muted-foreground mb-4">
-                      Import your contacts to find friends on Antelog
+                      Import your contacts to build your 1st network
                     </p>
                     <Button asChild>
                       <Link to="/contacts/import">Import Contacts</Link>

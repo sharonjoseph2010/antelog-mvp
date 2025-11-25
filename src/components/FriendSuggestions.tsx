@@ -153,7 +153,7 @@ export const FriendSuggestions = () => {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Friend Suggestions</CardTitle>
+          <CardTitle>Contact Notifications</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-center text-muted-foreground">Loading suggestions...</div>
@@ -166,9 +166,9 @@ export const FriendSuggestions = () => {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Friend Suggestions</CardTitle>
+          <CardTitle>Contact Notifications</CardTitle>
           <CardDescription>
-            We'll suggest friends when people from your contacts join Antelog
+            We'll notify you when people from your contacts join Antelog so you can add them to your 1st Network
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -183,7 +183,7 @@ export const FriendSuggestions = () => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Friend Suggestions</CardTitle>
+        <CardTitle>Contact Notifications</CardTitle>
         <CardDescription>
           People from your contacts who joined Antelog
         </CardDescription>
