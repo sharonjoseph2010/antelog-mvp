@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Search, UserPlus, Mail, Phone, Users, Send, Trash2 } from "lucide-react";
+import { Search, Mail, Phone, Users, Send, Trash2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,11 +30,6 @@ interface ContactWithStatus {
   matched_user_id?: string;
   full_name?: string;
   handle?: string;
-  friend_request_status?: 'pending' | 'accepted' | 'rejected';
-  friendship_id?: string;
-  is_friends: boolean;
-  has_sent_request: boolean;
-  has_received_request: boolean;
 }
 
 const ContactsOverview = () => {
@@ -103,7 +98,7 @@ const ContactsOverview = () => {
 
       let matchedProfiles = [];
       if (matchedUserIds.length > 0) {
-        const { data: profiles, error: profileError } = await supabase
+      const { data: profiles, error: profileError } = await supabase
           .from('profiles')
           .select('id, full_name, handle')
           .in('id', matchedUserIds);
@@ -115,48 +110,13 @@ const ContactsOverview = () => {
         }
       }
 
-      const { data: friendRequests, error: requestError } = await supabase
-        .from('friend_requests')
-        .select('requester_id, addressee_id, status')
-        .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`)
-        .in('status', ['pending', 'accepted']);
-
-      if (requestError) {
-        console.error('Error fetching friend requests:', requestError);
-      }
-
-      const { data: friendships, error: friendshipError } = await supabase
-        .from('friendships')
-        .select('user1_id, user2_id')
-        .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`);
-
-      if (friendshipError) {
-        console.error('Error fetching friendships:', friendshipError);
-      }
-
       const contactsWithStatus: ContactWithStatus[] = (contactImports || []).map(contact => {
         const profile = matchedProfiles.find(p => p.id === contact.matched_user_id);
-        
-        const sentRequest = friendRequests?.find(
-          fr => fr.requester_id === user.id && fr.addressee_id === contact.matched_user_id
-        );
-        const receivedRequest = friendRequests?.find(
-          fr => fr.requester_id === contact.matched_user_id && fr.addressee_id === user.id
-        );
-        
-        const friendship = friendships?.find(
-          f => (f.user1_id === user.id && f.user2_id === contact.matched_user_id) ||
-               (f.user2_id === user.id && f.user1_id === contact.matched_user_id)
-        );
 
         return {
           ...contact,
           full_name: profile?.full_name,
           handle: profile?.handle,
-          is_friends: !!friendship,
-          has_sent_request: !!sentRequest,
-          has_received_request: !!receivedRequest,
-          friend_request_status: (sentRequest?.status || receivedRequest?.status) as 'pending' | 'accepted' | 'rejected' | undefined,
         };
       });
 
@@ -260,63 +220,6 @@ const ContactsOverview = () => {
     }
   };
 
-  const sendFriendRequest = async (userId: string, contactName: string) => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        toast({
-          title: "Error",
-          description: "You must be logged in",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      const { error: existingRequestError, data: existingRequest } = await supabase
-        .from('friend_requests')
-        .select('id, status')
-        .or(`and(requester_id.eq.${user.id},addressee_id.eq.${userId}),and(requester_id.eq.${userId},addressee_id.eq.${user.id})`)
-        .maybeSingle();
-
-      if (existingRequestError) {
-        console.error('Error checking existing request:', existingRequestError);
-      }
-
-      if (existingRequest) {
-        if (existingRequest.status === 'pending') {
-          toast({
-            title: "Connection Request Already Sent",
-            description: `You've already sent a connection request to ${contactName}`,
-          });
-          return;
-        }
-      }
-
-      const { error: insertError } = await supabase
-        .from('friend_requests')
-        .insert({
-          requester_id: user.id,
-          addressee_id: userId,
-          status: 'pending'
-        });
-
-      if (insertError) throw insertError;
-
-      toast({
-        title: "Connection Request Sent",
-        description: `Request sent to ${contactName}`,
-      });
-
-      await loadContacts();
-    } catch (error) {
-      console.error('Error sending friend request:', error);
-      toast({
-        title: "Error",
-        description: "Failed to send friend request",
-        variant: "destructive"
-      });
-    }
-  };
 
   const filteredContacts = contacts.filter(contact =>
     contact.contact_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -338,7 +241,7 @@ const ContactsOverview = () => {
         <div className="mb-6">
           <h1 className="text-3xl font-bold mb-2">My Contacts</h1>
           <p className="text-muted-foreground">
-            Manage your imported contacts and send friend requests
+            Manage your imported contacts and see who's on Antelog
           </p>
         </div>
 
@@ -417,19 +320,7 @@ const ContactsOverview = () => {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          {contact.is_friends ? (
-                            <Badge variant="default">In 1st Network</Badge>
-                          ) : contact.has_sent_request ? (
-                            <Badge variant="secondary">Request Sent</Badge>
-                          ) : (
-                            <Button
-                              size="sm"
-                              onClick={() => sendFriendRequest(contact.matched_user_id!, contact.contact_name)}
-                            >
-                              <UserPlus className="h-4 w-4 mr-1" />
-                              Add to 1st Network
-                            </Button>
-                          )}
+                          <Badge variant="default">On Antelog</Badge>
                           <Button
                             size="sm"
                             variant="ghost"
@@ -515,11 +406,6 @@ const ContactsOverview = () => {
               <AlertDialogTitle>Delete Contact?</AlertDialogTitle>
               <AlertDialogDescription>
                 This will remove {contactToDelete?.contact_name} from your contacts list.
-                {contactToDelete?.is_friends && (
-                  <span className="block mt-2 font-medium text-foreground">
-                    Note: This will not remove your friendship on Antelog.
-                  </span>
-                )}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
