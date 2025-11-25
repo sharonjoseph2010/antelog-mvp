@@ -35,7 +35,7 @@ const Header = ({ isAuthenticated, isAdmin, userType, onLogout }: HeaderProps) =
               <Link to="/dashboard" className="hover:underline">Dashboard</Link>
               <Link to="/for-you" className="hover:underline">For You</Link>
               <Link to="/lists" className="hover:underline">My Lists</Link>
-              <Link to="/friends" className="hover:underline">Friends</Link>
+              <Link to="/friends" className="hover:underline">Network</Link>
               <Link to="/groups" className="hover:underline">Groups</Link>
               <Link to="/requests" className="hover:underline">Requests</Link>
               <Link to="/contacts" className="hover:underline">Contacts</Link>
