@@ -8,9 +8,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Plus, ThumbsUp, MessageSquare, User, Users, UserCheck, MapPin, Clock, Share2, ArrowRight } from "lucide-react";
+import { ArrowLeft, Plus, ThumbsUp, MessageSquare, User, Users, UserCheck, MapPin, Clock, Share2, ArrowRight, Edit, Trash2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ForwardRequestModal } from "@/components/ForwardRequestModal";
+import { DeleteRequestDialog } from "@/components/DeleteRequestDialog";
 
 interface NetworkPathNode {
   user_id: string;
@@ -79,6 +80,9 @@ export default function RequestRespond() {
   const [showForwardModal, setShowForwardModal] = useState(false);
   const [canForward, setCanForward] = useState(false);
   const [hasForwarded, setHasForwarded] = useState(false);
+  const [isOwnRequest, setIsOwnRequest] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   
   // Response form state
   const [responseType, setResponseType] = useState<"new_recommendations" | "existing_list">("new_recommendations");
@@ -118,7 +122,8 @@ export default function RequestRespond() {
       }
       
       // Check if user has forwarding permissions
-      const isOwnRequest = requestData.creator_id === user.id;
+      const userIsOwner = requestData.creator_id === user.id;
+      setIsOwnRequest(userIsOwner);
       const allowsForwarding = requestData.allow_forwarding === true;
       
       // Check if user already forwarded this request
@@ -130,7 +135,7 @@ export default function RequestRespond() {
         .maybeSingle();
       
       setHasForwarded(!!forwardData);
-      setCanForward(!isOwnRequest && allowsForwarding && !forwardData);
+      setCanForward(!userIsOwner && allowsForwarding && !forwardData);
 
       // Get network path if request was forwarded to user
       const { data: forwardPath } = await supabase
@@ -360,6 +365,37 @@ export default function RequestRespond() {
     }
   };
 
+  const handleDeleteRequest = async () => {
+    if (!request) return;
+    
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase
+        .from("requests")
+        .delete()
+        .eq("id", request.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Request Deleted",
+        description: "Your request has been permanently deleted"
+      });
+
+      navigate("/requests");
+    } catch (error) {
+      console.error("Error deleting request:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete request",
+        variant: "destructive"
+      });
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteDialog(false);
+    }
+  };
+
   const getAudienceIcon = (audienceType: string) => {
     switch (audienceType) {
       case "friends":
@@ -504,21 +540,46 @@ export default function RequestRespond() {
 
           {/* Action Buttons */}
           <div className="flex gap-2 pt-2 border-t">
-            {canForward && (
-              <Button
-                onClick={() => setShowForwardModal(true)}
-                variant="outline"
-                className="flex items-center gap-2"
-              >
-                <Share2 className="h-4 w-4" />
-                Forward & Endorse
-              </Button>
-            )}
-            {hasForwarded && (
-              <Badge variant="secondary" className="flex items-center gap-1">
-                <Share2 className="h-3 w-3" />
-                You forwarded this
-              </Badge>
+            {isOwnRequest ? (
+              <>
+                <Button
+                  asChild
+                  variant="outline"
+                  className="flex items-center gap-2"
+                >
+                  <Link to={`/requests/${request.id}/edit`}>
+                    <Edit className="h-4 w-4" />
+                    Edit Request
+                  </Link>
+                </Button>
+                <Button
+                  onClick={() => setShowDeleteDialog(true)}
+                  variant="outline"
+                  className="flex items-center gap-2 text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete Request
+                </Button>
+              </>
+            ) : (
+              <>
+                {canForward && (
+                  <Button
+                    onClick={() => setShowForwardModal(true)}
+                    variant="outline"
+                    className="flex items-center gap-2"
+                  >
+                    <Share2 className="h-4 w-4" />
+                    Forward & Endorse
+                  </Button>
+                )}
+                {hasForwarded && (
+                  <Badge variant="secondary" className="flex items-center gap-1">
+                    <Share2 className="h-3 w-3" />
+                    You forwarded this
+                  </Badge>
+                )}
+              </>
             )}
           </div>
         </CardContent>
@@ -707,6 +768,14 @@ export default function RequestRespond() {
           }}
         />
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <DeleteRequestDialog
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        onConfirm={handleDeleteRequest}
+        isDeleting={isDeleting}
+      />
     </div>
   );
 }

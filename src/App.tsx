@@ -32,6 +32,7 @@ import GroupDetail from "./pages/GroupDetail";
 import Requests from "./pages/Requests";
 import RequestsNew from "./pages/RequestsNew";
 import RequestRespond from "./pages/RequestRespond";
+import RequestEdit from "./pages/RequestEdit";
 import { supabase } from "@/integrations/supabase/client";
 import type { Session, User } from "@supabase/supabase-js";
 import { ProtectedRoute, AdminRoute, InternalRoute, VerifiedRoute } from "@/components/routes/RouteGuards";
@@ -459,6 +460,15 @@ function AppContent({
           element={
             <VerifiedRoute isAuthenticated={isAuthenticated} userType={userType}>
               <RequestRespond />
+            </VerifiedRoute>
+          }
+        />
+
+        <Route
+          path="/requests/:id/edit"
+          element={
+            <VerifiedRoute isAuthenticated={isAuthenticated} userType={userType}>
+              <RequestEdit />
             </VerifiedRoute>
           }
         />
