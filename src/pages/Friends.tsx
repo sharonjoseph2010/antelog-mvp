@@ -21,10 +21,31 @@ interface Friendship {
   contact_name?: string;
 }
 
+interface ExtendedNetworkMember {
+  profile_id: string;
+  full_name: string;
+  handle: string;
+  mutual_friends: string[];
+}
+
+interface Contact {
+  id: string;
+  contact_name: string;
+  contact_phone: string | null;
+  is_matched: boolean;
+  matched_user_id: string | null;
+  matched_profile?: {
+    handle: string;
+    full_name: string;
+  };
+}
+
 const Friends = () => {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [friendships, setFriendships] = useState<Friendship[]>([]);
-  const [extendedNetworkCount, setExtendedNetworkCount] = useState(0);
+  const [extendedNetwork, setExtendedNetwork] = useState<ExtendedNetworkMember[]>([]);
+  const [thirdPlusNetwork, setThirdPlusNetwork] = useState<ExtendedNetworkMember[]>([]);
+  const [allContacts, setAllContacts] = useState<Contact[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
@@ -35,7 +56,8 @@ const Friends = () => {
   useEffect(() => {
     if (currentUserId) {
       loadFriendships();
-      loadExtendedNetworkCount();
+      loadExtendedNetwork();
+      loadAllContacts();
     }
   }, [currentUserId]);
 
@@ -110,7 +132,7 @@ const Friends = () => {
     }
   };
 
-  const loadExtendedNetworkCount = async () => {
+  const loadExtendedNetwork = async () => {
     if (!currentUserId) return;
 
     try {
@@ -119,15 +141,53 @@ const Friends = () => {
       });
 
       if (error) {
-        console.error('Error loading extended network count:', error);
-        setExtendedNetworkCount(0);
+        console.error('Error loading extended network:', error);
+        setExtendedNetwork([]);
         return;
       }
 
-      setExtendedNetworkCount(networkData?.length || 0);
+      setExtendedNetwork(networkData || []);
     } catch (error) {
-      console.error('Error loading extended network count:', error);
-      setExtendedNetworkCount(0);
+      console.error('Error loading extended network:', error);
+      setExtendedNetwork([]);
+    }
+  };
+
+  const loadAllContacts = async () => {
+    if (!currentUserId) return;
+
+    try {
+      const { data: contacts, error } = await supabase
+        .from('contact_imports')
+        .select('id, contact_name, contact_phone, is_matched, matched_user_id')
+        .eq('user_id', currentUserId)
+        .order('contact_name');
+
+      if (error) throw error;
+
+      // Get matched user profiles
+      const matchedUserIds = contacts
+        ?.filter(c => c.matched_user_id)
+        .map(c => c.matched_user_id!) || [];
+
+      if (matchedUserIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, handle, full_name')
+          .in('id', matchedUserIds);
+
+        const contactsWithProfiles = contacts?.map(contact => ({
+          ...contact,
+          matched_profile: profiles?.find(p => p.id === contact.matched_user_id)
+        })) || [];
+
+        setAllContacts(contactsWithProfiles);
+      } else {
+        setAllContacts(contacts || []);
+      }
+    } catch (error) {
+      console.error('Error loading contacts:', error);
+      setAllContacts([]);
     }
   };
 
@@ -141,15 +201,15 @@ const Friends = () => {
       if (error) throw error;
 
       toast({
-        title: "Friend removed",
-        description: "Friend has been removed from your list.",
+        title: "Removed from 1st Network",
+        description: "Connection has been removed from your 1st network.",
       });
 
       loadFriendships();
     } catch (error) {
       toast({
         title: "Remove failed",
-        description: "Failed to remove friend. Please try again.",
+        description: "Failed to remove connection. Please try again.",
         variant: "destructive",
       });
     }
@@ -182,7 +242,7 @@ const Friends = () => {
 
           <Tabs defaultValue="friends" className="space-y-6">
             <div className="border-b border-border">
-              <TabsList className="h-auto p-0 bg-transparent grid w-full grid-cols-2 gap-0">
+              <TabsList className="h-auto p-0 bg-transparent grid w-full grid-cols-4 gap-0">
                 <TabsTrigger 
                   value="friends" 
                   className="flex items-center justify-center gap-2 px-4 py-3 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none bg-transparent text-muted-foreground data-[state=active]:text-foreground hover:text-foreground transition-colors"
@@ -195,13 +255,35 @@ const Friends = () => {
                 </TabsTrigger>
                 
                 <TabsTrigger 
-                  value="extended" 
+                  value="second-degree" 
                   className="flex items-center justify-center gap-2 px-4 py-3 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none bg-transparent text-muted-foreground data-[state=active]:text-foreground hover:text-foreground transition-colors"
                 >
                   <Network className="h-4 w-4" />
-                  <span className="hidden xs:inline">Extended</span>
+                  <span className="hidden xs:inline">2nd Degree</span>
                   <Badge variant="secondary" className="ml-1 text-xs">
-                    {extendedNetworkCount}
+                    {extendedNetwork.length}
+                  </Badge>
+                </TabsTrigger>
+
+                <TabsTrigger 
+                  value="third-plus" 
+                  className="flex items-center justify-center gap-2 px-4 py-3 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none bg-transparent text-muted-foreground data-[state=active]:text-foreground hover:text-foreground transition-colors"
+                >
+                  <Network className="h-4 w-4" />
+                  <span className="hidden xs:inline">3rd+ Degree</span>
+                  <Badge variant="secondary" className="ml-1 text-xs">
+                    {thirdPlusNetwork.length}
+                  </Badge>
+                </TabsTrigger>
+
+                <TabsTrigger 
+                  value="contacts" 
+                  className="flex items-center justify-center gap-2 px-4 py-3 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none bg-transparent text-muted-foreground data-[state=active]:text-foreground hover:text-foreground transition-colors"
+                >
+                  <Users className="h-4 w-4" />
+                  <span className="hidden xs:inline">All Contacts</span>
+                  <Badge variant="secondary" className="ml-1 text-xs">
+                    {allContacts.length}
                   </Badge>
                 </TabsTrigger>
               </TabsList>
@@ -242,7 +324,7 @@ const Friends = () => {
                             @{friendship.friend_profile?.handle || 'unknown'}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            Friends since {new Date(friendship.created_at).toLocaleDateString()}
+                            Connected since {new Date(friendship.created_at).toLocaleDateString()}
                           </p>
                         </div>
                         
@@ -262,12 +344,65 @@ const Friends = () => {
             </Card>
           </TabsContent>
 
-            <TabsContent value="extended">
+            <TabsContent value="second-degree">
               <Card>
                 <CardHeader>
-                  <CardTitle>Extended Network</CardTitle>
+                  <CardTitle>2nd Degree Network</CardTitle>
                   <CardDescription>
-                    Discover friends-of-friends and expand your connections
+                    Friends-of-friends in your extended network
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {extendedNetwork.length === 0 ? (
+                    <div className="text-center py-12">
+                      <div className="mx-auto w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
+                        <Network className="h-8 w-8 text-muted-foreground" />
+                      </div>
+                      <h3 className="text-xl font-semibold mb-2">No 2nd Degree Connections Yet</h3>
+                      <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                        2nd degree connections will appear as your 1st network grows
+                      </p>
+                      <Button asChild size="lg">
+                        <Link to="/contacts/import" className="flex items-center gap-2">
+                          <Upload className="h-4 w-4" />
+                          Import Contacts
+                        </Link>
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {extendedNetwork.map((member) => (
+                        <div
+                          key={member.profile_id}
+                          className="flex items-center justify-between p-4 border rounded-lg"
+                        >
+                          <div>
+                            <h3 className="font-medium">{member.full_name}</h3>
+                            <p className="text-sm text-muted-foreground">
+                              @{member.handle}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              via {member.mutual_friends.slice(0, 2).join(', ')}
+                              {member.mutual_friends.length > 2 && ` +${member.mutual_friends.length - 2} more`}
+                            </p>
+                          </div>
+                          <Button variant="outline" size="sm" asChild>
+                            <Link to={`/profile/${member.profile_id}`}>View Profile</Link>
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="third-plus">
+              <Card>
+                <CardHeader>
+                  <CardTitle>3rd+ Degree Network</CardTitle>
+                  <CardDescription>
+                    Extended connections beyond your 2nd degree network
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -275,17 +410,81 @@ const Friends = () => {
                     <div className="mx-auto w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
                       <Network className="h-8 w-8 text-muted-foreground" />
                     </div>
-                    <h3 className="text-xl font-semibold mb-2">Explore Your Extended Network</h3>
+                    <h3 className="text-xl font-semibold mb-2">3rd+ Degree Connections</h3>
                     <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                      Your extended network will appear here as your 1st network grows
+                      Extended network connections will appear here as your network grows
                     </p>
-                    <Button asChild size="lg">
-                      <Link to="/network/extended" className="flex items-center gap-2">
-                        <Network className="h-4 w-4" />
-                        View Extended Network
-                      </Link>
-                    </Button>
                   </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="contacts">
+              <Card>
+                <CardHeader>
+                  <CardTitle>All Contacts</CardTitle>
+                  <CardDescription>
+                    Everyone you've imported from your contacts
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {allContacts.length === 0 ? (
+                    <div className="text-center py-12">
+                      <div className="mx-auto w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
+                        <Users className="h-8 w-8 text-muted-foreground" />
+                      </div>
+                      <h3 className="text-xl font-semibold mb-2">No Contacts Imported</h3>
+                      <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                        Import contacts to see them here
+                      </p>
+                      <Button asChild size="lg">
+                        <Link to="/contacts/import" className="flex items-center gap-2">
+                          <Upload className="h-4 w-4" />
+                          Import Contacts
+                        </Link>
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {allContacts.map((contact) => (
+                        <div
+                          key={contact.id}
+                          className="flex items-center justify-between p-4 border rounded-lg"
+                        >
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <h3 className="font-medium">{contact.contact_name}</h3>
+                              {contact.is_matched ? (
+                                <Badge variant="default" className="text-xs">On Antelog</Badge>
+                              ) : (
+                                <Badge variant="secondary" className="text-xs">Not on Antelog yet</Badge>
+                              )}
+                            </div>
+                            {contact.matched_profile && (
+                              <p className="text-sm text-muted-foreground">
+                                @{contact.matched_profile.handle}
+                              </p>
+                            )}
+                            {contact.contact_phone && (
+                              <p className="text-xs text-muted-foreground">
+                                {contact.contact_phone}
+                              </p>
+                            )}
+                          </div>
+                          
+                          {contact.is_matched ? (
+                            <Button variant="outline" size="sm">
+                              Add to 1st Network
+                            </Button>
+                          ) : (
+                            <Button variant="outline" size="sm">
+                              Invite
+                            </Button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
