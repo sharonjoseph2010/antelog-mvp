@@ -47,6 +47,7 @@ const Friends = () => {
   const [thirdPlusNetwork, setThirdPlusNetwork] = useState<ExtendedNetworkMember[]>([]);
   const [allContacts, setAllContacts] = useState<Contact[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [addingToNetwork, setAddingToNetwork] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -191,6 +192,73 @@ const Friends = () => {
     }
   };
 
+  const isAlreadyInNetwork = (contactUserId: string | null) => {
+    if (!contactUserId) return false;
+    return friendships.some(f => 
+      (f.user1_id === contactUserId || f.user2_id === contactUserId)
+    );
+  };
+
+  const addToNetwork = async (contact: Contact) => {
+    if (!currentUserId || !contact.matched_user_id) return;
+
+    // Check if already in network
+    if (isAlreadyInNetwork(contact.matched_user_id)) {
+      toast({
+        title: "Already in 1st Network",
+        description: `${contact.contact_name} is already in your 1st network.`,
+      });
+      return;
+    }
+
+    setAddingToNetwork(contact.id);
+
+    try {
+      // Add to friendships table
+      const { error: friendshipError } = await supabase
+        .from('friendships')
+        .insert({
+          user1_id: currentUserId,
+          user2_id: contact.matched_user_id,
+        });
+
+      if (friendshipError) throw friendshipError;
+
+      // Create notification for the added person
+      const { error: notificationError } = await supabase
+        .from('notifications')
+        .insert({
+          user_id: contact.matched_user_id,
+          type: 'network_addition',
+          title: 'Added to 1st Network',
+          message: `${contact.contact_name} added you to their 1st Network`,
+          related_user_id: currentUserId,
+        });
+
+      if (notificationError) {
+        console.error('Failed to create notification:', notificationError);
+        // Don't throw - friendship was created successfully
+      }
+
+      toast({
+        title: "Added to 1st Network",
+        description: `${contact.contact_name} has been added to your 1st network.`,
+      });
+
+      // Reload data
+      await Promise.all([loadFriendships(), loadExtendedNetwork()]);
+    } catch (error: any) {
+      console.error('Error adding to network:', error);
+      toast({
+        title: "Failed to add",
+        description: error.message || "Failed to add to 1st network. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setAddingToNetwork(null);
+    }
+  };
+
   const removeFriend = async (friendshipId: string) => {
     try {
       const { error } = await supabase
@@ -205,7 +273,7 @@ const Friends = () => {
         description: "Connection has been removed from your 1st network.",
       });
 
-      loadFriendships();
+      await Promise.all([loadFriendships(), loadExtendedNetwork()]);
     } catch (error) {
       toast({
         title: "Remove failed",
@@ -473,9 +541,20 @@ const Friends = () => {
                           </div>
                           
                           {contact.is_matched ? (
-                            <Button variant="outline" size="sm">
-                              Add to 1st Network
-                            </Button>
+                            isAlreadyInNetwork(contact.matched_user_id) ? (
+                              <Badge variant="default" className="text-xs px-3 py-1">
+                                In 1st Network
+                              </Badge>
+                            ) : (
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => addToNetwork(contact)}
+                                disabled={addingToNetwork === contact.id}
+                              >
+                                {addingToNetwork === contact.id ? "Adding..." : "Add to 1st Network"}
+                              </Button>
+                            )
                           ) : (
                             <Button variant="outline" size="sm">
                               Invite
