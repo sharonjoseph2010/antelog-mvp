@@ -285,8 +285,8 @@ const ContactsOverview = () => {
       if (existingRequest) {
         if (existingRequest.status === 'pending') {
           toast({
-            title: "Friend Request Already Sent",
-            description: `You've already sent a friend request to ${contactName}`,
+            title: "Connection Request Already Sent",
+            description: `You've already sent a connection request to ${contactName}`,
           });
           return;
         }
@@ -303,7 +303,7 @@ const ContactsOverview = () => {
       if (insertError) throw insertError;
 
       toast({
-        title: "Friend Request Sent",
+        title: "Connection Request Sent",
         description: `Request sent to ${contactName}`,
       });
 
@@ -418,7 +418,7 @@ const ContactsOverview = () => {
                         </div>
                         <div className="flex items-center gap-2">
                           {contact.is_friends ? (
-                            <Badge variant="default">Friends</Badge>
+                            <Badge variant="default">In 1st Network</Badge>
                           ) : contact.has_sent_request ? (
                             <Badge variant="secondary">Request Sent</Badge>
                           ) : (
@@ -427,7 +427,7 @@ const ContactsOverview = () => {
                               onClick={() => sendFriendRequest(contact.matched_user_id!, contact.contact_name)}
                             >
                               <UserPlus className="h-4 w-4 mr-1" />
-                              Add Friend
+                              Add to 1st Network
                             </Button>
                           )}
                           <Button
