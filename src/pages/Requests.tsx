@@ -7,10 +7,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { MessageSquare, Plus, Clock, CheckCircle, XCircle, MapPin, Users, User, UserCheck, Share2 } from "lucide-react";
+import { MessageSquare, Plus, Clock, CheckCircle, XCircle, MapPin, Users, User, UserCheck, Share2, Edit, Trash2, MoreVertical } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { NetworkPath } from "@/components/NetworkPath";
 import { ForwardRequestDialog } from "@/components/ForwardRequestDialog";
+import { DeleteRequestDialog } from "@/components/DeleteRequestDialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 interface Request {
   id: string;
@@ -52,6 +54,9 @@ export default function Requests() {
   const [forwardDialogOpen, setForwardDialogOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<Request | null>(null);
   const [userGroups, setUserGroups] = useState<Group[]>([]);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [requestToDelete, setRequestToDelete] = useState<Request | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     loadRequests();
@@ -250,6 +255,39 @@ export default function Requests() {
     setForwardDialogOpen(true);
   };
 
+  const handleDeleteRequest = async () => {
+    if (!requestToDelete) return;
+    
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase
+        .from("requests")
+        .delete()
+        .eq("id", requestToDelete.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Request Deleted",
+        description: "Your request has been permanently deleted"
+      });
+
+      // Refresh requests
+      await loadRequests();
+    } catch (error) {
+      console.error("Error deleting request:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete request",
+        variant: "destructive"
+      });
+    } finally {
+      setIsDeleting(false);
+      setDeleteDialogOpen(false);
+      setRequestToDelete(null);
+    }
+  };
+
   const RequestCard = ({ request, showCreator = false }: { request: Request; showCreator?: boolean }) => (
     <Card className="hover:shadow-md transition-shadow">
       <CardHeader className="pb-3">
@@ -322,7 +360,7 @@ export default function Requests() {
           {/* Action Buttons */}
           <div className="flex items-center justify-between pt-2 border-t">
             <div className="flex items-center gap-2">
-              {showCreator && (
+              {showCreator ? (
                 <>
                   <Button asChild variant="outline" size="sm">
                     <Link to={`/requests/${request.id}/respond`} className="flex items-center gap-1">
@@ -342,14 +380,45 @@ export default function Requests() {
                     </Button>
                   )}
                 </>
+              ) : (
+                <>
+                  <Button asChild variant="outline" size="sm">
+                    <Link to={`/requests/${request.id}/respond`} className="flex items-center gap-1">
+                      View
+                    </Link>
+                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem asChild>
+                        <Link to={`/requests/${request.id}/edit`} className="flex items-center gap-2">
+                          <Edit className="h-4 w-4" />
+                          Edit
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        className="text-destructive focus:text-destructive"
+                        onClick={() => {
+                          setRequestToDelete(request);
+                          setDeleteDialogOpen(true);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </>
               )}
             </div>
             {!showCreator && request.response_count > 0 && (
-              <Button asChild variant="ghost" size="sm">
-                <Link to={`/requests/${request.id}/respond`} className="flex items-center gap-1">
-                  View Responses
-                </Link>
-              </Button>
+              <span className="text-sm text-muted-foreground">
+                {request.response_count} {request.response_count === 1 ? 'response' : 'responses'}
+              </span>
             )}
           </div>
         </div>
@@ -510,6 +579,14 @@ export default function Requests() {
           onForwardComplete={loadRequests}
         />
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <DeleteRequestDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        onConfirm={handleDeleteRequest}
+        isDeleting={isDeleting}
+      />
     </div>
   );
 }
