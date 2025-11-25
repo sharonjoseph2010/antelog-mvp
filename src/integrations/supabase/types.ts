@@ -560,25 +560,34 @@ export type Database = {
         Row: {
           created_at: string
           forwarded_by_user_id: string
+          forwarded_to: string[] | null
           forwarded_to_audience: Database["public"]["Enums"]["request_audience_type"]
           forwarded_to_group_id: string | null
           id: string
+          network_depth: number | null
+          network_path: string[] | null
           request_id: string
         }
         Insert: {
           created_at?: string
           forwarded_by_user_id: string
+          forwarded_to?: string[] | null
           forwarded_to_audience: Database["public"]["Enums"]["request_audience_type"]
           forwarded_to_group_id?: string | null
           id?: string
+          network_depth?: number | null
+          network_path?: string[] | null
           request_id: string
         }
         Update: {
           created_at?: string
           forwarded_by_user_id?: string
+          forwarded_to?: string[] | null
           forwarded_to_audience?: Database["public"]["Enums"]["request_audience_type"]
           forwarded_to_group_id?: string | null
           id?: string
+          network_depth?: number | null
+          network_path?: string[] | null
           request_id?: string
         }
         Relationships: [

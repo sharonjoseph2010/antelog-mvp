@@ -8,8 +8,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Plus, ThumbsUp, MessageSquare, User, Users, UserCheck, MapPin, Clock } from "lucide-react";
+import { ArrowLeft, Plus, ThumbsUp, MessageSquare, User, Users, UserCheck, MapPin, Clock, Share2, ArrowRight } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { ForwardRequestModal } from "@/components/ForwardRequestModal";
+
+interface NetworkPathNode {
+  user_id: string;
+  user_name: string;
+  user_handle: string;
+}
 
 interface Request {
   id: string;
@@ -19,10 +26,14 @@ interface Request {
   audience_type: string;
   status: string;
   created_at: string;
+  allow_forwarding: boolean;
+  creator_id: string;
   creator_profile?: {
     full_name: string;
     handle: string;
   };
+  network_path?: NetworkPathNode[];
+  forwarded_by?: string;
 }
 
 interface RequestResponse {
@@ -65,6 +76,9 @@ export default function RequestRespond() {
   const [userLists, setUserLists] = useState<UserList[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showForwardModal, setShowForwardModal] = useState(false);
+  const [canForward, setCanForward] = useState(false);
+  const [hasForwarded, setHasForwarded] = useState(false);
   
   // Response form state
   const [responseType, setResponseType] = useState<"new_recommendations" | "existing_list">("new_recommendations");
@@ -103,9 +117,53 @@ export default function RequestRespond() {
         creator_profile = creatorData;
       }
       
+      // Check if user has forwarding permissions
+      const isOwnRequest = requestData.creator_id === user.id;
+      const allowsForwarding = requestData.allow_forwarding === true;
+      
+      // Check if user already forwarded this request
+      const { data: forwardData } = await supabase
+        .from('request_forwards')
+        .select('id')
+        .eq('request_id', id)
+        .eq('forwarded_by_user_id', user.id)
+        .maybeSingle();
+      
+      setHasForwarded(!!forwardData);
+      setCanForward(!isOwnRequest && allowsForwarding && !forwardData);
+
+      // Get network path if request was forwarded to user
+      const { data: forwardPath } = await supabase
+        .from('request_forwards')
+        .select('network_path')
+        .eq('request_id', id)
+        .contains('forwarded_to', [user.id])
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      let networkPath: NetworkPathNode[] = [];
+      if (forwardPath?.network_path && Array.isArray(forwardPath.network_path)) {
+        // Get profile info for each user in path
+        const { data: pathProfiles } = await supabase
+          .from('profiles')
+          .select('id, full_name, handle')
+          .in('id', forwardPath.network_path);
+
+        networkPath = forwardPath.network_path.map((userId: string) => {
+          const profile = pathProfiles?.find(p => p.id === userId);
+          return {
+            user_id: userId,
+            user_name: profile?.full_name || 'Unknown',
+            user_handle: profile?.handle || 'unknown'
+          };
+        });
+      }
+      
       setRequest({
         ...requestData,
-        creator_profile
+        creator_profile,
+        network_path: networkPath
       });
 
       // Load existing responses
@@ -398,7 +456,25 @@ export default function RequestRespond() {
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1">
               <CardTitle className="text-xl mb-2">{request.title}</CardTitle>
-              {request.creator_profile && (
+              
+              {/* Network Path Display */}
+              {request.network_path && request.network_path.length > 0 ? (
+                <div className="mb-3 p-3 bg-muted/50 rounded-lg">
+                  <p className="text-xs text-muted-foreground mb-1">Request Path:</p>
+                  <div className="flex items-center gap-2 flex-wrap text-sm">
+                    <span className="font-medium">{request.creator_profile?.full_name || 'Unknown'}</span>
+                    {request.network_path.map((node, index) => (
+                      <span key={index} className="flex items-center gap-2">
+                        <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                        <span className="text-muted-foreground">via</span>
+                        <span className="font-medium">{node.user_name}</span>
+                      </span>
+                    ))}
+                    <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                    <Badge variant="secondary">endorsed to you</Badge>
+                  </div>
+                </div>
+              ) : request.creator_profile && (
                 <p className="text-sm text-muted-foreground mb-3">
                   Requested by {request.creator_profile.full_name} (@{request.creator_profile.handle})
                 </p>
@@ -408,7 +484,7 @@ export default function RequestRespond() {
           </div>
         </CardHeader>
         
-        <CardContent>
+        <CardContent className="space-y-4">
           <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
             {request.location && (
               <div className="flex items-center gap-1">
@@ -424,6 +500,26 @@ export default function RequestRespond() {
               <Clock className="h-3 w-3" />
               <span>{formatDistanceToNow(new Date(request.created_at), { addSuffix: true })}</span>
             </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex gap-2 pt-2 border-t">
+            {canForward && (
+              <Button
+                onClick={() => setShowForwardModal(true)}
+                variant="outline"
+                className="flex items-center gap-2"
+              >
+                <Share2 className="h-4 w-4" />
+                Forward & Endorse
+              </Button>
+            )}
+            {hasForwarded && (
+              <Badge variant="secondary" className="flex items-center gap-1">
+                <Share2 className="h-3 w-3" />
+                You forwarded this
+              </Badge>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -592,6 +688,25 @@ export default function RequestRespond() {
           </Card>
         )}
       </div>
+
+      {/* Forward Request Modal */}
+      {request && (
+        <ForwardRequestModal
+          open={showForwardModal}
+          onOpenChange={setShowForwardModal}
+          requestId={request.id}
+          requestTitle={request.title}
+          requestCreatorName={request.creator_profile?.full_name || 'Unknown'}
+          existingNetworkPath={request.network_path}
+          onForwardComplete={() => {
+            loadRequestData();
+            toast({
+              title: "Success!",
+              description: "Request forwarded to your network"
+            });
+          }}
+        />
+      )}
     </div>
   );
 }
