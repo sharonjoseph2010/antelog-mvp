@@ -677,6 +677,7 @@ export type Database = {
       }
       requests: {
         Row: {
+          allow_forwarding: boolean | null
           audience_type: Database["public"]["Enums"]["request_audience_type"]
           category: Database["public"]["Enums"]["request_category"]
           created_at: string
@@ -685,11 +686,13 @@ export type Database = {
           group_id: string | null
           id: string
           location: string | null
+          selected_users: string[] | null
           status: Database["public"]["Enums"]["request_status"]
           title: string
           updated_at: string
         }
         Insert: {
+          allow_forwarding?: boolean | null
           audience_type: Database["public"]["Enums"]["request_audience_type"]
           category: Database["public"]["Enums"]["request_category"]
           created_at?: string
@@ -698,11 +701,13 @@ export type Database = {
           group_id?: string | null
           id?: string
           location?: string | null
+          selected_users?: string[] | null
           status?: Database["public"]["Enums"]["request_status"]
           title: string
           updated_at?: string
         }
         Update: {
+          allow_forwarding?: boolean | null
           audience_type?: Database["public"]["Enums"]["request_audience_type"]
           category?: Database["public"]["Enums"]["request_category"]
           created_at?: string
@@ -711,6 +716,7 @@ export type Database = {
           group_id?: string | null
           id?: string
           location?: string | null
+          selected_users?: string[] | null
           status?: Database["public"]["Enums"]["request_status"]
           title?: string
           updated_at?: string
@@ -972,9 +978,9 @@ export type Database = {
       list_category: "films" | "places" | "products" | "services" | "other"
       list_visibility: "private" | "friends" | "public"
       request_audience_type:
-        | "friends"
-        | "extended_network"
-        | "specific_group"
+        | "first_network"
+        | "group"
+        | "specific_people"
         | "public"
       request_category: "films" | "places" | "products" | "services" | "other"
       request_status: "open" | "responded" | "closed"
@@ -1113,9 +1119,9 @@ export const Constants = {
       list_category: ["films", "places", "products", "services", "other"],
       list_visibility: ["private", "friends", "public"],
       request_audience_type: [
-        "friends",
-        "extended_network",
-        "specific_group",
+        "first_network",
+        "group",
+        "specific_people",
         "public",
       ],
       request_category: ["films", "places", "products", "services", "other"],
