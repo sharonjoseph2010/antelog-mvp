@@ -688,6 +688,7 @@ export type Database = {
         Row: {
           allow_forwarding: boolean | null
           audience_type: Database["public"]["Enums"]["request_audience_type"]
+          audience_types: string[]
           category: Database["public"]["Enums"]["request_category"]
           created_at: string
           creator_id: string
@@ -703,6 +704,7 @@ export type Database = {
         Insert: {
           allow_forwarding?: boolean | null
           audience_type: Database["public"]["Enums"]["request_audience_type"]
+          audience_types: string[]
           category: Database["public"]["Enums"]["request_category"]
           created_at?: string
           creator_id: string
@@ -718,6 +720,7 @@ export type Database = {
         Update: {
           allow_forwarding?: boolean | null
           audience_type?: Database["public"]["Enums"]["request_audience_type"]
+          audience_types?: string[]
           category?: Database["public"]["Enums"]["request_category"]
           created_at?: string
           creator_id?: string

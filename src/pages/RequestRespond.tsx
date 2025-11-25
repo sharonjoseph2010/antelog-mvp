@@ -25,6 +25,7 @@ interface Request {
   category: string;
   location: string | null;
   audience_type: string;
+  audience_types?: string[]; // Multiple audiences support
   status: string;
   created_at: string;
   allow_forwarding: boolean;
@@ -415,14 +416,38 @@ export default function RequestRespond() {
 
   const formatAudienceType = (audienceType: string) => {
     switch (audienceType) {
+      case "first_network":
+        return "1st Network";
       case "friends":
         return "Friends";
       case "extended_network":
         return "Extended Network";
       case "specific_group":
+      case "group":
         return "Group";
+      case "specific_people":
+        return "Specific People";
+      case "public":
+        return "Public";
       default:
         return audienceType;
+    }
+  };
+
+  const getAudienceBadgeColor = (audienceType: string) => {
+    switch (audienceType) {
+      case "first_network":
+      case "friends":
+        return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200";
+      case "group":
+      case "specific_group":
+        return "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200";
+      case "specific_people":
+        return "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200";
+      case "public":
+        return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200";
+      default:
+        return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200";
     }
   };
 
@@ -521,21 +546,32 @@ export default function RequestRespond() {
         </CardHeader>
         
         <CardContent className="space-y-4">
-          <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-4 text-sm">
             {request.location && (
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 text-muted-foreground">
                 <MapPin className="h-3 w-3" />
                 <span>{request.location}</span>
               </div>
             )}
-            <div className="flex items-center gap-1">
-              {getAudienceIcon(request.audience_type)}
-              <span>Sent to {formatAudienceType(request.audience_type)}</span>
-            </div>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 text-muted-foreground">
               <Clock className="h-3 w-3" />
               <span>{formatDistanceToNow(new Date(request.created_at), { addSuffix: true })}</span>
             </div>
+          </div>
+
+          {/* Audience Badges */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm text-muted-foreground">Sent to:</span>
+            {(request.audience_types || [request.audience_type]).map((audienceType, index) => (
+              <Badge 
+                key={index} 
+                variant="secondary" 
+                className={`text-xs ${getAudienceBadgeColor(audienceType)}`}
+              >
+                {getAudienceIcon(audienceType)}
+                <span className="ml-1">{formatAudienceType(audienceType)}</span>
+              </Badge>
+            ))}
           </div>
 
           {/* Action Buttons */}
