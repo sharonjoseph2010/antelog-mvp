@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -23,13 +24,15 @@ export default function RequestsNew() {
   const { toast } = useToast();
   
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [groups, setGroups] = useState<Group[]>([]);
+  const [userGroups, setUserGroups] = useState<Group[]>([]);
   const [formData, setFormData] = useState({
-    title: "",
-    category: "",
-    location: "",
-    audienceType: "",
-    groupId: ""
+    title: '',
+    category: '' as 'films' | 'places' | 'products' | 'services' | 'other',
+    location: '',
+    audience_type: 'first_network' as 'first_network' | 'group' | 'specific_people' | 'public',
+    group_id: '',
+    allow_forwarding: false,
+    selected_users: [] as string[]
   });
 
   useEffect(() => {
@@ -42,31 +45,32 @@ export default function RequestsNew() {
       if (!user) return;
 
       const { data, error } = await supabase
-        .from("groups")
+        .from('groups')
         .select(`
           id,
           name,
           group_members(count)
         `)
-        .eq("creator_id", user.id);
+        .eq('creator_id', user.id);
 
       if (error) throw error;
 
       const formattedGroups = data?.map(group => ({
         id: group.id,
         name: group.name,
-        member_count: group.group_members?.length || 0
+        member_count: group.group_members?.[0]?.count || 0
       })) || [];
 
-      setGroups(formattedGroups);
+      setUserGroups(formattedGroups);
     } catch (error) {
-      console.error("Error loading groups:", error);
+      console.error('Error loading groups:', error);
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.title.trim() || !formData.category || !formData.audienceType) {
+    
+    if (!formData.title.trim() || !formData.category) {
       toast({
         title: "Missing Information",
         description: "Please fill in all required fields",
@@ -75,7 +79,7 @@ export default function RequestsNew() {
       return;
     }
 
-    if (formData.audienceType === "specific_group" && !formData.groupId) {
+    if (formData.audience_type === 'group' && !formData.group_id) {
       toast({
         title: "Group Required",
         description: "Please select a group for your request",
@@ -84,21 +88,33 @@ export default function RequestsNew() {
       return;
     }
 
+    if (formData.audience_type === 'specific_people' && formData.selected_users.length === 0) {
+      toast({
+        title: "People Required",
+        description: "Please select at least one person",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
+      // Set allow_forwarding to false for public requests
+      const allowForwarding = formData.audience_type === 'public' ? false : formData.allow_forwarding;
 
       const { error } = await supabase
-        .from("requests")
+        .from('requests')
         .insert({
-          creator_id: user.id,
-          title: formData.title.trim(),
-          category: formData.category as any,
-          location: formData.location.trim() || null,
-          audience_type: formData.audienceType as any,
-          group_id: formData.audienceType === "specific_group" ? formData.groupId : null
+          title: formData.title,
+          category: formData.category,
+          location: formData.location || null,
+          audience_type: formData.audience_type,
+          group_id: formData.audience_type === 'group' ? formData.group_id : null,
+          selected_users: formData.audience_type === 'specific_people' ? formData.selected_users : null,
+          allow_forwarding: allowForwarding,
+          creator_id: (await supabase.auth.getUser()).data.user?.id!,
+          status: 'open'
         });
 
       if (error) throw error;
@@ -108,9 +124,9 @@ export default function RequestsNew() {
         description: "Your request has been sent to your network"
       });
 
-      navigate("/requests");
+      navigate('/requests');
     } catch (error) {
-      console.error("Error creating request:", error);
+      console.error('Error creating request:', error);
       toast({
         title: "Error",
         description: "Failed to create request. Please try again.",
@@ -122,18 +138,39 @@ export default function RequestsNew() {
   };
 
   const categories = [
-    { value: "films", label: "Films & Movies" },
-    { value: "places", label: "Places & Travel" },
-    { value: "products", label: "Products & Shopping" },
-    { value: "services", label: "Services & Professionals" },
-    { value: "other", label: "Other" }
+    { value: 'films', label: 'Films & Movies' },
+    { value: 'places', label: 'Places & Travel' },
+    { value: 'products', label: 'Products & Shopping' },
+    { value: 'services', label: 'Services & Professionals' },
+    { value: 'other', label: 'Other' }
   ];
 
   const audienceOptions = [
-    { value: "friends", label: "Friends", description: "Send to your direct connections" },
-    { value: "extended_network", label: "Extended Network", description: "Send to friends of friends" },
-    { value: "specific_group", label: "Specific Group", description: "Send to a group you created" },
-    { value: "public", label: "Public (Anonymous)", description: "Share publicly with anonymous identity via AI matching" }
+    {
+      value: 'first_network',
+      label: '1st Network',
+      description: 'Send to people in your trusted network',
+      showForwarding: true
+    },
+    {
+      value: 'group',
+      label: 'Specific Group',
+      description: 'Send to a group you created',
+      showForwarding: true
+    },
+    {
+      value: 'specific_people',
+      label: 'Specific People',
+      description: 'Choose specific contacts from your 1st network',
+      showForwarding: true
+    },
+    {
+      value: 'public',
+      label: 'Public (Anonymous)',
+      description: 'Share publicly with anonymous identity via AI matching',
+      helperText: 'Your request will appear in the Master Directory and be matched to relevant users. Your identity remains anonymous to users outside your network.',
+      showForwarding: false
+    }
   ];
 
   return (
@@ -141,7 +178,7 @@ export default function RequestsNew() {
       <div className="mb-6">
         <Button 
           variant="ghost" 
-          onClick={() => navigate("/requests")}
+          onClick={() => navigate('/requests')}
           className="mb-4"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
@@ -172,7 +209,7 @@ export default function RequestsNew() {
                 id="title"
                 placeholder="e.g., Can someone recommend good coffee shops near SRFTI campus?"
                 value={formData.title}
-                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                onChange={(e) => setFormData({...formData, title: e.target.value})}
                 className="min-h-[100px] resize-none"
                 maxLength={500}
               />
@@ -184,7 +221,7 @@ export default function RequestsNew() {
             {/* Category */}
             <div className="space-y-2">
               <Label>Category *</Label>
-              <Select value={formData.category} onValueChange={(value) => setFormData({ ...formData, category: value })}>
+              <Select value={formData.category} onValueChange={(value) => setFormData({...formData, category: value as any})}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select a category" />
                 </SelectTrigger>
@@ -205,7 +242,7 @@ export default function RequestsNew() {
                 id="location"
                 placeholder="e.g., in Mumbai, near campus, online"
                 value={formData.location}
-                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                onChange={(e) => setFormData({...formData, location: e.target.value})}
               />
               <p className="text-sm text-muted-foreground">
                 Help others understand the context or area you're interested in
@@ -214,63 +251,98 @@ export default function RequestsNew() {
 
             {/* Audience Selection */}
             <div className="space-y-4">
-              <Label>Send to *</Label>
+              <Label className="text-base font-medium">Send to *</Label>
               <RadioGroup 
-                value={formData.audienceType} 
-                onValueChange={(value) => setFormData({ ...formData, audienceType: value, groupId: "" })}
-                className="space-y-3"
+                value={formData.audience_type} 
+                onValueChange={(value) => setFormData({...formData, audience_type: value as any})}
               >
                 {audienceOptions.map((option) => (
-                  <div key={option.value} className="space-y-2">
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value={option.value} id={option.value} />
-                      <Label htmlFor={option.value} className="font-medium cursor-pointer">
-                        {option.label}
-                      </Label>
+                  <div key={option.value} className="space-y-3">
+                    <div className="flex items-start space-x-3 p-4 rounded-lg border hover:bg-accent/50 transition-colors cursor-pointer">
+                      <RadioGroupItem 
+                        value={option.value} 
+                        id={option.value}
+                        className="mt-1"
+                      />
+                      <div className="flex-1 cursor-pointer" onClick={() => setFormData({...formData, audience_type: option.value as any})}>
+                        <Label htmlFor={option.value} className="cursor-pointer font-medium">
+                          {option.label}
+                        </Label>
+                        <p className="text-sm text-muted-foreground mt-1">{option.description}</p>
+                        {option.helperText && (
+                          <p className="text-xs text-muted-foreground mt-2 italic">{option.helperText}</p>
+                        )}
+                      </div>
                     </div>
-                    <p className="text-sm text-muted-foreground ml-6">
-                      {option.description}
-                    </p>
+
+                    {/* Show forwarding checkbox for selected option */}
+                    {formData.audience_type === option.value && option.showForwarding && (
+                      <div className="pl-11 space-y-2">
+                        <div className="flex items-start space-x-2">
+                          <Checkbox
+                            id="allow_forwarding"
+                            checked={formData.allow_forwarding}
+                            onCheckedChange={(checked) => setFormData({...formData, allow_forwarding: checked as boolean})}
+                          />
+                          <div>
+                            <Label htmlFor="allow_forwarding" className="cursor-pointer text-sm font-normal">
+                              Allow recipients to forward to their networks
+                            </Label>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Your {option.value === 'first_network' ? '1st network' : option.value === 'group' ? 'group members' : 'selected people'} can share this with people they trust. Each forward shows the full path.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Show group selector */}
+                    {formData.audience_type === 'group' && option.value === 'group' && (
+                      <div className="pl-11 space-y-2">
+                        <Label htmlFor="group">Select Group</Label>
+                        {userGroups.length === 0 ? (
+                          <p className="text-sm text-muted-foreground">
+                            You haven't created any groups yet. <Link to="/groups/new" className="text-primary hover:underline">Create your first group</Link>
+                          </p>
+                        ) : (
+                          <>
+                            <Select
+                              value={formData.group_id}
+                              onValueChange={(value) => setFormData({...formData, group_id: value})}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Choose a group..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {userGroups.map((group) => (
+                                  <SelectItem key={group.id} value={group.id}>
+                                    {group.name} ({group.member_count} {group.member_count === 1 ? 'member' : 'members'})
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            {formData.group_id && (
+                              <p className="text-xs text-muted-foreground">
+                                {userGroups.find(g => g.id === formData.group_id)?.member_count || 0} people will receive this request
+                              </p>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Show people selector for specific_people */}
+                    {formData.audience_type === 'specific_people' && option.value === 'specific_people' && (
+                      <div className="pl-11 space-y-2">
+                        <Label>Choose People</Label>
+                        <p className="text-sm text-muted-foreground">
+                          Multi-select functionality coming soon. For now, you can send to your entire 1st Network or a Group.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 ))}
               </RadioGroup>
-
-              {/* Group Selection */}
-              {formData.audienceType === "specific_group" && (
-                <div className="ml-6 space-y-2">
-                  <Label>Select Group</Label>
-                  {groups.length > 0 ? (
-                    <Select value={formData.groupId} onValueChange={(value) => setFormData({ ...formData, groupId: value })}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Choose a group" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {groups.map((group) => (
-                          <SelectItem key={group.id} value={group.id}>
-                            <div className="flex items-center gap-2">
-                              <span>{group.name}</span>
-                              <Badge variant="secondary" className="text-xs">
-                                {group.member_count} members
-                              </Badge>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <div className="text-sm text-muted-foreground p-3 bg-muted rounded-lg">
-                      You don't have any groups yet. 
-                      <Button 
-                        variant="link" 
-                        className="h-auto p-0 ml-1"
-                        onClick={() => navigate("/groups/new")}
-                      >
-                        Create your first group
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
 
             {/* Submit Button */}

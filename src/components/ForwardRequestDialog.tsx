@@ -38,12 +38,12 @@ export function ForwardRequestDialog({
   onForwardComplete
 }: ForwardRequestDialogProps) {
   const { toast } = useToast();
-  const [audienceType, setAudienceType] = useState<"friends" | "extended_network" | "specific_group">("friends");
+  const [audienceType, setAudienceType] = useState<"first_network" | "group">("first_network");
   const [selectedGroupId, setSelectedGroupId] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleForward = async () => {
-    if (audienceType === "specific_group" && !selectedGroupId) {
+    if (audienceType === "group" && !selectedGroupId) {
       toast({
         title: "Error",
         description: "Please select a group",
@@ -96,18 +96,18 @@ export function ForwardRequestDialog({
       // Create forward record
       const { error: forwardError } = await supabase
         .from("request_forwards")
-        .insert({
+        .insert([{
           request_id: requestId,
           forwarded_by_user_id: user.id,
           forwarded_to_audience: audienceType,
-          forwarded_to_group_id: audienceType === "specific_group" ? selectedGroupId : null
-        });
+          forwarded_to_group_id: audienceType === "group" ? selectedGroupId : null
+        }]);
 
       if (forwardError) throw forwardError;
 
       toast({
         title: "Request shared!",
-        description: `Request has been shared with your ${audienceType === "friends" ? "friends" : audienceType === "extended_network" ? "extended network" : "group"}`,
+        description: `Request has been shared with your ${audienceType === "first_network" ? "1st network" : "group"}`,
       });
 
       onOpenChange(false);
@@ -138,31 +138,20 @@ export function ForwardRequestDialog({
         <div className="space-y-4 py-4">
           <RadioGroup value={audienceType} onValueChange={(value: any) => setAudienceType(value)}>
             <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-accent cursor-pointer">
-              <RadioGroupItem value="friends" id="friends" />
-              <Label htmlFor="friends" className="flex items-center gap-2 flex-1 cursor-pointer">
+              <RadioGroupItem value="first_network" id="first_network" />
+              <Label htmlFor="first_network" className="flex items-center gap-2 flex-1 cursor-pointer">
                 <User className="h-4 w-4" />
                 <div>
-                  <div className="font-medium">My Friends</div>
-                  <div className="text-xs text-muted-foreground">Share with your direct connections</div>
-                </div>
-              </Label>
-            </div>
-
-            <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-accent cursor-pointer">
-              <RadioGroupItem value="extended_network" id="extended_network" />
-              <Label htmlFor="extended_network" className="flex items-center gap-2 flex-1 cursor-pointer">
-                <Users className="h-4 w-4" />
-                <div>
-                  <div className="font-medium">My Extended Network</div>
-                  <div className="text-xs text-muted-foreground">Share with friends of friends</div>
+                  <div className="font-medium">My 1st Network</div>
+                  <div className="text-xs text-muted-foreground">Share with your trusted connections</div>
                 </div>
               </Label>
             </div>
 
             {userGroups.length > 0 && (
               <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-accent cursor-pointer">
-                <RadioGroupItem value="specific_group" id="specific_group" />
-                <Label htmlFor="specific_group" className="flex items-center gap-2 flex-1 cursor-pointer">
+                <RadioGroupItem value="group" id="group" />
+                <Label htmlFor="group" className="flex items-center gap-2 flex-1 cursor-pointer">
                   <UserCheck className="h-4 w-4" />
                   <div>
                     <div className="font-medium">Select Group</div>
@@ -173,7 +162,7 @@ export function ForwardRequestDialog({
             )}
           </RadioGroup>
 
-          {audienceType === "specific_group" && userGroups.length > 0 && (
+          {audienceType === "group" && userGroups.length > 0 && (
             <div className="space-y-2">
               <Label>Choose Group</Label>
               <Select value={selectedGroupId} onValueChange={setSelectedGroupId}>

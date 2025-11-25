@@ -74,11 +74,11 @@ export default function ForYou() {
   };
 
   const loadRelevantRequests = async (userId: string) => {
-    // Get all public requests
+    // Get all public and first_network requests
     const { data: requests, error } = await supabase
       .from('requests')
       .select('*')
-      .in('audience_type', ['public', 'friends', 'extended_network'])
+      .in('audience_type', ['public', 'first_network'])
       .eq('status', 'open')
       .order('created_at', { ascending: false })
       .limit(20);
