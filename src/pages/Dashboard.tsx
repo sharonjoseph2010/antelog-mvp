@@ -109,9 +109,36 @@ return (
                 <CardHeader className="pb-2">
                   <CardTitle className="text-lg">Your Stats</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-1">
-                  <div className="text-3xl font-semibold">{listCount}</div>
-                  <div className="text-muted-foreground">lists</div>
+                <CardContent className="space-y-3">
+                  <div className="space-y-1">
+                    <div className="text-3xl font-semibold">{listCount}</div>
+                    <div className="text-muted-foreground">lists</div>
+                  </div>
+                  
+                  {/* Debug Test Button */}
+                  <Button
+                    onClick={async () => {
+                      console.log('=== MANUAL NOTIFICATION CHECK ===');
+                      const { data: { session } } = await supabase.auth.getSession();
+                      console.log('Current user:', session?.user?.id);
+                      
+                      const { data, error } = await supabase
+                        .from('notifications')
+                        .select('*')
+                        .eq('user_id', session?.user?.id);
+                      
+                      console.log('Notifications found:', data);
+                      console.log('Query error:', error);
+                      console.log('Count:', data?.length || 0);
+                      
+                      alert(`Found ${data?.length || 0} notifications. Check console for details.`);
+                    }}
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                  >
+                    🔍 Check Notifications (Debug)
+                  </Button>
                 </CardContent>
               </Card>
 

@@ -58,9 +58,16 @@ export const NotificationCenter = () => {
 
   const loadNotifications = async () => {
     try {
+      console.log('=== NOTIFICATION CENTER: LOADING NOTIFICATIONS ===');
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      console.log('Current user:', user?.id);
+      
+      if (!user) {
+        console.log('No user found, skipping notification load');
+        return;
+      }
 
+      console.log('Querying notifications table for user:', user.id);
       const { data, error } = await supabase
         .from('notifications')
         .select(`
@@ -76,19 +83,29 @@ export const NotificationCenter = () => {
         .order('created_at', { ascending: false })
         .limit(10);
 
+      console.log('Notifications query completed');
+      console.log('Query result:', data);
+      console.log('Query error:', error);
+      console.log('Number of notifications found:', data?.length || 0);
+
       if (error) throw error;
       
       // Get profile info for related users
       if (data && data.length > 0) {
+        console.log('Processing notification profile data...');
         const relatedUserIds = data
           .filter(n => n.related_user_id)
           .map(n => n.related_user_id!);
+        
+        console.log('Related user IDs to fetch:', relatedUserIds);
         
         if (relatedUserIds.length > 0) {
           const { data: profiles } = await supabase
             .from('profiles')
             .select('id, full_name, handle')
             .in('id', relatedUserIds);
+          
+          console.log('Profile data fetched:', profiles);
           
           const enrichedNotifications = data.map(notification => ({
             ...notification,
@@ -97,17 +114,21 @@ export const NotificationCenter = () => {
               : undefined
           }));
           
+          console.log('Setting enriched notifications:', enrichedNotifications);
           setNotifications(enrichedNotifications);
         } else {
+          console.log('No related profiles to fetch, setting notifications directly');
           setNotifications(data);
         }
       } else {
+        console.log('No notifications found, setting empty array');
         setNotifications([]);
       }
     } catch (error) {
-      console.error('Error loading notifications:', error);
+      console.error('❌ ERROR loading notifications:', error);
     } finally {
       setIsLoading(false);
+      console.log('=== NOTIFICATION CENTER: LOAD COMPLETE ===');
     }
   };
 
