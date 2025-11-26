@@ -38,9 +38,14 @@ const Header = ({ isAuthenticated, isAdmin, userType, onLogout }: HeaderProps) =
   const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
+    console.log('[Header] Component mounted, checking authentication...');
+    console.log('[Header] isAuthenticated:', isAuthenticated, 'userType:', userType);
+    
     if (isAuthenticated && userType === 'verified') {
+      console.log('[Header] ✅ User is authenticated and verified, loading notifications...');
       loadNotifications();
       
+      console.log('[Header] Setting up real-time subscription to notifications...');
       // Set up real-time notifications
       const channel = supabase
         .channel('header-notifications')
@@ -52,21 +57,34 @@ const Header = ({ isAuthenticated, isAdmin, userType, onLogout }: HeaderProps) =
             table: 'notifications'
           },
           (payload) => {
+            console.log('[Header] 🔔 Real-time notification received:', payload);
             loadNotifications();
           }
         )
-        .subscribe();
+        .subscribe((status) => {
+          console.log('[Header] Real-time subscription status:', status);
+        });
 
       return () => {
+        console.log('[Header] Cleaning up real-time subscription...');
         supabase.removeChannel(channel);
       };
+    } else {
+      console.log('[Header] ⚠️ User not authenticated or not verified, skipping notifications');
     }
   }, [isAuthenticated, userType]);
 
   const loadNotifications = async () => {
     try {
+      console.log('[Header] loadNotifications called');
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      
+      if (!user) {
+        console.log('[Header] ⚠️ No user found, skipping notification load');
+        return;
+      }
+
+      console.log('[Header] Fetching notifications for user:', user.id);
 
       const { data, error } = await supabase
         .from('notifications')
@@ -83,7 +101,15 @@ const Header = ({ isAuthenticated, isAdmin, userType, onLogout }: HeaderProps) =
         .order('created_at', { ascending: false })
         .limit(10);
 
-      if (error) throw error;
+      if (error) {
+        console.error('[Header] ❌ Error loading notifications:', error);
+        throw error;
+      }
+
+      console.log('[Header] Notifications fetched:', {
+        count: data?.length || 0,
+        data: data
+      });
       
       // Get profile info for related users
       if (data && data.length > 0) {
@@ -91,11 +117,19 @@ const Header = ({ isAuthenticated, isAdmin, userType, onLogout }: HeaderProps) =
           .filter(n => n.related_user_id)
           .map(n => n.related_user_id!);
         
+        console.log('[Header] Related user IDs to fetch:', relatedUserIds);
+        
         if (relatedUserIds.length > 0) {
-          const { data: profiles } = await supabase
+          const { data: profiles, error: profileError } = await supabase
             .from('profiles')
             .select('id, full_name, handle')
             .in('id', relatedUserIds);
+          
+          if (profileError) {
+            console.error('[Header] ❌ Error fetching profiles:', profileError);
+          }
+          
+          console.log('[Header] Profiles fetched:', profiles);
           
           const enrichedNotifications = data.map(notification => ({
             ...notification,
@@ -104,36 +138,51 @@ const Header = ({ isAuthenticated, isAdmin, userType, onLogout }: HeaderProps) =
               : undefined
           }));
           
+          console.log('[Header] Enriched notifications:', enrichedNotifications);
+          
           setNotifications(enrichedNotifications);
-          setUnreadCount(enrichedNotifications.filter(n => !n.is_read).length);
+          const unreadCnt = enrichedNotifications.filter(n => !n.is_read).length;
+          console.log('[Header] Unread count:', unreadCnt);
+          setUnreadCount(unreadCnt);
         } else {
+          console.log('[Header] No related users to fetch');
           setNotifications(data);
-          setUnreadCount(data.filter(n => !n.is_read).length);
+          const unreadCnt = data.filter(n => !n.is_read).length;
+          console.log('[Header] Unread count:', unreadCnt);
+          setUnreadCount(unreadCnt);
         }
       } else {
+        console.log('[Header] No notifications found');
         setNotifications([]);
         setUnreadCount(0);
       }
     } catch (error) {
-      console.error('Error loading notifications:', error);
+      console.error('[Header] ❌ Exception in loadNotifications:', error);
     }
   };
 
   const markAsRead = async (notificationId: string) => {
     try {
+      console.log('[Header] Marking notification as read:', notificationId);
+      
       const { error } = await supabase
         .from('notifications')
         .update({ is_read: true })
         .eq('id', notificationId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('[Header] ❌ Error marking notification as read:', error);
+        throw error;
+      }
+
+      console.log('[Header] ✅ Notification marked as read');
 
       setNotifications(prev =>
         prev.map(n => n.id === notificationId ? { ...n, is_read: true } : n)
       );
       setUnreadCount(prev => Math.max(0, prev - 1));
     } catch (error) {
-      console.error('Error marking notification as read:', error);
+      console.error('[Header] ❌ Exception in markAsRead:', error);
     }
   };
 
