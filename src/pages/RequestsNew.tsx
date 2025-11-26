@@ -165,13 +165,26 @@ export default function RequestsNew() {
     setIsSubmitting(true);
 
     try {
+      console.log('=== REQUEST CREATION DEBUG START ===');
+      
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
+      
+      console.log('Current user ID:', user.id);
+      console.log('Form data:', {
+        title: formData.title,
+        audience_types: formData.audience_types,
+        group_id: formData.group_id,
+        selected_users: formData.selected_users,
+        allow_forwarding: formData.allow_forwarding
+      });
 
       // Set allow_forwarding to false if only public is selected
       const allowForwarding = formData.audience_types.length === 1 && formData.audience_types[0] === 'public' 
         ? false 
         : formData.allow_forwarding;
+
+      console.log('Creating request with allow_forwarding:', allowForwarding);
 
       const { data: newRequest, error } = await supabase
         .from('requests')
@@ -190,85 +203,174 @@ export default function RequestsNew() {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Request creation failed:', error);
+        throw error;
+      }
+
+      console.log('✅ Request created successfully:', {
+        id: newRequest.id,
+        title: newRequest.title,
+        audience_types: newRequest.audience_types
+      });
 
       // Get creator profile for notification message
-      const { data: creatorProfile } = await supabase
+      console.log('Fetching creator profile for user:', user.id);
+      const { data: creatorProfile, error: profileError } = await supabase
         .from('profiles')
         .select('full_name')
         .eq('id', user.id)
         .single();
 
+      if (profileError) {
+        console.error('⚠️ Error fetching creator profile:', profileError);
+      }
+
       const creatorName = creatorProfile?.full_name || 'Someone';
+      console.log('Creator name for notifications:', creatorName);
 
       // Create notifications for recipients
       const notifications: any[] = [];
+      console.log('\n--- BUILDING NOTIFICATIONS ---');
 
       // 1. Notifications for 1st Network
       if (formData.audience_types.includes('first_network')) {
-        const { data: friends } = await supabase
+        console.log('📍 Processing 1st Network audience...');
+        console.log('Querying friendships for user:', user.id);
+        
+        const { data: friends, error: friendsError } = await supabase
           .from('friendships')
           .select('user1_id, user2_id')
           .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`);
+
+        console.log('Friendships query result:', {
+          data: friends,
+          error: friendsError,
+          count: friends?.length || 0
+        });
+
+        if (friendsError) {
+          console.error('❌ Error querying friendships:', friendsError);
+        }
 
         const friendIds = friends?.map(f => 
           f.user1_id === user.id ? f.user2_id : f.user1_id
         ) || [];
 
+        console.log('Extracted friend IDs:', friendIds);
+        console.log('Number of friends:', friendIds.length);
+
         friendIds.forEach(friendId => {
-          notifications.push({
+          const notification = {
             user_id: friendId,
             type: 'new_request',
             title: 'New Request from Your Network',
             message: `${creatorName} sent you a request: ${formData.title}`,
             related_user_id: user.id
-          });
+          };
+          console.log('Adding notification for friend:', friendId, notification);
+          notifications.push(notification);
         });
       }
 
       // 2. Notifications for Group
       if (formData.audience_types.includes('group') && formData.group_id) {
-        const { data: groupMembers } = await supabase
+        console.log('📍 Processing Group audience...');
+        console.log('Group ID:', formData.group_id);
+        
+        const { data: groupMembers, error: membersError } = await supabase
           .from('group_members')
           .select('user_id')
           .eq('group_id', formData.group_id);
 
-        const { data: group } = await supabase
+        console.log('Group members query result:', {
+          data: groupMembers,
+          error: membersError,
+          count: groupMembers?.length || 0
+        });
+
+        const { data: group, error: groupError } = await supabase
           .from('groups')
           .select('name')
           .eq('id', formData.group_id)
           .single();
 
+        console.log('Group name query result:', {
+          data: group,
+          error: groupError
+        });
+
         groupMembers?.forEach(member => {
           if (member.user_id !== user.id) {
-            notifications.push({
+            const notification = {
               user_id: member.user_id,
               type: 'new_request',
               title: 'New Group Request',
               message: `${creatorName} sent a request to ${group?.name}: ${formData.title}`,
               related_user_id: user.id
-            });
+            };
+            console.log('Adding notification for group member:', member.user_id, notification);
+            notifications.push(notification);
+          } else {
+            console.log('Skipping notification for creator (self):', member.user_id);
           }
         });
       }
 
       // 3. Notifications for Specific People
       if (formData.audience_types.includes('specific_people')) {
+        console.log('📍 Processing Specific People audience...');
+        console.log('Selected users:', formData.selected_users);
+        
         formData.selected_users.forEach(selectedUserId => {
-          notifications.push({
+          const notification = {
             user_id: selectedUserId,
             type: 'new_request',
             title: 'Direct Request from Network',
             message: `${creatorName} sent you a direct request: ${formData.title}`,
             related_user_id: user.id
-          });
+          };
+          console.log('Adding notification for specific person:', selectedUserId, notification);
+          notifications.push(notification);
         });
       }
 
+      console.log('\n--- NOTIFICATION SUMMARY ---');
+      console.log('Total notifications to create:', notifications.length);
+      console.log('All notifications:', JSON.stringify(notifications, null, 2));
+
       // Insert all notifications
       if (notifications.length > 0) {
-        await supabase.from('notifications').insert(notifications);
+        console.log('\n🔄 Attempting to insert notifications into database...');
+        
+        try {
+          const { data: insertedNotifications, error: notificationError } = await supabase
+            .from('notifications')
+            .insert(notifications)
+            .select();
+
+          if (notificationError) {
+            console.error('❌ NOTIFICATION INSERT FAILED:', notificationError);
+            console.error('Error details:', {
+              message: notificationError.message,
+              details: notificationError.details,
+              hint: notificationError.hint,
+              code: notificationError.code
+            });
+          } else {
+            console.log('✅ NOTIFICATIONS CREATED SUCCESSFULLY!');
+            console.log('Inserted notifications:', insertedNotifications);
+            console.log('Number of notifications created:', insertedNotifications?.length || 0);
+          }
+        } catch (err) {
+          console.error('❌ EXCEPTION during notification creation:', err);
+          console.error('Exception details:', err);
+        }
+      } else {
+        console.log('⚠️ No notifications to create (notifications array is empty)');
       }
+
+      console.log('=== REQUEST CREATION DEBUG END ===\n');
 
       toast({
         title: "Request Created!",
