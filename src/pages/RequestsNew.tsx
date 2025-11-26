@@ -173,7 +173,7 @@ export default function RequestsNew() {
         ? false 
         : formData.allow_forwarding;
 
-      const { error } = await supabase
+      const { data: newRequest, error } = await supabase
         .from('requests')
         .insert({
           title: formData.title.trim(),
@@ -186,9 +186,89 @@ export default function RequestsNew() {
           allow_forwarding: allowForwarding,
           creator_id: user.id,
           status: 'open'
-        });
+        })
+        .select()
+        .single();
 
       if (error) throw error;
+
+      // Get creator profile for notification message
+      const { data: creatorProfile } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', user.id)
+        .single();
+
+      const creatorName = creatorProfile?.full_name || 'Someone';
+
+      // Create notifications for recipients
+      const notifications: any[] = [];
+
+      // 1. Notifications for 1st Network
+      if (formData.audience_types.includes('first_network')) {
+        const { data: friends } = await supabase
+          .from('friendships')
+          .select('user1_id, user2_id')
+          .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`);
+
+        const friendIds = friends?.map(f => 
+          f.user1_id === user.id ? f.user2_id : f.user1_id
+        ) || [];
+
+        friendIds.forEach(friendId => {
+          notifications.push({
+            user_id: friendId,
+            type: 'new_request',
+            title: 'New Request from Your Network',
+            message: `${creatorName} sent you a request: ${formData.title}`,
+            related_user_id: user.id
+          });
+        });
+      }
+
+      // 2. Notifications for Group
+      if (formData.audience_types.includes('group') && formData.group_id) {
+        const { data: groupMembers } = await supabase
+          .from('group_members')
+          .select('user_id')
+          .eq('group_id', formData.group_id);
+
+        const { data: group } = await supabase
+          .from('groups')
+          .select('name')
+          .eq('id', formData.group_id)
+          .single();
+
+        groupMembers?.forEach(member => {
+          if (member.user_id !== user.id) {
+            notifications.push({
+              user_id: member.user_id,
+              type: 'new_request',
+              title: 'New Group Request',
+              message: `${creatorName} sent a request to ${group?.name}: ${formData.title}`,
+              related_user_id: user.id
+            });
+          }
+        });
+      }
+
+      // 3. Notifications for Specific People
+      if (formData.audience_types.includes('specific_people')) {
+        formData.selected_users.forEach(selectedUserId => {
+          notifications.push({
+            user_id: selectedUserId,
+            type: 'new_request',
+            title: 'Direct Request from Network',
+            message: `${creatorName} sent you a direct request: ${formData.title}`,
+            related_user_id: user.id
+          });
+        });
+      }
+
+      // Insert all notifications
+      if (notifications.length > 0) {
+        await supabase.from('notifications').insert(notifications);
+      }
 
       toast({
         title: "Request Created!",

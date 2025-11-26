@@ -1,5 +1,15 @@
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Bell } from "lucide-react";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface HeaderProps {
   isAuthenticated: boolean;
@@ -8,8 +18,142 @@ interface HeaderProps {
   onLogout: () => Promise<void>;
 }
 
+interface Notification {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  is_read: boolean;
+  created_at: string;
+  related_user_id?: string;
+  related_profile?: {
+    full_name: string;
+    handle: string;
+  };
+}
+
 const Header = ({ isAuthenticated, isAdmin, userType, onLogout }: HeaderProps) => {
   const navigate = useNavigate();
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (isAuthenticated && userType === 'verified') {
+      loadNotifications();
+      
+      // Set up real-time notifications
+      const channel = supabase
+        .channel('header-notifications')
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'notifications'
+          },
+          (payload) => {
+            loadNotifications();
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
+  }, [isAuthenticated, userType]);
+
+  const loadNotifications = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('notifications')
+        .select(`
+          id,
+          type,
+          title,
+          message,
+          is_read,
+          created_at,
+          related_user_id
+        `)
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (error) throw error;
+      
+      // Get profile info for related users
+      if (data && data.length > 0) {
+        const relatedUserIds = data
+          .filter(n => n.related_user_id)
+          .map(n => n.related_user_id!);
+        
+        if (relatedUserIds.length > 0) {
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('id, full_name, handle')
+            .in('id', relatedUserIds);
+          
+          const enrichedNotifications = data.map(notification => ({
+            ...notification,
+            related_profile: notification.related_user_id 
+              ? profiles?.find(p => p.id === notification.related_user_id)
+              : undefined
+          }));
+          
+          setNotifications(enrichedNotifications);
+          setUnreadCount(enrichedNotifications.filter(n => !n.is_read).length);
+        } else {
+          setNotifications(data);
+          setUnreadCount(data.filter(n => !n.is_read).length);
+        }
+      } else {
+        setNotifications([]);
+        setUnreadCount(0);
+      }
+    } catch (error) {
+      console.error('Error loading notifications:', error);
+    }
+  };
+
+  const markAsRead = async (notificationId: string) => {
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .update({ is_read: true })
+        .eq('id', notificationId);
+
+      if (error) throw error;
+
+      setNotifications(prev =>
+        prev.map(n => n.id === notificationId ? { ...n, is_read: true } : n)
+      );
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
+  };
+
+  const handleNotificationClick = (notification: Notification) => {
+    markAsRead(notification.id);
+    // Navigate to requests page for now
+    navigate('/requests');
+  };
+
+  const formatTimeAgo = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+    
+    if (seconds < 60) return 'Just now';
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+    if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
+    return date.toLocaleDateString();
+  };
 
   return (
     <header className="border-b bg-background">
@@ -40,6 +184,73 @@ const Header = ({ isAuthenticated, isAdmin, userType, onLogout }: HeaderProps) =
               <Link to="/requests" className="hover:underline">Requests</Link>
               <Link to="/contacts" className="hover:underline">Contacts</Link>
               {isAdmin && <Link to="/admin" className="hover:underline">Admin</Link>}
+              
+              {/* Notifications Bell */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" size="sm" className="relative">
+                    <Bell className="h-5 w-5" />
+                    {unreadCount > 0 && (
+                      <Badge 
+                        variant="destructive" 
+                        className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
+                      >
+                        {unreadCount > 9 ? '9+' : unreadCount}
+                      </Badge>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80 p-0" align="end">
+                  <div className="flex items-center justify-between p-4 border-b">
+                    <h3 className="font-semibold">Notifications</h3>
+                    {unreadCount > 0 && (
+                      <Badge variant="secondary">{unreadCount} new</Badge>
+                    )}
+                  </div>
+                  <ScrollArea className="h-[400px]">
+                    {notifications.length === 0 ? (
+                      <div className="p-8 text-center text-muted-foreground">
+                        No notifications yet
+                      </div>
+                    ) : (
+                      <div className="divide-y">
+                        {notifications.map((notification) => (
+                          <div
+                            key={notification.id}
+                            className={`p-4 cursor-pointer hover:bg-muted/50 transition-colors ${
+                              !notification.is_read ? 'bg-primary/5' : ''
+                            }`}
+                            onClick={() => handleNotificationClick(notification)}
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <h4 className="font-medium text-sm">{notification.title}</h4>
+                                  {!notification.is_read && (
+                                    <div className="h-2 w-2 bg-primary rounded-full flex-shrink-0" />
+                                  )}
+                                </div>
+                                <p className="text-sm text-muted-foreground line-clamp-2">
+                                  {notification.message}
+                                </p>
+                                {notification.related_profile && (
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    from @{notification.related_profile.handle}
+                                  </p>
+                                )}
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  {formatTimeAgo(notification.created_at)}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </ScrollArea>
+                </PopoverContent>
+              </Popover>
+              
               <Button variant="outline" size="sm" onClick={async () => {
                 await onLogout();
                 navigate("/", { replace: true });
