@@ -287,6 +287,34 @@ export default function RequestRespond() {
 
       if (error) throw error;
 
+      // Notify request creator (if not responding to own request)
+      if (request.creator_id !== user.id) {
+        try {
+          // Get responder's profile
+          const { data: responderProfile } = await supabase
+            .from("profiles")
+            .select("full_name, handle")
+            .eq("id", user.id)
+            .single();
+
+          // Create notification for request creator
+          await supabase
+            .from("notifications")
+            .insert({
+              user_id: request.creator_id,
+              type: "request_response",
+              title: `${responderProfile?.full_name || responderProfile?.handle || "Someone"} responded to your request`,
+              message: request.title,
+              link: `/requests/${request.id}`,
+              related_user_id: user.id,
+              is_read: false
+            });
+        } catch (notifError) {
+          console.error("Failed to create notification:", notifError);
+          // Don't block the response if notification fails
+        }
+      }
+
       toast({
         title: "Success",
         description: "Your response has been submitted!",
