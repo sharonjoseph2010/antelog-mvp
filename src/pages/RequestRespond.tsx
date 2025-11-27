@@ -335,7 +335,6 @@ export default function RequestRespond() {
             type: "request_response",
             title: notificationTitle,
             message: request.title,
-            link: `/requests/${request.id}`,
             related_user_id: user.id,
             is_read: false
           };
