@@ -41,8 +41,8 @@ const Header = ({ isAuthenticated, isAdmin, userType, onLogout }: HeaderProps) =
     console.log('[Header] Component mounted, checking authentication...');
     console.log('[Header] isAuthenticated:', isAuthenticated, 'userType:', userType);
     
-    if (isAuthenticated && userType === 'verified') {
-      console.log('[Header] ✅ User is authenticated and verified, loading notifications...');
+    if (isAuthenticated) {
+      console.log('[Header] ✅ User is authenticated, loading notifications...');
       loadNotifications();
       
       console.log('[Header] Setting up real-time subscription to notifications...');
@@ -70,7 +70,7 @@ const Header = ({ isAuthenticated, isAdmin, userType, onLogout }: HeaderProps) =
         supabase.removeChannel(channel);
       };
     } else {
-      console.log('[Header] ⚠️ User not authenticated or not verified, skipping notifications');
+      console.log('[Header] ⚠️ User not authenticated, skipping notifications');
     }
   }, [isAuthenticated, userType]);
 
