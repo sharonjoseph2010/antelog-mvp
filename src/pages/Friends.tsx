@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Users, Upload, Trash2, Network } from "lucide-react";
+import { Users, Upload, Trash2, GitCommit, Workflow } from "lucide-react";
 
 interface Friendship {
   id: string;
@@ -326,7 +326,7 @@ const Friends = () => {
                   value="second-degree" 
                   className="flex items-center justify-center gap-2 px-4 py-3 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none bg-transparent text-muted-foreground data-[state=active]:text-foreground hover:text-foreground transition-colors"
                 >
-                  <Network className="h-4 w-4" />
+                  <GitCommit className="h-4 w-4" />
                   <span className="hidden xs:inline">2nd Degree</span>
                   <Badge variant="secondary" className="ml-1 text-xs">
                     {extendedNetwork.length}
@@ -337,7 +337,7 @@ const Friends = () => {
                   value="third-plus" 
                   className="flex items-center justify-center gap-2 px-4 py-3 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none bg-transparent text-muted-foreground data-[state=active]:text-foreground hover:text-foreground transition-colors"
                 >
-                  <Network className="h-4 w-4" />
+                  <Workflow className="h-4 w-4" />
                   <span className="hidden xs:inline">3rd+ Degree</span>
                   <Badge variant="secondary" className="ml-1 text-xs">
                     {thirdPlusNetwork.length}
@@ -424,7 +424,7 @@ const Friends = () => {
                   {extendedNetwork.length === 0 ? (
                     <div className="text-center py-12">
                       <div className="mx-auto w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
-                        <Network className="h-8 w-8 text-muted-foreground" />
+                        <GitCommit className="h-8 w-8 text-muted-foreground" />
                       </div>
                       <h3 className="text-xl font-semibold mb-2">No 2nd Degree Connections Yet</h3>
                       <p className="text-muted-foreground mb-6 max-w-md mx-auto">
@@ -476,7 +476,7 @@ const Friends = () => {
                 <CardContent>
                   <div className="text-center py-12">
                     <div className="mx-auto w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
-                      <Network className="h-8 w-8 text-muted-foreground" />
+                      <Workflow className="h-8 w-8 text-muted-foreground" />
                     </div>
                     <h3 className="text-xl font-semibold mb-2">3rd+ Degree Connections</h3>
                     <p className="text-muted-foreground mb-6 max-w-md mx-auto">
