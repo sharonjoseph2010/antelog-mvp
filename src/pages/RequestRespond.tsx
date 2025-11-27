@@ -309,60 +309,35 @@ export default function RequestRespond() {
 
       // Notify request creator (if not responding to own request)
       if (request.creator_id !== user.id) {
-        console.log('🔔 Starting notification creation...');
-        console.log('Notification will be sent to user:', request.creator_id);
+        console.log('🔔 Creating notification for request creator:', request.creator_id);
         
-        try {
-          // Get responder's profile
-          console.log('Fetching responder profile...');
-          const { data: responderProfile, error: profileError } = await supabase
-            .from("profiles")
-            .select("full_name, handle")
-            .eq("id", user.id)
-            .single();
+        // Get responder's profile for name
+        const { data: responderProfile } = await supabase
+          .from("profiles")
+          .select("full_name, handle")
+          .eq("id", user.id)
+          .single();
 
-          if (profileError) {
-            console.error('❌ Failed to fetch responder profile:', profileError);
-            throw profileError;
-          }
-          
-          console.log('✅ Responder profile:', responderProfile);
-          
-          const notificationTitle = `${responderProfile?.full_name || responderProfile?.handle || "Someone"} responded to your request`;
-          
-          const notificationObject = {
+        const responderName = responderProfile?.full_name || responderProfile?.handle || "Someone";
+        
+        // Create notification - simplified with minimal error handling
+        const { error: notifError } = await supabase
+          .from("notifications")
+          .insert({
             user_id: request.creator_id,
             type: "request_response",
-            title: notificationTitle,
+            title: `${responderName} responded to your request`,
             message: request.title,
             related_user_id: user.id,
             is_read: false
-          };
-          
-          console.log('📧 Notification object to insert:', notificationObject);
+          });
 
-          // Create notification for request creator
-          const { data: notificationData, error: notificationError } = await supabase
-            .from("notifications")
-            .insert(notificationObject)
-            .select()
-            .single();
-
-          if (notificationError) {
-            console.error('❌ Notification insert failed:', notificationError);
-            console.error('Error code:', notificationError.code);
-            console.error('Error message:', notificationError.message);
-            console.error('Error details:', notificationError.details);
-            throw notificationError;
-          }
-          
-          console.log('✅ Notification created successfully:', notificationData);
-        } catch (notifError) {
-          console.error("❌ Failed to create notification:", notifError);
-          // Don't block the response if notification fails
+        if (notifError) {
+          console.error('❌ Notification failed:', notifError);
+          // Continue anyway - response was already saved
+        } else {
+          console.log('✅ Notification sent to', request.creator_id);
         }
-      } else {
-        console.log('⏭️ Skipping notification - user responding to own request');
       }
 
       toast({
