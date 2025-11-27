@@ -7,7 +7,62 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Users, Upload, Trash2, GitCommit, Workflow } from "lucide-react";
+import { Users, Upload, Trash2 } from "lucide-react";
+
+// Custom icon for 2nd degree - two people connected
+const TwoPersonChain = ({ className }: { className?: string }) => (
+  <svg 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke="currentColor" 
+    strokeWidth="2" 
+    strokeLinecap="round" 
+    strokeLinejoin="round"
+    className={className}
+  >
+    {/* First person */}
+    <circle cx="6" cy="8" r="2.5" />
+    <path d="M 3.5 14 Q 6 11.5 8.5 14" />
+    
+    {/* Connection line */}
+    <line x1="8.5" y1="12" x2="15.5" y2="12" strokeDasharray="2,2" />
+    
+    {/* Second person */}
+    <circle cx="18" cy="8" r="2.5" />
+    <path d="M 15.5 14 Q 18 11.5 20.5 14" />
+  </svg>
+);
+
+// Custom icon for 3rd+ degree - three people connected
+const ThreePersonChain = ({ className }: { className?: string }) => (
+  <svg 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke="currentColor" 
+    strokeWidth="2" 
+    strokeLinecap="round" 
+    strokeLinejoin="round"
+    className={className}
+  >
+    {/* First person */}
+    <circle cx="4" cy="8" r="2" />
+    <path d="M 2.5 13 Q 4 11 5.5 13" />
+    
+    {/* Connection line 1 */}
+    <line x1="5.5" y1="11" x2="9.5" y2="11" strokeDasharray="1,1" />
+    
+    {/* Second person */}
+    <circle cx="12" cy="8" r="2" />
+    <path d="M 10.5 13 Q 12 11 13.5 13" />
+    
+    {/* Connection line 2 */}
+    <line x1="13.5" y1="11" x2="18.5" y2="11" strokeDasharray="1,1" />
+    
+    {/* Third person */}
+    <circle cx="20" cy="8" r="2" />
+    <path d="M 18.5 13 Q 20 11 21.5 13" />
+  </svg>
+);
 
 interface Friendship {
   id: string;
@@ -326,7 +381,7 @@ const Friends = () => {
                   value="second-degree" 
                   className="flex items-center justify-center gap-2 px-4 py-3 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none bg-transparent text-muted-foreground data-[state=active]:text-foreground hover:text-foreground transition-colors"
                 >
-                  <GitCommit className="h-4 w-4" />
+                  <TwoPersonChain className="h-4 w-4" />
                   <span className="hidden xs:inline">2nd Degree</span>
                   <Badge variant="secondary" className="ml-1 text-xs">
                     {extendedNetwork.length}
@@ -337,7 +392,7 @@ const Friends = () => {
                   value="third-plus" 
                   className="flex items-center justify-center gap-2 px-4 py-3 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none bg-transparent text-muted-foreground data-[state=active]:text-foreground hover:text-foreground transition-colors"
                 >
-                  <Workflow className="h-4 w-4" />
+                  <ThreePersonChain className="h-4 w-4" />
                   <span className="hidden xs:inline">3rd+ Degree</span>
                   <Badge variant="secondary" className="ml-1 text-xs">
                     {thirdPlusNetwork.length}
@@ -424,7 +479,7 @@ const Friends = () => {
                   {extendedNetwork.length === 0 ? (
                     <div className="text-center py-12">
                       <div className="mx-auto w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
-                        <GitCommit className="h-8 w-8 text-muted-foreground" />
+                        <TwoPersonChain className="h-8 w-8 text-muted-foreground" />
                       </div>
                       <h3 className="text-xl font-semibold mb-2">No 2nd Degree Connections Yet</h3>
                       <p className="text-muted-foreground mb-6 max-w-md mx-auto">
@@ -476,7 +531,7 @@ const Friends = () => {
                 <CardContent>
                   <div className="text-center py-12">
                     <div className="mx-auto w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
-                      <Workflow className="h-8 w-8 text-muted-foreground" />
+                      <ThreePersonChain className="h-8 w-8 text-muted-foreground" />
                     </div>
                     <h3 className="text-xl font-semibold mb-2">3rd+ Degree Connections</h3>
                     <p className="text-muted-foreground mb-6 max-w-md mx-auto">
