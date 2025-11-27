@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Bell, Users, UserPlus, Check } from "lucide-react";
+import { Bell, Users, UserPlus, Check, MessageSquare, MessageCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface Notification {
@@ -182,6 +182,12 @@ export const NotificationCenter = () => {
         return <UserPlus className="h-4 w-4" />;
       case 'contact_joined':
         return <Bell className="h-4 w-4" />;
+      case 'new_request':
+        return <MessageCircle className="h-4 w-4" />;
+      case 'request_response':
+        return <MessageSquare className="h-4 w-4" />;
+      case 'forwarded_request':
+        return <MessageCircle className="h-4 w-4" />;
       default:
         return <Bell className="h-4 w-4" />;
     }
