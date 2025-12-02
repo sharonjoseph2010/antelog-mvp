@@ -118,19 +118,30 @@ export function ForwardRequestModal({
       
       // Debug each profile
       profiles?.forEach(profile => {
-        console.log(`Checking profile: ${profile.handle}`);
+        console.log(`Checking profile: ${profile.handle || profile.full_name}`);
         console.log(`  - ID: ${profile.id}`);
         console.log(`  - Is creator? ${profile.id === requestCreatorId}`);
         console.log(`  - Has full_name? ${!!profile.full_name}`);
         console.log(`  - Has handle? ${!!profile.handle}`);
+        console.log(`  - Has identifier? ${!!(profile.full_name || profile.handle)}`);
       });
       
       const filteredProfiles = profiles?.filter(p => {
-        // Only exclude the request creator
-        // Everyone else in your 1st network is valid
-        const shouldInclude = p.id !== requestCreatorId && p.full_name && p.handle;
-        console.log(`Profile ${p.handle}: ${shouldInclude ? 'INCLUDED' : 'EXCLUDED'}`);
-        return shouldInclude;
+        // Exclude creator
+        if (p.id === requestCreatorId) {
+          console.log(`Profile ${p.handle || p.full_name}: ❌ EXCLUDED (is creator)`);
+          return false;
+        }
+        
+        // Include if has any identifier (full_name OR handle)
+        const hasIdentifier = p.full_name || p.handle;
+        if (hasIdentifier) {
+          console.log(`Profile ${p.handle || p.full_name}: ✅ INCLUDED`);
+          return true;
+        }
+        
+        console.log(`Profile unknown: ❌ EXCLUDED (no identifier)`);
+        return false;
       }) || [];
 
       console.log('Filtered profiles for forwarding:', filteredProfiles);
@@ -327,8 +338,8 @@ export function ForwardRequestModal({
                         onCheckedChange={() => toggleFriend(friend.id)}
                       />
                       <div className="flex-1">
-                        <div className="font-medium">{friend.full_name}</div>
-                        <div className="text-sm text-muted-foreground">@{friend.handle}</div>
+                        <div className="font-medium">{friend.full_name || friend.handle}</div>
+                        {friend.handle && <div className="text-sm text-muted-foreground">@{friend.handle}</div>}
                       </div>
                     </div>
                   ))}
