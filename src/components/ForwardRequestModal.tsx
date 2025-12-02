@@ -112,19 +112,28 @@ export function ForwardRequestModal({
 
       if (profilesError) throw profilesError;
 
-      // Filter out: 1) request creator, 2) people already in network path
-      const existingPathIds = existingNetworkPath.map(p => p.user_id);
-      console.log('Existing path user IDs:', existingPathIds);
+      // SIMPLIFIED FILTERING: Only exclude the request creator
       console.log('Request creator to exclude:', requestCreatorId);
+      console.log('Profiles before filtering:', profiles);
       
-      const filteredProfiles = profiles?.filter(p => 
-        p.id !== requestCreatorId && // Don't forward back to request creator
-        !existingPathIds.includes(p.id) && // Don't create loops
-        p.full_name && 
-        p.handle
-      ) || [];
+      // Debug each profile
+      profiles?.forEach(profile => {
+        console.log(`Checking profile: ${profile.handle}`);
+        console.log(`  - ID: ${profile.id}`);
+        console.log(`  - Is creator? ${profile.id === requestCreatorId}`);
+        console.log(`  - Has full_name? ${!!profile.full_name}`);
+        console.log(`  - Has handle? ${!!profile.handle}`);
+      });
+      
+      const filteredProfiles = profiles?.filter(p => {
+        // Only exclude the request creator
+        // Everyone else in your 1st network is valid
+        const shouldInclude = p.id !== requestCreatorId && p.full_name && p.handle;
+        console.log(`Profile ${p.handle}: ${shouldInclude ? 'INCLUDED' : 'EXCLUDED'}`);
+        return shouldInclude;
+      }) || [];
 
-      console.log('Filtered profiles for forwarding (after excluding creator and path):', filteredProfiles);
+      console.log('Filtered profiles for forwarding:', filteredProfiles);
       console.log('Number of available contacts:', filteredProfiles.length);
       
       setFriends(filteredProfiles as Friend[]);
