@@ -62,14 +62,23 @@ export function ForwardRequestModal({
 
   const loadFriends = async () => {
     try {
+      console.log('=== FETCHING 1ST NETWORK FOR FORWARDING ===');
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        console.log('No authenticated user');
+        return;
+      }
+      
+      console.log('Current user ID:', user.id);
 
       // Get user's 1st network connections
       const { data: friendships, error } = await supabase
         .from('friendships')
         .select('user1_id, user2_id')
         .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`);
+
+      console.log('Friendships query result:', friendships);
+      console.log('Friendships error:', error);
 
       if (error) throw error;
 
@@ -78,20 +87,36 @@ export function ForwardRequestModal({
         f.user1_id === user.id ? f.user2_id : f.user1_id
       ) || [];
 
+      console.log('Friend IDs extracted:', friendIds);
+
+      // If no friends, set empty array and return early
+      if (friendIds.length === 0) {
+        console.log('No friends found in 1st network');
+        setFriends([]);
+        setLoading(false);
+        return;
+      }
+
       // Get friend profiles
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('id, full_name, handle')
         .in('id', friendIds);
 
+      console.log('Profiles query result:', profiles);
+      console.log('Profiles error:', profilesError);
+
       if (profilesError) throw profilesError;
 
       // Filter out people already in the network path to prevent loops
       const existingPathIds = existingNetworkPath.map(p => p.user_id);
+      console.log('Existing path user IDs:', existingPathIds);
+      
       const filteredProfiles = profiles?.filter(p => 
         !existingPathIds.includes(p.id) && p.full_name && p.handle
       ) || [];
 
+      console.log('Filtered profiles for forwarding:', filteredProfiles);
       setFriends(filteredProfiles as Friend[]);
     } catch (error) {
       console.error('Error loading friends:', error);
