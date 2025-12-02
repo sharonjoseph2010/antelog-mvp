@@ -35,6 +35,7 @@ interface ForwardRequestModalProps {
   requestId: string;
   requestTitle: string;
   requestCreatorName: string;
+  requestCreatorId: string;
   existingNetworkPath?: NetworkPath[];
   onForwardComplete?: () => void;
 }
@@ -45,6 +46,7 @@ export function ForwardRequestModal({
   requestId,
   requestTitle,
   requestCreatorName,
+  requestCreatorId,
   existingNetworkPath = [],
   onForwardComplete
 }: ForwardRequestModalProps) {
@@ -69,7 +71,9 @@ export function ForwardRequestModal({
         return;
       }
       
-      console.log('Current user ID:', user.id);
+      console.log('Current user ID (forwarder):', user.id);
+      console.log('Request creator ID (to exclude):', requestCreatorId);
+      console.log('Request being forwarded:', requestId);
 
       // Get user's 1st network connections
       const { data: friendships, error } = await supabase
@@ -108,15 +112,21 @@ export function ForwardRequestModal({
 
       if (profilesError) throw profilesError;
 
-      // Filter out people already in the network path to prevent loops
+      // Filter out: 1) request creator, 2) people already in network path
       const existingPathIds = existingNetworkPath.map(p => p.user_id);
       console.log('Existing path user IDs:', existingPathIds);
+      console.log('Request creator to exclude:', requestCreatorId);
       
       const filteredProfiles = profiles?.filter(p => 
-        !existingPathIds.includes(p.id) && p.full_name && p.handle
+        p.id !== requestCreatorId && // Don't forward back to request creator
+        !existingPathIds.includes(p.id) && // Don't create loops
+        p.full_name && 
+        p.handle
       ) || [];
 
-      console.log('Filtered profiles for forwarding:', filteredProfiles);
+      console.log('Filtered profiles for forwarding (after excluding creator and path):', filteredProfiles);
+      console.log('Number of available contacts:', filteredProfiles.length);
+      
       setFriends(filteredProfiles as Friend[]);
     } catch (error) {
       console.error('Error loading friends:', error);
