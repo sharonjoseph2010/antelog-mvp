@@ -847,6 +847,7 @@ export default function RequestRespond() {
           requestId={request.id}
           requestTitle={request.title}
           requestCreatorName={request.creator_profile?.full_name || 'Unknown'}
+          requestCreatorId={request.creator_id}
           existingNetworkPath={request.network_path}
           onForwardComplete={() => {
             loadRequestData();
