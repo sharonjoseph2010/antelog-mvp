@@ -184,18 +184,29 @@ export function ForwardRequestModal({
       if (!user) return;
 
       // Get current user's profile
-      const { data: profile } = await supabase
+      console.log('=== FETCHING FORWARDER PROFILE ===');
+      console.log('Current user ID:', user.id);
+      
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('full_name, handle')
         .eq('id', user.id)
         .single();
+
+      console.log('Profile fetch error:', profileError);
+      console.log('Profile data:', profile);
+      console.log('full_name:', profile?.full_name);
+      console.log('handle:', profile?.handle);
+
+      const forwarderName = profile?.full_name || profile?.handle || 'Someone';
+      console.log('Forwarder name to use:', forwarderName);
 
       // Build network path (add current user to end of existing path)
       const newNetworkPath = [
         ...existingNetworkPath,
         {
           user_id: user.id,
-          user_name: profile?.full_name || profile?.handle || 'Someone',
+          user_name: forwarderName,
           user_handle: profile?.handle || 'unknown'
         }
       ];
@@ -218,7 +229,11 @@ export function ForwardRequestModal({
       if (error) throw error;
 
       // Create notifications for recipients with actual names
-      const forwarderName = profile?.full_name || profile?.handle || 'Someone';
+      console.log('=== CREATING FORWARD NOTIFICATIONS ===');
+      console.log('Forwarder name for notification:', forwarderName);
+      console.log('Request title:', requestTitle);
+      console.log('Request creator name:', requestCreatorName);
+      
       const notifications = selectedFriendIds.map(friendId => ({
         user_id: friendId,
         type: 'request_forwarded',
@@ -226,10 +241,14 @@ export function ForwardRequestModal({
         message: `"${requestTitle}" - from ${requestCreatorName}`,
         related_user_id: user.id
       }));
+      
+      console.log('Notifications to insert:', notifications);
 
-      await supabase
+      const { error: notifError } = await supabase
         .from('notifications')
         .insert(notifications);
+      
+      console.log('Notification insert error:', notifError);
 
       toast({
         title: "Request Forwarded!",
