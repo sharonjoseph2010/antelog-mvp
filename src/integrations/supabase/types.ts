@@ -500,13 +500,16 @@ export type Database = {
       profiles: {
         Row: {
           batch: string | null
+          bio: string | null
           college_id: string | null
           created_at: string
           full_name: string | null
           handle: string
           id: string
           id_card_image_url: string | null
+          interests: Json | null
           is_verified: boolean
+          location: string | null
           phone_number: string | null
           student_id_number: string | null
           trial_ends_at: string | null
@@ -516,13 +519,16 @@ export type Database = {
         }
         Insert: {
           batch?: string | null
+          bio?: string | null
           college_id?: string | null
           created_at?: string
           full_name?: string | null
           handle: string
           id: string
           id_card_image_url?: string | null
+          interests?: Json | null
           is_verified?: boolean
+          location?: string | null
           phone_number?: string | null
           student_id_number?: string | null
           trial_ends_at?: string | null
@@ -532,13 +538,16 @@ export type Database = {
         }
         Update: {
           batch?: string | null
+          bio?: string | null
           college_id?: string | null
           created_at?: string
           full_name?: string | null
           handle?: string
           id?: string
           id_card_image_url?: string | null
+          interests?: Json | null
           is_verified?: boolean
+          location?: string | null
           phone_number?: string | null
           student_id_number?: string | null
           trial_ends_at?: string | null
