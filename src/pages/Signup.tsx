@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { PhoneInput } from "@/components/ui/phone-input";
 
 const signupSchema = z.object({
+  full_name: z.string().min(2, "Full name must be at least 2 characters"),
   email: z.string().min(1, "Email is required").email("Enter a valid email"),
   password: z.string().min(8, "Password must be at least 8 characters"),
   phone_number: z
@@ -33,7 +34,7 @@ const Signup = () => {
 
   const form = useForm<SignupValues>({
     resolver: zodResolver(signupSchema),
-    defaultValues: { email: "", password: "", phone_number: "" },
+    defaultValues: { full_name: "", email: "", password: "", phone_number: "" },
     mode: "onSubmit",
   });
 
@@ -53,7 +54,8 @@ const onSubmit = async (values: SignupValues) => {
         emailRedirectTo: redirectUrl,
         data: {
           user_type: 'verified',
-          phone_number: normalizedPhone // Store in auth metadata for trigger to extract
+          phone_number: normalizedPhone,
+          full_name: values.full_name.trim()
         }
       },
     });
@@ -103,6 +105,23 @@ const onSubmit = async (values: SignupValues) => {
             <CardContent>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                  <FormField
+                    control={form.control}
+                    name="full_name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Full Name *</FormLabel>
+                        <FormControl>
+                          <Input type="text" placeholder="e.g., Mike Johnson" autoComplete="name" {...field} />
+                        </FormControl>
+                        <p className="text-xs text-muted-foreground">
+                          This is how you'll appear to people in your network
+                        </p>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
                   <FormField
                     control={form.control}
                     name="email"
