@@ -12,11 +12,13 @@ import { ArrowLeft, Plus, ThumbsUp, MessageSquare, User, Users, UserCheck, MapPi
 import { formatDistanceToNow } from "date-fns";
 import { ForwardRequestModal } from "@/components/ForwardRequestModal";
 import { DeleteRequestDialog } from "@/components/DeleteRequestDialog";
+import { areUsersConnected, getDisplayNameSync } from "@/hooks/useNetworkAwareName";
 
 interface NetworkPathNode {
   user_id: string;
   user_name: string;
   user_handle: string;
+  isConnectedToViewer?: boolean;
 }
 
 interface Request {
@@ -34,6 +36,7 @@ interface Request {
     full_name: string;
     handle: string;
   };
+  isCreatorConnected?: boolean;
   network_path?: NetworkPathNode[];
   forwarded_by?: string;
 }
@@ -156,19 +159,28 @@ export default function RequestRespond() {
           .select('id, full_name, handle')
           .in('id', forwardPath.network_path);
 
-        networkPath = forwardPath.network_path.map((userId: string) => {
-          const profile = pathProfiles?.find(p => p.id === userId);
-          return {
-            user_id: userId,
-            user_name: profile?.full_name || profile?.handle || 'Someone',
-            user_handle: profile?.handle || 'unknown'
-          };
-        });
+        // Check connection status for each user in path
+        networkPath = await Promise.all(
+          forwardPath.network_path.map(async (userId: string) => {
+            const profile = pathProfiles?.find(p => p.id === userId);
+            const isConnected = await areUsersConnected(userId, user.id);
+            return {
+              user_id: userId,
+              user_name: getDisplayNameSync(profile, isConnected),
+              user_handle: profile?.handle || 'unknown',
+              isConnectedToViewer: isConnected
+            };
+          })
+        );
       }
+
+      // Check if viewer is connected to the creator
+      const isCreatorConnected = await areUsersConnected(requestData.creator_id, user.id);
       
       setRequest({
         ...requestData,
         creator_profile,
+        isCreatorConnected,
         network_path: networkPath
       });
 
@@ -576,12 +588,19 @@ export default function RequestRespond() {
                 <div className="mb-3 p-3 bg-muted/50 rounded-lg">
                   <p className="text-xs text-muted-foreground mb-1">Request Path:</p>
                   <div className="flex items-center gap-2 flex-wrap text-sm">
-                    <span className="font-medium">{request.creator_profile?.full_name || request.creator_profile?.handle || 'Someone'}</span>
+                    <span className="font-medium">
+                      {request.isCreatorConnected 
+                        ? (request.creator_profile?.full_name || request.creator_profile?.handle || 'Someone')
+                        : (request.creator_profile?.handle ? `@${request.creator_profile.handle}` : 'Someone')
+                      }
+                    </span>
                     {request.network_path.map((node, index) => (
                       <span key={index} className="flex items-center gap-2">
                         <ArrowRight className="h-3 w-3 text-muted-foreground" />
                         <span className="text-muted-foreground">via</span>
-                        <span className="font-medium">{node.user_name}</span>
+                        <span className={`font-medium ${node.isConnectedToViewer ? '' : 'text-muted-foreground'}`}>
+                          {node.user_name}
+                        </span>
                       </span>
                     ))}
                     <ArrowRight className="h-3 w-3 text-muted-foreground" />
@@ -590,7 +609,11 @@ export default function RequestRespond() {
                 </div>
               ) : request.creator_profile && (
                 <p className="text-sm text-muted-foreground mb-3">
-                  Requested by {request.creator_profile.full_name} (@{request.creator_profile.handle})
+                  Requested by {request.isCreatorConnected 
+                    ? (request.creator_profile.full_name || request.creator_profile.handle)
+                    : (request.creator_profile.handle ? `@${request.creator_profile.handle}` : 'Someone')
+                  }
+                  {request.isCreatorConnected && request.creator_profile.handle && ` (@${request.creator_profile.handle})`}
                 </p>
               )}
             </div>
