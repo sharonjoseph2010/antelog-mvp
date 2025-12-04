@@ -195,7 +195,7 @@ export function ForwardRequestModal({
         ...existingNetworkPath,
         {
           user_id: user.id,
-          user_name: profile?.full_name || 'Unknown',
+          user_name: profile?.full_name || profile?.handle || 'Someone',
           user_handle: profile?.handle || 'unknown'
         }
       ];
