@@ -160,7 +160,7 @@ export default function RequestRespond() {
           const profile = pathProfiles?.find(p => p.id === userId);
           return {
             user_id: userId,
-            user_name: profile?.full_name || 'Unknown',
+            user_name: profile?.full_name || profile?.handle || 'Someone',
             user_handle: profile?.handle || 'unknown'
           };
         });
@@ -576,7 +576,7 @@ export default function RequestRespond() {
                 <div className="mb-3 p-3 bg-muted/50 rounded-lg">
                   <p className="text-xs text-muted-foreground mb-1">Request Path:</p>
                   <div className="flex items-center gap-2 flex-wrap text-sm">
-                    <span className="font-medium">{request.creator_profile?.full_name || 'Unknown'}</span>
+                    <span className="font-medium">{request.creator_profile?.full_name || request.creator_profile?.handle || 'Someone'}</span>
                     {request.network_path.map((node, index) => (
                       <span key={index} className="flex items-center gap-2">
                         <ArrowRight className="h-3 w-3 text-muted-foreground" />
