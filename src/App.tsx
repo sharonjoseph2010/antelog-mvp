@@ -39,6 +39,7 @@ import { ProtectedRoute, AdminRoute, InternalRoute, VerifiedRoute } from "@/comp
 import Directory from "./pages/Directory";
 import GuestSignup from "./pages/GuestSignup";
 import ForYou from "./pages/ForYou";
+import Profile from "./pages/Profile";
 
 const queryClient = new QueryClient();
 
@@ -497,6 +498,15 @@ function AppContent({
             <InternalRoute isAuthenticated={isAuthenticated}>
               <Verify />
             </InternalRoute>
+          }
+        />
+
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute isAuthenticated={isAuthenticated}>
+              <Profile />
+            </ProtectedRoute>
           }
         />
 

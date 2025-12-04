@@ -232,6 +232,7 @@ const Header = ({ isAuthenticated, isAdmin, userType, onLogout }: HeaderProps) =
               <Link to="/groups" className="hover:underline">Groups</Link>
               <Link to="/requests" className="hover:underline">Requests</Link>
               <Link to="/contacts" className="hover:underline">Contacts</Link>
+              <Link to="/profile" className="hover:underline">Profile</Link>
               {isAdmin && <Link to="/admin" className="hover:underline">Admin</Link>}
               
               {/* Notifications Bell */}
