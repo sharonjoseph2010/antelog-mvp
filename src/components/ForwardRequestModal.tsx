@@ -217,12 +217,13 @@ export function ForwardRequestModal({
 
       if (error) throw error;
 
-      // Create notifications for recipients
+      // Create notifications for recipients with actual names
+      const forwarderName = profile?.full_name || profile?.handle || 'Someone';
       const notifications = selectedFriendIds.map(friendId => ({
         user_id: friendId,
         type: 'request_forwarded',
-        title: 'New Request Forwarded to You',
-        message: `${profile?.full_name || 'Someone'} endorsed a request: "${requestTitle}"`,
+        title: `${forwarderName} endorsed a request`,
+        message: `"${requestTitle}" - from ${requestCreatorName}`,
         related_user_id: user.id
       }));
 
