@@ -565,6 +565,35 @@ export type Database = {
           },
         ]
       }
+      recommendation_votes: {
+        Row: {
+          created_at: string | null
+          id: string
+          recommendation_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          recommendation_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          recommendation_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recommendation_votes_recommendation_id_fkey"
+            columns: ["recommendation_id"]
+            isOneToOne: false
+            referencedRelation: "response_recommendations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       request_forwards: {
         Row: {
           created_at: string
@@ -618,40 +647,27 @@ export type Database = {
       }
       request_responses: {
         Row: {
-          content: string
           created_at: string
           id: string
-          list_id: string | null
+          overall_notes: string | null
           request_id: string
           responder_id: string
-          response_type: Database["public"]["Enums"]["response_type"]
         }
         Insert: {
-          content: string
           created_at?: string
           id?: string
-          list_id?: string | null
+          overall_notes?: string | null
           request_id: string
           responder_id: string
-          response_type: Database["public"]["Enums"]["response_type"]
         }
         Update: {
-          content?: string
           created_at?: string
           id?: string
-          list_id?: string | null
+          overall_notes?: string | null
           request_id?: string
           responder_id?: string
-          response_type?: Database["public"]["Enums"]["response_type"]
         }
         Relationships: [
-          {
-            foreignKeyName: "fk_request_responses_list_id"
-            columns: ["list_id"]
-            isOneToOne: false
-            referencedRelation: "lists"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "fk_request_responses_request_id"
             columns: ["request_id"]
@@ -748,6 +764,53 @@ export type Database = {
             columns: ["group_id"]
             isOneToOne: false
             referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      response_recommendations: {
+        Row: {
+          created_at: string | null
+          id: string
+          link: string | null
+          position: number
+          quick_details: string | null
+          reason: string
+          recommendation_text: string
+          recommendation_text_normalized: string
+          response_id: string
+          vote_count: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          link?: string | null
+          position: number
+          quick_details?: string | null
+          reason: string
+          recommendation_text: string
+          recommendation_text_normalized: string
+          response_id: string
+          vote_count?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          link?: string | null
+          position?: number
+          quick_details?: string | null
+          reason?: string
+          recommendation_text?: string
+          recommendation_text_normalized?: string
+          response_id?: string
+          vote_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "response_recommendations_response_id_fkey"
+            columns: ["response_id"]
+            isOneToOne: false
+            referencedRelation: "request_responses"
             referencedColumns: ["id"]
           },
         ]

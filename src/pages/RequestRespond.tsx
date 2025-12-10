@@ -3,12 +3,12 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Plus, ThumbsUp, MessageSquare, User, Users, UserCheck, MapPin, Clock, Share2, ArrowRight, Edit, Trash2 } from "lucide-react";
+import { ArrowLeft, Plus, ThumbsUp, MessageSquare, User, Users, UserCheck, MapPin, Clock, Share2, ArrowRight, Edit, Trash2, X, Link as LinkIcon } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ForwardRequestModal } from "@/components/ForwardRequestModal";
 import { DeleteRequestDialog } from "@/components/DeleteRequestDialog";
@@ -27,7 +27,7 @@ interface Request {
   category: string;
   location: string | null;
   audience_type: string;
-  audience_types?: string[]; // Multiple audiences support
+  audience_types?: string[];
   status: string;
   created_at: string;
   allow_forwarding: boolean;
@@ -41,34 +41,36 @@ interface Request {
   forwarded_by?: string;
 }
 
+interface Recommendation {
+  id: string;
+  recommendation_text: string;
+  recommendation_text_normalized: string;
+  position: number;
+  quick_details: string | null;
+  reason: string;
+  link: string | null;
+  vote_count: number;
+  user_voted: boolean;
+  voters: { id: string; full_name: string; handle: string }[];
+}
+
 interface RequestResponse {
   id: string;
-  response_type: string;
-  content: string;
+  overall_notes: string | null;
   created_at: string;
-  list_id?: string;
+  responder_id: string;
   responder_profile: {
     full_name: string;
     handle: string;
   };
-  list?: {
-    title: string;
-    description: string;
-  };
-  vote_counts: {
-    helpful: number;
-    not_helpful: number;
-  };
-  user_vote?: {
-    vote_type: string;
-  };
+  recommendations: Recommendation[];
 }
 
-interface UserList {
-  id: string;
-  title: string;
-  description: string;
-  category: string;
+interface RecommendationInput {
+  recommendation_text: string;
+  quick_details: string;
+  reason: string;
+  link: string;
 }
 
 export default function RequestRespond() {
@@ -78,7 +80,6 @@ export default function RequestRespond() {
   
   const [request, setRequest] = useState<Request | null>(null);
   const [responses, setResponses] = useState<RequestResponse[]>([]);
-  const [userLists, setUserLists] = useState<UserList[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showForwardModal, setShowForwardModal] = useState(false);
@@ -87,11 +88,15 @@ export default function RequestRespond() {
   const [isOwnRequest, setIsOwnRequest] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   
-  // Response form state
-  const [responseType, setResponseType] = useState<"new_recommendations" | "existing_list">("new_recommendations");
-  const [selectedListId, setSelectedListId] = useState<string>("");
-  const [responseContent, setResponseContent] = useState("");
+  // Response form state - structured recommendations
+  const [recommendations, setRecommendations] = useState<RecommendationInput[]>([
+    { recommendation_text: "", quick_details: "", reason: "", link: "" },
+    { recommendation_text: "", quick_details: "", reason: "", link: "" },
+    { recommendation_text: "", quick_details: "", reason: "", link: "" },
+  ]);
+  const [overallNotes, setOverallNotes] = useState("");
 
   useEffect(() => {
     if (id) {
@@ -104,6 +109,7 @@ export default function RequestRespond() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+      setCurrentUserId(user.id);
 
       // Load request details
       const { data: requestData, error: requestError } = await supabase
@@ -125,12 +131,10 @@ export default function RequestRespond() {
         creator_profile = creatorData;
       }
       
-      // Check if user has forwarding permissions
       const userIsOwner = requestData.creator_id === user.id;
       setIsOwnRequest(userIsOwner);
       const allowsForwarding = requestData.allow_forwarding === true;
       
-      // Check if user already forwarded this request
       const { data: forwardData } = await supabase
         .from('request_forwards')
         .select('id')
@@ -153,13 +157,11 @@ export default function RequestRespond() {
 
       let networkPath: NetworkPathNode[] = [];
       if (forwardPath?.network_path && Array.isArray(forwardPath.network_path)) {
-        // Get profile info for each user in path
         const { data: pathProfiles } = await supabase
           .from('profiles')
           .select('id, full_name, handle')
           .in('id', forwardPath.network_path);
 
-        // Check connection status for each user in path
         networkPath = await Promise.all(
           forwardPath.network_path.map(async (userId: string) => {
             const profile = pathProfiles?.find(p => p.id === userId);
@@ -174,7 +176,6 @@ export default function RequestRespond() {
         );
       }
 
-      // Check if viewer is connected to the creator
       const isCreatorConnected = await areUsersConnected(requestData.creator_id, user.id);
       
       setRequest({
@@ -184,7 +185,7 @@ export default function RequestRespond() {
         network_path: networkPath
       });
 
-      // Load existing responses
+      // Load existing responses with recommendations
       const { data: responsesData, error: responsesError } = await supabase
         .from("request_responses")
         .select("*")
@@ -193,7 +194,7 @@ export default function RequestRespond() {
 
       if (responsesError) throw responsesError;
 
-      // Process responses with profile data, vote counts and user votes
+      // Process responses with recommendations and votes
       const processedResponses = await Promise.all(
         (responsesData || []).map(async (response) => {
           // Get responder profile
@@ -203,53 +204,51 @@ export default function RequestRespond() {
             .eq("id", response.responder_id)
             .single();
 
-          // Get list data if response has a list_id
-          let listData = null;
-          if (response.list_id) {
-            const { data: list } = await supabase
-              .from("lists")
-              .select("title, description")
-              .eq("id", response.list_id)
-              .single();
-            listData = list;
-          }
+          // Get recommendations for this response
+          const { data: recsData } = await supabase
+            .from("response_recommendations")
+            .select("*")
+            .eq("response_id", response.id)
+            .order("position", { ascending: true });
 
-          // Get votes for this response
-          const { data: votesData } = await supabase
-            .from("request_votes")
-            .select("vote_type, voter_id")
-            .eq("response_id", response.id);
+          // Get votes for each recommendation
+          const recommendationsWithVotes = await Promise.all(
+            (recsData || []).map(async (rec) => {
+              const { data: votesData } = await supabase
+                .from("recommendation_votes")
+                .select("user_id")
+                .eq("recommendation_id", rec.id);
 
-          const votes = votesData || [];
-          const helpfulVotes = votes.filter(v => v.vote_type === 'helpful').length;
-          const notHelpfulVotes = votes.filter(v => v.vote_type === 'not_helpful').length;
-          const userVote = votes.find(v => v.voter_id === user.id);
+              const voters = votesData || [];
+              const userVoted = voters.some(v => v.user_id === user.id);
+
+              // Get voter profiles
+              let voterProfiles: { id: string; full_name: string; handle: string }[] = [];
+              if (voters.length > 0) {
+                const { data: profiles } = await supabase
+                  .from("profiles")
+                  .select("id, full_name, handle")
+                  .in("id", voters.map(v => v.user_id));
+                voterProfiles = profiles || [];
+              }
+
+              return {
+                ...rec,
+                user_voted: userVoted,
+                voters: voterProfiles
+              };
+            })
+          );
 
           return {
             ...response,
             responder_profile: responderData || { full_name: 'Unknown', handle: 'unknown' },
-            list: listData,
-            vote_counts: {
-              helpful: helpfulVotes,
-              not_helpful: notHelpfulVotes
-            },
-            user_vote: userVote
+            recommendations: recommendationsWithVotes
           };
         })
       );
 
       setResponses(processedResponses);
-
-      // Load user's lists for selection
-      const { data: listsData, error: listsError } = await supabase
-        .from("lists")
-        .select("id, title, description, category")
-        .eq("owner_id", user.id)
-        .eq("visibility", "public")
-        .order("created_at", { ascending: false });
-
-      if (listsError) throw listsError;
-      setUserLists(listsData || []);
 
     } catch (error) {
       console.error("Error loading request data:", error);
@@ -263,67 +262,88 @@ export default function RequestRespond() {
     }
   };
 
+  const addRecommendation = () => {
+    if (recommendations.length >= 5) {
+      toast({
+        title: "Maximum reached",
+        description: "You can add up to 5 recommendations",
+        variant: "destructive"
+      });
+      return;
+    }
+    setRecommendations([...recommendations, { recommendation_text: "", quick_details: "", reason: "", link: "" }]);
+  };
+
+  const removeRecommendation = (index: number) => {
+    if (recommendations.length <= 3) {
+      toast({
+        title: "Minimum required",
+        description: "You need at least 3 recommendations",
+        variant: "destructive"
+      });
+      return;
+    }
+    setRecommendations(recommendations.filter((_, i) => i !== index));
+  };
+
+  const updateRecommendation = (index: number, field: keyof RecommendationInput, value: string) => {
+    const updated = [...recommendations];
+    updated[index][field] = value;
+    setRecommendations(updated);
+  };
+
   const handleSubmitResponse = async () => {
-    if (!request || !responseContent.trim()) {
+    if (!request) return;
+
+    // Validate at least 3 valid recommendations
+    const validRecs = recommendations.filter(r => r.recommendation_text.trim() && r.reason.trim());
+    if (validRecs.length < 3) {
       toast({
-        title: "Error",
-        description: "Please provide a response message",
+        title: "Incomplete Response",
+        description: "Please provide at least 3 recommendations with reasons",
         variant: "destructive"
       });
       return;
     }
 
-    if (responseType === "existing_list" && !selectedListId) {
-      toast({
-        title: "Error", 
-        description: "Please select a list to recommend",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    console.log('=== RESPONSE SUBMISSION DEBUG ===');
-    console.log('Request ID:', request.id);
-    console.log('Request creator ID:', request.creator_id);
-    console.log('Response type:', responseType);
-    console.log('Response content:', responseContent);
-    
     setIsSubmitting(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        console.log('❌ No authenticated user found');
-        return;
-      }
-      
-      console.log('Current user ID (responder):', user.id);
-      console.log('Is responding to own request?', request.creator_id === user.id);
+      if (!user) return;
 
-      console.log('📝 Creating response...');
+      // Create response container
       const { data: responseData, error: responseError } = await supabase
         .from("request_responses")
         .insert({
           request_id: request.id,
           responder_id: user.id,
-          response_type: responseType,
-          content: responseContent,
-          list_id: responseType === "existing_list" ? selectedListId : null
+          overall_notes: overallNotes.trim() || null
         })
         .select()
         .single();
 
-      if (responseError) {
-        console.error('❌ Response creation failed:', responseError);
-        throw responseError;
-      }
-      
-      console.log('✅ Response created successfully:', responseData);
+      if (responseError) throw responseError;
 
-      // Notify request creator (if not responding to own request)
+      // Create individual recommendations
+      const recsToInsert = validRecs.map((rec, index) => ({
+        response_id: responseData.id,
+        recommendation_text: rec.recommendation_text.trim(),
+        recommendation_text_normalized: rec.recommendation_text.trim().toLowerCase(),
+        position: index + 1,
+        quick_details: rec.quick_details.trim() || null,
+        reason: rec.reason.trim(),
+        link: rec.link.trim() || null,
+        vote_count: 0
+      }));
+
+      const { error: recsError } = await supabase
+        .from("response_recommendations")
+        .insert(recsToInsert);
+
+      if (recsError) throw recsError;
+
+      // Notify request creator
       if (request.creator_id !== user.id) {
-        console.log('🔔 Creating notification for request creator:', request.creator_id);
-        
-        // Get responder's profile for name
         const { data: responderProfile } = await supabase
           .from("profiles")
           .select("full_name, handle")
@@ -332,8 +352,7 @@ export default function RequestRespond() {
 
         const responderName = responderProfile?.full_name || responderProfile?.handle || "Someone";
         
-        // Create notification - simplified with minimal error handling
-        const { error: notifError } = await supabase
+        await supabase
           .from("notifications")
           .insert({
             user_id: request.creator_id,
@@ -343,26 +362,21 @@ export default function RequestRespond() {
             related_user_id: user.id,
             is_read: false
           });
-
-        if (notifError) {
-          console.error('❌ Notification failed:', notifError);
-          // Continue anyway - response was already saved
-        } else {
-          console.log('✅ Notification sent to', request.creator_id);
-        }
       }
 
       toast({
         title: "Success",
-        description: "Your response has been submitted!",
+        description: "Your recommendations have been submitted!",
       });
 
-      // Refresh responses
+      // Reset form and refresh
+      setRecommendations([
+        { recommendation_text: "", quick_details: "", reason: "", link: "" },
+        { recommendation_text: "", quick_details: "", reason: "", link: "" },
+        { recommendation_text: "", quick_details: "", reason: "", link: "" },
+      ]);
+      setOverallNotes("");
       await loadRequestData();
-      
-      // Reset form
-      setResponseContent("");
-      setSelectedListId("");
 
     } catch (error) {
       console.error("Error submitting response:", error);
@@ -376,49 +390,28 @@ export default function RequestRespond() {
     }
   };
 
-  const handleVote = async (responseId: string, voteType: "helpful" | "not_helpful") => {
+  const handleVoteRecommendation = async (recommendationId: string, currentlyVoted: boolean) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Check if user already voted on this response
-      const existingResponse = responses.find(r => r.id === responseId);
-      const userVote = existingResponse?.user_vote;
-
-      if (userVote) {
-        if (userVote.vote_type === voteType) {
-          // Remove vote if clicking same vote
-          const { error } = await supabase
-            .from("request_votes")
-            .delete()
-            .eq("response_id", responseId)
-            .eq("voter_id", user.id);
-
-          if (error) throw error;
-        } else {
-          // Update vote if clicking different vote
-          const { error } = await supabase
-            .from("request_votes")
-            .update({ vote_type: voteType })
-            .eq("response_id", responseId)
-            .eq("voter_id", user.id);
-
-          if (error) throw error;
-        }
+      if (currentlyVoted) {
+        // Remove vote
+        await supabase
+          .from("recommendation_votes")
+          .delete()
+          .eq("recommendation_id", recommendationId)
+          .eq("user_id", user.id);
       } else {
-        // Create new vote
-        const { error } = await supabase
-          .from("request_votes")
+        // Add vote
+        await supabase
+          .from("recommendation_votes")
           .insert({
-            response_id: responseId,
-            voter_id: user.id,
-            vote_type: voteType
+            recommendation_id: recommendationId,
+            user_id: user.id
           });
-
-        if (error) throw error;
       }
 
-      // Refresh responses to show updated vote counts
       await loadRequestData();
 
     } catch (error) {
@@ -462,40 +455,29 @@ export default function RequestRespond() {
     }
   };
 
-  const getAudienceIcon = (audienceType: string) => {
-    switch (audienceType) {
-      case "friends":
-        return <User className="h-4 w-4" />;
-      case "extended_network":
-        return <Users className="h-4 w-4" />;
-      case "specific_group":
-        return <UserCheck className="h-4 w-4" />;
-      default:
-        return <Users className="h-4 w-4" />;
-    }
-  };
-
   const formatCategory = (category: string) => {
     return category.charAt(0).toUpperCase() + category.slice(1).replace('_', ' ');
   };
 
   const formatAudienceType = (audienceType: string) => {
     switch (audienceType) {
-      case "first_network":
-        return "1st Network";
-      case "friends":
-        return "Friends";
-      case "extended_network":
-        return "Extended Network";
+      case "first_network": return "1st Network";
+      case "friends": return "Friends";
+      case "extended_network": return "Extended Network";
       case "specific_group":
-      case "group":
-        return "Group";
-      case "specific_people":
-        return "Specific People";
-      case "public":
-        return "Public";
-      default:
-        return audienceType;
+      case "group": return "Group";
+      case "specific_people": return "Specific People";
+      case "public": return "Public";
+      default: return audienceType;
+    }
+  };
+
+  const getAudienceIcon = (audienceType: string) => {
+    switch (audienceType) {
+      case "friends": return <User className="h-4 w-4" />;
+      case "extended_network": return <Users className="h-4 w-4" />;
+      case "specific_group": return <UserCheck className="h-4 w-4" />;
+      default: return <Users className="h-4 w-4" />;
     }
   };
 
@@ -516,6 +498,24 @@ export default function RequestRespond() {
     }
   };
 
+  // Get aggregated top recommendations across all responses
+  const getTopRecommendations = () => {
+    const allRecs = responses.flatMap(r => r.recommendations);
+    const grouped = allRecs.reduce((acc, rec) => {
+      const key = rec.recommendation_text_normalized || rec.recommendation_text.toLowerCase();
+      if (!acc[key]) {
+        acc[key] = { ...rec, total_votes: rec.vote_count };
+      } else {
+        acc[key].total_votes += rec.vote_count;
+      }
+      return acc;
+    }, {} as Record<string, Recommendation & { total_votes: number }>);
+    
+    return Object.values(grouped)
+      .sort((a, b) => b.total_votes - a.total_votes)
+      .slice(0, 5);
+  };
+
   if (isLoading) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -530,18 +530,6 @@ export default function RequestRespond() {
             <Skeleton className="h-4 w-2/3" />
           </CardContent>
         </Card>
-        <div className="space-y-4">
-          {[1, 2].map((i) => (
-            <Card key={i}>
-              <CardHeader>
-                <Skeleton className="h-5 w-1/3" />
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-20 w-full" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
       </div>
     );
   }
@@ -559,6 +547,8 @@ export default function RequestRespond() {
     );
   }
 
+  const topRecommendations = getTopRecommendations();
+
   return (
     <div className="container mx-auto px-4 py-8">
       {/* Header */}
@@ -572,7 +562,7 @@ export default function RequestRespond() {
         
         <h1 className="text-3xl font-bold mb-2">Respond to Request</h1>
         <p className="text-muted-foreground">
-          Share your recommendations or vote on existing responses
+          Share your top 3-5 recommendations
         </p>
       </div>
 
@@ -613,7 +603,6 @@ export default function RequestRespond() {
                     ? (request.creator_profile.full_name || request.creator_profile.handle)
                     : (request.creator_profile.handle ? `@${request.creator_profile.handle}` : 'Someone')
                   }
-                  {request.isCreatorConnected && request.creator_profile.handle && ` (@${request.creator_profile.handle})`}
                 </p>
               )}
             </div>
@@ -635,7 +624,6 @@ export default function RequestRespond() {
             </div>
           </div>
 
-          {/* Audience Badges */}
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm text-muted-foreground">Sent to:</span>
             {(request.audience_types || [request.audience_type]).map((audienceType, index) => (
@@ -650,15 +638,10 @@ export default function RequestRespond() {
             ))}
           </div>
 
-          {/* Action Buttons */}
           <div className="flex gap-2 pt-2 border-t">
             {isOwnRequest ? (
               <>
-                <Button
-                  asChild
-                  variant="outline"
-                  className="flex items-center gap-2"
-                >
+                <Button asChild variant="outline" className="flex items-center gap-2">
                   <Link to={`/requests/${request.id}/edit`}>
                     <Edit className="h-4 w-4" />
                     Edit Request
@@ -676,11 +659,7 @@ export default function RequestRespond() {
             ) : (
               <>
                 {canForward && (
-                  <Button
-                    onClick={() => setShowForwardModal(true)}
-                    variant="outline"
-                    className="flex items-center gap-2"
-                  >
+                  <Button onClick={() => setShowForwardModal(true)} variant="outline" className="flex items-center gap-2">
                     <Share2 className="h-4 w-4" />
                     Forward & Endorse
                   </Button>
@@ -697,81 +676,124 @@ export default function RequestRespond() {
         </CardContent>
       </Card>
 
+      {/* Top Recommendations Summary */}
+      {topRecommendations.length > 0 && (
+        <Card className="mb-8 border-primary/20 bg-primary/5">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <ThumbsUp className="h-5 w-5 text-primary" />
+              Top Recommendations
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {topRecommendations.map((rec, index) => (
+                <div key={rec.id} className="flex items-center gap-3">
+                  <span className="text-lg font-bold text-primary">#{index + 1}</span>
+                  <div className="flex-1">
+                    <p className="font-medium">{rec.recommendation_text}</p>
+                    {rec.quick_details && (
+                      <p className="text-sm text-muted-foreground">{rec.quick_details}</p>
+                    )}
+                  </div>
+                  <Badge variant="secondary">{rec.vote_count} votes</Badge>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Response Form */}
       <Card className="mb-8">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Plus className="h-5 w-5" />
-            Add Your Response
+            Add Your Recommendations
           </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Share 3-5 specific recommendations. Each can be voted on individually.
+          </p>
         </CardHeader>
         
-        <CardContent className="space-y-4">
-          {/* Response Type Selection */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Response Type</label>
-            <Select value={responseType} onValueChange={(value: "new_recommendations" | "existing_list") => setResponseType(value)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="new_recommendations">New Recommendations</SelectItem>
-                <SelectItem value="existing_list">Recommend Existing List</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* List Selection for existing list response */}
-          {responseType === "existing_list" && (
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Select List to Recommend</label>
-              <Select value={selectedListId} onValueChange={setSelectedListId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose from your public lists" />
-                </SelectTrigger>
-                <SelectContent>
-                  {userLists.map((list) => (
-                    <SelectItem key={list.id} value={list.id}>
-                      {list.title} ({formatCategory(list.category)})
-                    </SelectItem>
-                  ))
-                }
-                </SelectContent>
-              </Select>
-              {userLists.length === 0 && (
-                <p className="text-sm text-muted-foreground">
-                  You don't have any public lists yet.{" "}
-                  <Link to="/lists/new" className="text-primary hover:underline">
-                    Create one first
-                  </Link>
-                </p>
-              )}
+        <CardContent className="space-y-6">
+          {recommendations.map((rec, index) => (
+            <div key={index} className="p-4 border rounded-lg space-y-3 relative">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-primary">Recommendation #{index + 1}</span>
+                {recommendations.length > 3 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeRecommendation(index)}
+                    className="text-destructive hover:text-destructive"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+              
+              <div className="space-y-2">
+                <Input
+                  placeholder="Product/Service name (e.g., VRL Travels - Sleeper)"
+                  value={rec.recommendation_text}
+                  onChange={(e) => updateRecommendation(index, "recommendation_text", e.target.value)}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Input
+                  placeholder="Quick details (e.g., ₹1200 | 10:30 PM departure) - optional"
+                  value={rec.quick_details}
+                  onChange={(e) => updateRecommendation(index, "quick_details", e.target.value)}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Textarea
+                  placeholder="Why do you recommend this? (required)"
+                  value={rec.reason}
+                  onChange={(e) => updateRecommendation(index, "reason", e.target.value)}
+                  rows={2}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <LinkIcon className="h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Link (optional)"
+                    value={rec.link}
+                    onChange={(e) => updateRecommendation(index, "link", e.target.value)}
+                  />
+                </div>
+              </div>
             </div>
+          ))}
+
+          {recommendations.length < 5 && (
+            <Button variant="outline" onClick={addRecommendation} className="w-full">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Another Recommendation
+            </Button>
           )}
 
-          {/* Response Content */}
           <div className="space-y-2">
-            <label className="text-sm font-medium">
-              {responseType === "existing_list" ? "Why do you recommend this list?" : "Your Recommendations"}
-            </label>
+            <label className="text-sm font-medium">Additional Notes (optional)</label>
             <Textarea
-              value={responseContent}
-              onChange={(e) => setResponseContent(e.target.value)}
-              placeholder={
-                responseType === "existing_list" 
-                  ? "Explain why this list would be helpful for this request..."
-                  : "Share your recommendations and why you suggest them..."
-              }
-              rows={4}
+              value={overallNotes}
+              onChange={(e) => setOverallNotes(e.target.value)}
+              placeholder="Any additional context or notes about your recommendations..."
+              rows={2}
             />
           </div>
 
           <Button 
             onClick={handleSubmitResponse} 
-            disabled={isSubmitting || !responseContent.trim()}
+            disabled={isSubmitting}
             className="w-full"
           >
-            {isSubmitting ? "Submitting..." : "Submit Response"}
+            {isSubmitting ? "Submitting..." : "Submit Recommendations"}
           </Button>
         </CardContent>
       </Card>
@@ -789,16 +811,9 @@ export default function RequestRespond() {
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
                     <div>
-                      <p className="font-medium">
-                        {response.responder_profile.full_name}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        @{response.responder_profile.handle}
-                      </p>
+                      <p className="font-medium">{response.responder_profile.full_name}</p>
+                      <p className="text-sm text-muted-foreground">@{response.responder_profile.handle}</p>
                     </div>
-                    <Badge variant="outline">
-                      {response.response_type === "existing_list" ? "List Recommendation" : "New Recommendations"}
-                    </Badge>
                   </div>
                   <span className="text-sm text-muted-foreground">
                     {formatDistanceToNow(new Date(response.created_at), { addSuffix: true })}
@@ -807,40 +822,57 @@ export default function RequestRespond() {
               </CardHeader>
               
               <CardContent className="space-y-4">
-                {/* List recommendation */}
-                {response.list && (
-                  <div className="p-3 bg-muted rounded-lg">
-                    <h4 className="font-medium mb-1">{response.list.title}</h4>
-                    {response.list.description && (
-                      <p className="text-sm text-muted-foreground">{response.list.description}</p>
-                    )}
-                  </div>
+                {response.overall_notes && (
+                  <p className="text-sm text-muted-foreground italic">{response.overall_notes}</p>
                 )}
                 
-                {/* Response content */}
-                <p className="text-sm leading-relaxed">{response.content}</p>
-                
-                {/* Voting buttons */}
-                <div className="flex items-center gap-4 pt-2 border-t">
-                  <Button
-                    variant={response.user_vote?.vote_type === "helpful" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => handleVote(response.id, "helpful")}
-                    className="flex items-center gap-2"
-                  >
-                    <ThumbsUp className="h-3 w-3" />
-                    Helpful ({response.vote_counts.helpful})
-                  </Button>
-                  
-                  <Button
-                    variant={response.user_vote?.vote_type === "not_helpful" ? "destructive" : "outline"}
-                    size="sm"
-                    onClick={() => handleVote(response.id, "not_helpful")}
-                    className="flex items-center gap-2"
-                  >
-                    <ThumbsUp className="h-3 w-3 rotate-180" />
-                    Not Helpful ({response.vote_counts.not_helpful})
-                  </Button>
+                <div className="space-y-3">
+                  {response.recommendations.map((rec, index) => (
+                    <div key={rec.id} className="p-3 border rounded-lg">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-sm font-bold text-primary">#{index + 1}</span>
+                            <span className="font-medium">{rec.recommendation_text}</span>
+                          </div>
+                          {rec.quick_details && (
+                            <p className="text-sm text-muted-foreground mb-1">{rec.quick_details}</p>
+                          )}
+                          <p className="text-sm">{rec.reason}</p>
+                          {rec.link && (
+                            <a 
+                              href={rec.link} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-sm text-primary hover:underline flex items-center gap-1 mt-1"
+                            >
+                              <LinkIcon className="h-3 w-3" />
+                              View Link
+                            </a>
+                          )}
+                        </div>
+                        
+                        <div className="flex flex-col items-end gap-2">
+                          <Button
+                            variant={rec.user_voted ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => handleVoteRecommendation(rec.id, rec.user_voted)}
+                            className="flex items-center gap-1"
+                          >
+                            <ThumbsUp className="h-3 w-3" />
+                            {rec.vote_count}
+                          </Button>
+                          
+                          {rec.voters.length > 0 && (
+                            <div className="text-xs text-muted-foreground text-right">
+                              {rec.voters.slice(0, 3).map(v => v.full_name || v.handle).join(", ")}
+                              {rec.voters.length > 3 && ` +${rec.voters.length - 3} more`}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </CardContent>
             </Card>
