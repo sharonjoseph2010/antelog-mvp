@@ -767,7 +767,7 @@ export default function RequestRespond() {
               <div className="space-y-1">
                 <label className="text-sm text-muted-foreground">Product/Service name *</label>
                 <Input
-                  placeholder="e.g., VRL Travels - Sleeper"
+                  placeholder="Enter product or service"
                   value={rec.name}
                   onChange={(e) => updateRecommendation(index, "name", e.target.value)}
                   maxLength={200}
@@ -780,7 +780,7 @@ export default function RequestRespond() {
                   Link (optional)
                 </label>
                 <Input
-                  placeholder="https://... (optional)"
+                  placeholder="https://"
                   value={rec.link}
                   onChange={(e) => updateRecommendation(index, "link", e.target.value)}
                 />
