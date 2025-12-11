@@ -98,6 +98,12 @@ export default function RequestRespond() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   
+  // User's existing response state
+  const [userResponse, setUserResponse] = useState<RequestResponse | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [showDeleteResponseDialog, setShowDeleteResponseDialog] = useState(false);
+  const [isDeletingResponse, setIsDeletingResponse] = useState(false);
+  
   // Response form state - simplified: name + link per recommendation
   const [recommendations, setRecommendations] = useState<RecommendationInput[]>([
     { name: '', link: '' },
@@ -259,6 +265,10 @@ export default function RequestRespond() {
 
       setResponses(processedResponses);
 
+      // Check if current user has already responded
+      const existingUserResponse = processedResponses.find(r => r.responder_id === user.id);
+      setUserResponse(existingUserResponse || null);
+
     } catch (error) {
       console.error("Error loading request data:", error);
       toast({
@@ -341,22 +351,44 @@ export default function RequestRespond() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Create response container
-      const { data: responseData, error: responseError } = await supabase
-        .from("request_responses")
-        .insert({
-          request_id: request.id,
-          responder_id: user.id,
-          overall_notes: overallContext.trim() || null
-        })
-        .select()
-        .single();
+      let responseId: string;
 
-      if (responseError) throw responseError;
+      if (isEditing && userResponse) {
+        // Update existing response
+        const { error: updateError } = await supabase
+          .from("request_responses")
+          .update({
+            overall_notes: overallContext.trim() || null
+          })
+          .eq("id", userResponse.id);
+
+        if (updateError) throw updateError;
+        responseId = userResponse.id;
+
+        // Delete existing recommendations and re-insert
+        await supabase
+          .from("response_recommendations")
+          .delete()
+          .eq("response_id", userResponse.id);
+      } else {
+        // Create new response container
+        const { data: responseData, error: responseError } = await supabase
+          .from("request_responses")
+          .insert({
+            request_id: request.id,
+            responder_id: user.id,
+            overall_notes: overallContext.trim() || null
+          })
+          .select()
+          .single();
+
+        if (responseError) throw responseError;
+        responseId = responseData.id;
+      }
 
       // Create individual recommendations
       const recsToInsert = validRecs.map((rec, index) => ({
-        response_id: responseData.id,
+        response_id: responseId,
         recommendation_text: rec.name.trim(),
         recommendation_text_normalized: rec.name.trim().toLowerCase(),
         position: index + 1,
@@ -372,8 +404,8 @@ export default function RequestRespond() {
 
       if (recsError) throw recsError;
 
-      // Notify request creator
-      if (request.creator_id !== user.id) {
+      // Notify request creator (only for new responses)
+      if (!isEditing && request.creator_id !== user.id) {
         const { data: responderProfile } = await supabase
           .from("profiles")
           .select("full_name, handle")
@@ -396,16 +428,17 @@ export default function RequestRespond() {
 
       toast({
         title: "Success",
-        description: "Your recommendations have been submitted!",
+        description: isEditing ? "Your response has been updated!" : "Your recommendations have been submitted!",
       });
 
-      // Reset form and refresh
+      // Reset form and state
       setRecommendations([
         { name: '', link: '' },
         { name: '', link: '' },
         { name: '', link: '' },
       ]);
       setOverallContext("");
+      setIsEditing(false);
       await loadRequestData();
 
     } catch (error) {
@@ -417,6 +450,69 @@ export default function RequestRespond() {
       });
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleEditResponse = () => {
+    if (!userResponse) return;
+    
+    // Pre-populate form with existing data
+    const existingRecs = userResponse.recommendations
+      .sort((a, b) => a.position - b.position)
+      .map(r => ({
+        name: r.recommendation_text,
+        link: r.link || ''
+      }));
+    
+    // Ensure at least 3 slots
+    while (existingRecs.length < 3) {
+      existingRecs.push({ name: '', link: '' });
+    }
+    
+    setRecommendations(existingRecs);
+    setOverallContext(userResponse.overall_notes || '');
+    setIsEditing(true);
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setRecommendations([
+      { name: '', link: '' },
+      { name: '', link: '' },
+      { name: '', link: '' },
+    ]);
+    setOverallContext("");
+  };
+
+  const handleDeleteUserResponse = async () => {
+    if (!userResponse) return;
+    
+    setIsDeletingResponse(true);
+    try {
+      const { error } = await supabase
+        .from("request_responses")
+        .delete()
+        .eq("id", userResponse.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Response Deleted",
+        description: "Your response has been removed"
+      });
+
+      setUserResponse(null);
+      setShowDeleteResponseDialog(false);
+      await loadRequestData();
+    } catch (error) {
+      console.error("Error deleting response:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete response",
+        variant: "destructive"
+      });
+    } finally {
+      setIsDeletingResponse(false);
     }
   };
 
@@ -734,106 +830,183 @@ export default function RequestRespond() {
         </Card>
       )}
 
-      {/* Response Form */}
-      <Card className="mb-8">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Plus className="h-5 w-5" />
-            Add Your Recommendations
-          </CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Share 3-5 specific recommendations. Each can be voted on individually.
-          </p>
-        </CardHeader>
-        
-        <CardContent className="space-y-4">
-          {recommendations.map((rec, index) => (
-            <div key={index} className="p-4 border rounded-lg space-y-3 relative">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-primary">Recommendation #{index + 1}</span>
-                {recommendations.length > 3 && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => removeRecommendation(index)}
-                    className="text-destructive hover:text-destructive"
-                  >
-                    <X className="h-4 w-4 mr-1" />
-                    Remove
-                  </Button>
-                )}
+      {/* Response Section - Conditional UI based on user's response status */}
+      {isOwnRequest ? (
+        <Card className="mb-8 border-muted">
+          <CardContent className="py-8">
+            <div className="text-center">
+              <div className="mx-auto w-12 h-12 bg-muted rounded-full flex items-center justify-center mb-3">
+                <User className="h-6 w-6 text-muted-foreground" />
               </div>
-              
-              <div className="space-y-1">
-                <label className="text-sm text-muted-foreground">Product/Service name *</label>
-                <Input
-                  placeholder="Enter product or service"
-                  value={rec.name}
-                  onChange={(e) => updateRecommendation(index, "name", e.target.value)}
-                  maxLength={200}
-                />
-              </div>
-              
-              <div className="space-y-1">
-                <label className="text-sm text-muted-foreground flex items-center gap-1">
-                  <LinkIcon className="h-3 w-3" />
-                  Link (optional)
-                </label>
-                <Input
-                  placeholder="https://"
-                  value={rec.link}
-                  onChange={(e) => updateRecommendation(index, "link", e.target.value)}
-                />
-              </div>
+              <h3 className="font-medium mb-1">This is your request</h3>
+              <p className="text-sm text-muted-foreground">
+                You created this request and cannot add recommendations. View what your network suggests!
+              </p>
             </div>
-          ))}
-
-          {recommendations.length < 5 && (
-            <Button variant="outline" onClick={addRecommendation} className="w-full">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Another Recommendation
-            </Button>
-          )}
-          
-          <p className="text-xs text-muted-foreground text-center">
-            (minimum 3, maximum 5)
-          </p>
-
-          <div className="border-t pt-4 space-y-2">
-            <label className="text-sm font-medium">Overall Context (optional)</label>
-            <p className="text-xs text-muted-foreground">Why did you choose these?</p>
-            <Textarea
-              value={overallContext}
-              onChange={(e) => setOverallContext(e.target.value.slice(0, MAX_CONTEXT_LENGTH))}
-              placeholder="Brief context about your picks (optional)"
-              rows={2}
-              maxLength={MAX_CONTEXT_LENGTH}
-            />
-            <p className="text-xs text-muted-foreground text-right">
-              {overallContext.length}/{MAX_CONTEXT_LENGTH}
+          </CardContent>
+        </Card>
+      ) : userResponse && !isEditing ? (
+        /* User has already responded - show their response */
+        <Card className="mb-8 border-green-500/30 bg-green-500/5">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-green-700 dark:text-green-400">
+              <ThumbsUp className="h-5 w-5" />
+              Your Response
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Submitted {formatDistanceToNow(new Date(userResponse.created_at), { addSuffix: true })}
             </p>
-          </div>
-
-          <div className="flex gap-3 pt-2">
-            <Button variant="outline" onClick={() => navigate('/requests')} className="flex-1">
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleSubmitResponse} 
-              disabled={isSubmitting || isOwnRequest}
-              className="flex-1"
-            >
-              {isSubmitting ? "Submitting..." : "Submit Recommendations"}
-            </Button>
-          </div>
+          </CardHeader>
           
-          {isOwnRequest && (
-            <p className="text-sm text-destructive text-center">
-              You cannot respond to your own request
+          <CardContent className="space-y-4">
+            <div>
+              <p className="font-medium mb-2">You recommended:</p>
+              <ol className="list-decimal list-inside space-y-2">
+                {userResponse.recommendations
+                  .sort((a, b) => a.position - b.position)
+                  .map((rec) => (
+                    <li key={rec.id} className="flex items-center gap-2">
+                      <span>{rec.recommendation_text}</span>
+                      {rec.link && (
+                        <a 
+                          href={rec.link} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="text-primary hover:underline"
+                        >
+                          <LinkIcon className="h-3 w-3" />
+                        </a>
+                      )}
+                      <span className="text-sm text-muted-foreground">
+                        ({rec.vote_count} votes)
+                      </span>
+                    </li>
+                  ))}
+              </ol>
+            </div>
+            
+            {userResponse.overall_notes && (
+              <p className="text-sm italic text-muted-foreground border-l-2 pl-3">
+                "{userResponse.overall_notes}"
+              </p>
+            )}
+            
+            <div className="flex gap-3 pt-2 border-t">
+              <Button variant="outline" onClick={handleEditResponse} className="flex items-center gap-2">
+                <Edit className="h-4 w-4" />
+                Edit Response
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => setShowDeleteResponseDialog(true)}
+                className="flex items-center gap-2 text-destructive hover:bg-destructive hover:text-destructive-foreground"
+              >
+                <Trash2 className="h-4 w-4" />
+                Delete Response
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        /* User has not responded or is editing - show form */
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              {isEditing ? <Edit className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
+              {isEditing ? "Edit Your Recommendations" : "Add Your Recommendations"}
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Share 3-5 specific recommendations. Each can be voted on individually.
             </p>
-          )}
-        </CardContent>
-      </Card>
+          </CardHeader>
+          
+          <CardContent className="space-y-4">
+            {recommendations.map((rec, index) => (
+              <div key={index} className="p-4 border rounded-lg space-y-3 relative">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-primary">Recommendation #{index + 1}</span>
+                  {recommendations.length > 3 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeRecommendation(index)}
+                      className="text-destructive hover:text-destructive"
+                    >
+                      <X className="h-4 w-4 mr-1" />
+                      Remove
+                    </Button>
+                  )}
+                </div>
+                
+                <div className="space-y-1">
+                  <label className="text-sm text-muted-foreground">Product/Service name *</label>
+                  <Input
+                    placeholder="Enter product or service"
+                    value={rec.name}
+                    onChange={(e) => updateRecommendation(index, "name", e.target.value)}
+                    maxLength={200}
+                  />
+                </div>
+                
+                <div className="space-y-1">
+                  <label className="text-sm text-muted-foreground flex items-center gap-1">
+                    <LinkIcon className="h-3 w-3" />
+                    Link (optional)
+                  </label>
+                  <Input
+                    placeholder="https://"
+                    value={rec.link}
+                    onChange={(e) => updateRecommendation(index, "link", e.target.value)}
+                  />
+                </div>
+              </div>
+            ))}
+
+            {recommendations.length < 5 && (
+              <Button variant="outline" onClick={addRecommendation} className="w-full">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Another Recommendation
+              </Button>
+            )}
+            
+            <p className="text-xs text-muted-foreground text-center">
+              (minimum 3, maximum 5)
+            </p>
+
+            <div className="border-t pt-4 space-y-2">
+              <label className="text-sm font-medium">Overall Context (optional)</label>
+              <p className="text-xs text-muted-foreground">Why did you choose these?</p>
+              <Textarea
+                value={overallContext}
+                onChange={(e) => setOverallContext(e.target.value.slice(0, MAX_CONTEXT_LENGTH))}
+                placeholder="Brief context about your picks (optional)"
+                rows={2}
+                maxLength={MAX_CONTEXT_LENGTH}
+              />
+              <p className="text-xs text-muted-foreground text-right">
+                {overallContext.length}/{MAX_CONTEXT_LENGTH}
+              </p>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <Button 
+                variant="outline" 
+                onClick={isEditing ? handleCancelEdit : () => navigate('/requests')} 
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleSubmitResponse} 
+                disabled={isSubmitting}
+                className="flex-1"
+              >
+                {isSubmitting ? "Submitting..." : isEditing ? "Update Response" : "Submit Recommendations"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Existing Responses */}
       <div className="space-y-4">
@@ -958,6 +1131,40 @@ export default function RequestRespond() {
         onConfirm={handleDeleteRequest}
         isDeleting={isDeleting}
       />
+
+      {/* Delete Response Confirmation Dialog */}
+      {showDeleteResponseDialog && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <Card className="max-w-md w-full mx-4">
+            <CardHeader>
+              <CardTitle>Delete Your Response?</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-muted-foreground">
+                Are you sure you want to delete your response? This will remove all your recommendations and cannot be undone.
+              </p>
+              <div className="flex gap-3">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setShowDeleteResponseDialog(false)}
+                  className="flex-1"
+                  disabled={isDeletingResponse}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  variant="destructive"
+                  onClick={handleDeleteUserResponse}
+                  className="flex-1"
+                  disabled={isDeletingResponse}
+                >
+                  {isDeletingResponse ? "Deleting..." : "Delete Response"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
