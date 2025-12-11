@@ -1047,7 +1047,7 @@ export default function RequestRespond() {
             )}
             
             <p className="text-xs text-muted-foreground text-center">
-              (minimum 3, maximum 5)
+              (minimum 1, maximum 5)
             </p>
 
             <div className="border-t pt-4 space-y-2">
