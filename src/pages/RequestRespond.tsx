@@ -67,11 +67,19 @@ interface RequestResponse {
 }
 
 interface RecommendationInput {
-  recommendation_text: string;
-  quick_details: string;
-  reason: string;
+  name: string;
   link: string;
 }
+
+// Helper function to validate URLs
+const isValidUrl = (url: string): boolean => {
+  try {
+    new URL(url);
+    return true;
+  } catch {
+    return false;
+  }
+};
 
 export default function RequestRespond() {
   const { id } = useParams<{ id: string }>();
@@ -90,13 +98,14 @@ export default function RequestRespond() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   
-  // Response form state - structured recommendations
+  // Response form state - simplified: name + link per recommendation
   const [recommendations, setRecommendations] = useState<RecommendationInput[]>([
-    { recommendation_text: "", quick_details: "", reason: "", link: "" },
-    { recommendation_text: "", quick_details: "", reason: "", link: "" },
-    { recommendation_text: "", quick_details: "", reason: "", link: "" },
+    { name: '', link: '' },
+    { name: '', link: '' },
+    { name: '', link: '' },
   ]);
-  const [overallNotes, setOverallNotes] = useState("");
+  const [overallContext, setOverallContext] = useState("");
+  const MAX_CONTEXT_LENGTH = 120;
 
   useEffect(() => {
     if (id) {
@@ -271,7 +280,7 @@ export default function RequestRespond() {
       });
       return;
     }
-    setRecommendations([...recommendations, { recommendation_text: "", quick_details: "", reason: "", link: "" }]);
+    setRecommendations([...recommendations, { name: '', link: '' }]);
   };
 
   const removeRecommendation = (index: number) => {
@@ -295,12 +304,33 @@ export default function RequestRespond() {
   const handleSubmitResponse = async () => {
     if (!request) return;
 
-    // Validate at least 3 valid recommendations
-    const validRecs = recommendations.filter(r => r.recommendation_text.trim() && r.reason.trim());
+    // Validate at least 3 valid recommendations (name is required)
+    const validRecs = recommendations.filter(r => r.name.trim());
     if (validRecs.length < 3) {
       toast({
         title: "Incomplete Response",
-        description: "Please provide at least 3 recommendations with reasons",
+        description: "Please provide at least 3 recommendations",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Validate overall context length
+    if (overallContext.length > MAX_CONTEXT_LENGTH) {
+      toast({
+        title: "Context too long",
+        description: `Overall context must be ${MAX_CONTEXT_LENGTH} characters or less`,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Validate links if provided
+    const invalidLinks = validRecs.filter(r => r.link.trim() && !isValidUrl(r.link.trim()));
+    if (invalidLinks.length > 0) {
+      toast({
+        title: "Invalid link",
+        description: "Please enter valid URLs for links (or leave them empty)",
         variant: "destructive"
       });
       return;
@@ -317,7 +347,7 @@ export default function RequestRespond() {
         .insert({
           request_id: request.id,
           responder_id: user.id,
-          overall_notes: overallNotes.trim() || null
+          overall_notes: overallContext.trim() || null
         })
         .select()
         .single();
@@ -327,11 +357,11 @@ export default function RequestRespond() {
       // Create individual recommendations
       const recsToInsert = validRecs.map((rec, index) => ({
         response_id: responseData.id,
-        recommendation_text: rec.recommendation_text.trim(),
-        recommendation_text_normalized: rec.recommendation_text.trim().toLowerCase(),
+        recommendation_text: rec.name.trim(),
+        recommendation_text_normalized: rec.name.trim().toLowerCase(),
         position: index + 1,
-        quick_details: rec.quick_details.trim() || null,
-        reason: rec.reason.trim(),
+        quick_details: null,
+        reason: '',
         link: rec.link.trim() || null,
         vote_count: 0
       }));
@@ -371,11 +401,11 @@ export default function RequestRespond() {
 
       // Reset form and refresh
       setRecommendations([
-        { recommendation_text: "", quick_details: "", reason: "", link: "" },
-        { recommendation_text: "", quick_details: "", reason: "", link: "" },
-        { recommendation_text: "", quick_details: "", reason: "", link: "" },
+        { name: '', link: '' },
+        { name: '', link: '' },
+        { name: '', link: '' },
       ]);
-      setOverallNotes("");
+      setOverallContext("");
       await loadRequestData();
 
     } catch (error) {
@@ -716,7 +746,7 @@ export default function RequestRespond() {
           </p>
         </CardHeader>
         
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-4">
           {recommendations.map((rec, index) => (
             <div key={index} className="p-4 border rounded-lg space-y-3 relative">
               <div className="flex items-center justify-between">
@@ -728,45 +758,32 @@ export default function RequestRespond() {
                     onClick={() => removeRecommendation(index)}
                     className="text-destructive hover:text-destructive"
                   >
-                    <X className="h-4 w-4" />
+                    <X className="h-4 w-4 mr-1" />
+                    Remove
                   </Button>
                 )}
               </div>
               
-              <div className="space-y-2">
+              <div className="space-y-1">
+                <label className="text-sm text-muted-foreground">Product/Service name *</label>
                 <Input
-                  placeholder="Product/Service name (e.g., VRL Travels - Sleeper)"
-                  value={rec.recommendation_text}
-                  onChange={(e) => updateRecommendation(index, "recommendation_text", e.target.value)}
+                  placeholder="e.g., VRL Travels - Sleeper"
+                  value={rec.name}
+                  onChange={(e) => updateRecommendation(index, "name", e.target.value)}
+                  maxLength={200}
                 />
               </div>
               
-              <div className="space-y-2">
+              <div className="space-y-1">
+                <label className="text-sm text-muted-foreground flex items-center gap-1">
+                  <LinkIcon className="h-3 w-3" />
+                  Link (optional)
+                </label>
                 <Input
-                  placeholder="Quick details (e.g., ₹1200 | 10:30 PM departure) - optional"
-                  value={rec.quick_details}
-                  onChange={(e) => updateRecommendation(index, "quick_details", e.target.value)}
+                  placeholder="https://... (optional)"
+                  value={rec.link}
+                  onChange={(e) => updateRecommendation(index, "link", e.target.value)}
                 />
-              </div>
-              
-              <div className="space-y-2">
-                <Textarea
-                  placeholder="Why do you recommend this? (required)"
-                  value={rec.reason}
-                  onChange={(e) => updateRecommendation(index, "reason", e.target.value)}
-                  rows={2}
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <LinkIcon className="h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Link (optional)"
-                    value={rec.link}
-                    onChange={(e) => updateRecommendation(index, "link", e.target.value)}
-                  />
-                </div>
               </div>
             </div>
           ))}
@@ -777,24 +794,44 @@ export default function RequestRespond() {
               Add Another Recommendation
             </Button>
           )}
+          
+          <p className="text-xs text-muted-foreground text-center">
+            (minimum 3, maximum 5)
+          </p>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Additional Notes (optional)</label>
+          <div className="border-t pt-4 space-y-2">
+            <label className="text-sm font-medium">Overall Context (optional)</label>
+            <p className="text-xs text-muted-foreground">Why did you choose these?</p>
             <Textarea
-              value={overallNotes}
-              onChange={(e) => setOverallNotes(e.target.value)}
-              placeholder="Any additional context or notes about your recommendations..."
+              value={overallContext}
+              onChange={(e) => setOverallContext(e.target.value.slice(0, MAX_CONTEXT_LENGTH))}
+              placeholder="Brief context about your picks (optional)"
               rows={2}
+              maxLength={MAX_CONTEXT_LENGTH}
             />
+            <p className="text-xs text-muted-foreground text-right">
+              {overallContext.length}/{MAX_CONTEXT_LENGTH}
+            </p>
           </div>
 
-          <Button 
-            onClick={handleSubmitResponse} 
-            disabled={isSubmitting}
-            className="w-full"
-          >
-            {isSubmitting ? "Submitting..." : "Submit Recommendations"}
-          </Button>
+          <div className="flex gap-3 pt-2">
+            <Button variant="outline" onClick={() => navigate('/requests')} className="flex-1">
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleSubmitResponse} 
+              disabled={isSubmitting || isOwnRequest}
+              className="flex-1"
+            >
+              {isSubmitting ? "Submitting..." : "Submit Recommendations"}
+            </Button>
+          </div>
+          
+          {isOwnRequest && (
+            <p className="text-sm text-destructive text-center">
+              You cannot respond to your own request
+            </p>
+          )}
         </CardContent>
       </Card>
 
