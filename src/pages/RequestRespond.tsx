@@ -517,25 +517,59 @@ export default function RequestRespond() {
   };
 
   const handleVoteRecommendation = async (recommendationId: string, currentlyVoted: boolean) => {
+    if (!currentUserId) return;
+    
+    // Check if user is request creator
+    if (isOwnRequest) {
+      toast({
+        title: "Cannot vote",
+        description: "Request creators cannot vote on recommendations",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
       if (currentlyVoted) {
         // Remove vote
-        await supabase
+        const { error } = await supabase
           .from("recommendation_votes")
           .delete()
           .eq("recommendation_id", recommendationId)
-          .eq("user_id", user.id);
+          .eq("user_id", currentUserId);
+
+        if (error) throw error;
+        
+        toast({
+          title: "Vote removed",
+          description: "Your vote has been removed"
+        });
       } else {
         // Add vote
-        await supabase
+        const { error } = await supabase
           .from("recommendation_votes")
           .insert({
             recommendation_id: recommendationId,
-            user_id: user.id
+            user_id: currentUserId
           });
+
+        if (error) {
+          // Check for unique constraint violation (already voted)
+          if (error.code === '23505') {
+            toast({
+              title: "Already voted",
+              description: "You've already voted on this recommendation",
+              variant: "destructive"
+            });
+            return;
+          }
+          throw error;
+        }
+        
+        toast({
+          title: "Vote recorded",
+          description: "Your vote has been added"
+        });
       }
 
       await loadRequestData();
@@ -810,21 +844,70 @@ export default function RequestRespond() {
               <ThumbsUp className="h-5 w-5 text-primary" />
               Top Recommendations
             </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Aggregated from all responses, ranked by votes
+            </p>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {topRecommendations.map((rec, index) => (
-                <div key={rec.id} className="flex items-center gap-3">
-                  <span className="text-lg font-bold text-primary">#{index + 1}</span>
-                  <div className="flex-1">
-                    <p className="font-medium">{rec.recommendation_text}</p>
-                    {rec.quick_details && (
-                      <p className="text-sm text-muted-foreground">{rec.quick_details}</p>
-                    )}
+            <div className="space-y-4">
+              {topRecommendations.map((rec, index) => {
+                const isOwnRecommendation = responses.some(r => 
+                  r.responder_id === currentUserId && 
+                  r.recommendations.some(rr => rr.recommendation_text_normalized === rec.recommendation_text_normalized)
+                );
+                const canVote = !isOwnRequest && !isOwnRecommendation && !rec.user_voted;
+                
+                return (
+                  <div key={rec.id} className="p-4 border rounded-lg bg-background">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-3 flex-1">
+                        <span className="text-lg font-bold text-primary">#{index + 1}</span>
+                        <div className="flex-1">
+                          <p className="font-medium">{rec.recommendation_text}</p>
+                          {rec.link && (
+                            <a 
+                              href={rec.link} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-sm text-primary hover:underline flex items-center gap-1 mt-1"
+                            >
+                              <LinkIcon className="h-3 w-3" />
+                              View Link
+                            </a>
+                          )}
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {rec.vote_count} {rec.vote_count === 1 ? 'vote' : 'votes'}
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        {canVote && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleVoteRecommendation(rec.id, false)}
+                            className="flex items-center gap-1"
+                          >
+                            <ThumbsUp className="h-3 w-3" />
+                            +1
+                          </Button>
+                        )}
+                        {rec.user_voted && (
+                          <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
+                            ✓ Voted
+                          </Badge>
+                        )}
+                        {isOwnRecommendation && !rec.user_voted && (
+                          <Badge variant="outline" className="text-muted-foreground">
+                            Your pick
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <Badge variant="secondary">{rec.vote_count} votes</Badge>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </CardContent>
         </Card>
@@ -1037,52 +1120,59 @@ export default function RequestRespond() {
                 )}
                 
                 <div className="space-y-3">
-                  {response.recommendations.map((rec, index) => (
-                    <div key={rec.id} className="p-3 border rounded-lg">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-sm font-bold text-primary">#{index + 1}</span>
-                            <span className="font-medium">{rec.recommendation_text}</span>
-                          </div>
-                          {rec.quick_details && (
-                            <p className="text-sm text-muted-foreground mb-1">{rec.quick_details}</p>
-                          )}
-                          <p className="text-sm">{rec.reason}</p>
-                          {rec.link && (
-                            <a 
-                              href={rec.link} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="text-sm text-primary hover:underline flex items-center gap-1 mt-1"
-                            >
-                              <LinkIcon className="h-3 w-3" />
-                              View Link
-                            </a>
-                          )}
-                        </div>
-                        
-                        <div className="flex flex-col items-end gap-2">
-                          <Button
-                            variant={rec.user_voted ? "default" : "outline"}
-                            size="sm"
-                            onClick={() => handleVoteRecommendation(rec.id, rec.user_voted)}
-                            className="flex items-center gap-1"
-                          >
-                            <ThumbsUp className="h-3 w-3" />
-                            {rec.vote_count}
-                          </Button>
-                          
-                          {rec.voters.length > 0 && (
-                            <div className="text-xs text-muted-foreground text-right">
-                              {rec.voters.slice(0, 3).map(v => v.full_name || v.handle).join(", ")}
-                              {rec.voters.length > 3 && ` +${rec.voters.length - 3} more`}
+                  {response.recommendations.map((rec, index) => {
+                    const isOwnRecommendation = response.responder_id === currentUserId;
+                    const canVote = !isOwnRequest && !isOwnRecommendation;
+                    
+                    return (
+                      <div key={rec.id} className="p-3 border rounded-lg">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-sm font-bold text-primary">#{index + 1}</span>
+                              <span className="font-medium">{rec.recommendation_text}</span>
                             </div>
-                          )}
+                            {rec.link && (
+                              <a 
+                                href={rec.link} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-sm text-primary hover:underline flex items-center gap-1 mt-1"
+                              >
+                                <LinkIcon className="h-3 w-3" />
+                                View Link
+                              </a>
+                            )}
+                          </div>
+                          
+                          <div className="flex flex-col items-end gap-2">
+                            {canVote ? (
+                              <Button
+                                variant={rec.user_voted ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => handleVoteRecommendation(rec.id, rec.user_voted)}
+                                className="flex items-center gap-1"
+                              >
+                                <ThumbsUp className="h-3 w-3" />
+                                {rec.user_voted ? 'Voted' : '+1'} ({rec.vote_count})
+                              </Button>
+                            ) : (
+                              <Badge variant="secondary">
+                                {rec.vote_count} {rec.vote_count === 1 ? 'vote' : 'votes'}
+                              </Badge>
+                            )}
+                            
+                            {rec.voters.length > 0 && (
+                              <div className="text-xs text-muted-foreground text-right">
+                                {rec.voters.slice(0, 3).map(v => v.full_name || v.handle).join(", ")}
+                                {rec.voters.length > 3 && ` +${rec.voters.length - 3} more`}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>
