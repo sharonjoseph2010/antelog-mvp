@@ -107,8 +107,6 @@ export default function RequestRespond() {
   // Response form state - simplified: name + link per recommendation
   const [recommendations, setRecommendations] = useState<RecommendationInput[]>([
     { name: '', link: '' },
-    { name: '', link: '' },
-    { name: '', link: '' },
   ]);
   const [overallContext, setOverallContext] = useState("");
   const MAX_CONTEXT_LENGTH = 120;
@@ -294,10 +292,10 @@ export default function RequestRespond() {
   };
 
   const removeRecommendation = (index: number) => {
-    if (recommendations.length <= 3) {
+    if (recommendations.length <= 1) {
       toast({
         title: "Minimum required",
-        description: "You need at least 3 recommendations",
+        description: "You need at least 1 recommendation",
         variant: "destructive"
       });
       return;
@@ -314,12 +312,12 @@ export default function RequestRespond() {
   const handleSubmitResponse = async () => {
     if (!request) return;
 
-    // Validate at least 3 valid recommendations (name is required)
+    // Validate at least 1 valid recommendation (name is required)
     const validRecs = recommendations.filter(r => r.name.trim());
-    if (validRecs.length < 3) {
+    if (validRecs.length < 1) {
       toast({
         title: "Incomplete Response",
-        description: "Please provide at least 3 recommendations",
+        description: "Please provide at least 1 recommendation",
         variant: "destructive"
       });
       return;
@@ -434,8 +432,6 @@ export default function RequestRespond() {
       // Reset form and state
       setRecommendations([
         { name: '', link: '' },
-        { name: '', link: '' },
-        { name: '', link: '' },
       ]);
       setOverallContext("");
       setIsEditing(false);
@@ -464,8 +460,8 @@ export default function RequestRespond() {
         link: r.link || ''
       }));
     
-    // Ensure at least 3 slots
-    while (existingRecs.length < 3) {
+    // Ensure at least 1 slot
+    if (existingRecs.length < 1) {
       existingRecs.push({ name: '', link: '' });
     }
     
@@ -477,8 +473,6 @@ export default function RequestRespond() {
   const handleCancelEdit = () => {
     setIsEditing(false);
     setRecommendations([
-      { name: '', link: '' },
-      { name: '', link: '' },
       { name: '', link: '' },
     ]);
     setOverallContext("");
@@ -722,7 +716,7 @@ export default function RequestRespond() {
         
         <h1 className="text-3xl font-bold mb-2">Respond to Request</h1>
         <p className="text-muted-foreground">
-          Share your top 3-5 recommendations
+          Share your top 1-5 recommendations
         </p>
       </div>
 
