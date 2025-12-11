@@ -993,7 +993,7 @@ export default function RequestRespond() {
               {isEditing ? "Edit Your Recommendations" : "Add Your Recommendations"}
             </CardTitle>
             <p className="text-sm text-muted-foreground">
-              Share 3-5 specific recommendations. Each can be voted on individually.
+              Share 1-5 specific recommendations. Each can be voted on individually.
             </p>
           </CardHeader>
           
