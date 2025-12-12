@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Plus, ThumbsUp, MessageSquare, User, Users, UserCheck, MapPin, Clock, Share2, ArrowRight, Edit, Trash2, X, Link as LinkIcon } from "lucide-react";
+import { ArrowLeft, Plus, ThumbsUp, MessageSquare, User, Users, UserCheck, MapPin, Clock, Share2, ArrowRight, Edit, Trash2, X, Link as LinkIcon, AlertTriangle, Check } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ForwardRequestModal } from "@/components/ForwardRequestModal";
 import { DeleteRequestDialog } from "@/components/DeleteRequestDialog";
@@ -71,6 +71,17 @@ interface RecommendationInput {
   link: string;
 }
 
+interface SimilarRecommendation {
+  id: string;
+  recommendation_text: string;
+  vote_count: number;
+}
+
+interface Suggestions {
+  index: number;
+  items: SimilarRecommendation[];
+}
+
 // Helper function to validate URLs
 const isValidUrl = (url: string): boolean => {
   try {
@@ -79,6 +90,15 @@ const isValidUrl = (url: string): boolean => {
   } catch {
     return false;
   }
+};
+
+// Normalize text for duplicate detection
+const normalizeText = (text: string): string => {
+  return text
+    .trim()
+    .toLowerCase()
+    .replace(/[^\w\s]/g, '') // Remove punctuation
+    .replace(/\s+/g, ' '); // Collapse multiple spaces
 };
 
 export default function RequestRespond() {
@@ -110,6 +130,11 @@ export default function RequestRespond() {
   ]);
   const [overallContext, setOverallContext] = useState("");
   const MAX_CONTEXT_LENGTH = 120;
+
+  // Duplicate detection state
+  const [suggestions, setSuggestions] = useState<Suggestions | null>(null);
+  const [isSearching, setIsSearching] = useState(false);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -307,6 +332,152 @@ export default function RequestRespond() {
     const updated = [...recommendations];
     updated[index][field] = value;
     setRecommendations(updated);
+
+    // Trigger duplicate search when name field changes
+    if (field === 'name') {
+      searchForSimilarRecommendations(index, value);
+    }
+  };
+
+  // Search for similar existing recommendations with debouncing
+  const searchForSimilarRecommendations = useCallback((index: number, value: string) => {
+    // Clear any pending search
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    // Clear suggestions if input is too short
+    if (value.trim().length < 3) {
+      setSuggestions(null);
+      return;
+    }
+
+    // Debounce the search
+    searchTimeoutRef.current = setTimeout(async () => {
+      if (!id) return;
+      
+      setIsSearching(true);
+      try {
+        const normalized = normalizeText(value);
+        
+        // Search for similar recommendations in this request
+        const { data: similar, error } = await supabase
+          .from('response_recommendations')
+          .select(`
+            id,
+            recommendation_text,
+            vote_count,
+            response_id
+          `)
+          .limit(50);
+
+        if (error) throw error;
+
+        // Filter to recommendations for this request and matching text
+        // We need to get the response_ids that belong to this request
+        const { data: requestResponses } = await supabase
+          .from('request_responses')
+          .select('id')
+          .eq('request_id', id);
+
+        const validResponseIds = requestResponses?.map(r => r.id) || [];
+        
+        const matchingRecs = (similar || [])
+          .filter(rec => 
+            validResponseIds.includes(rec.response_id) &&
+            normalizeText(rec.recommendation_text).includes(normalized)
+          )
+          .slice(0, 5);
+
+        if (matchingRecs.length > 0) {
+          setSuggestions({
+            index,
+            items: matchingRecs.map(r => ({
+              id: r.id,
+              recommendation_text: r.recommendation_text,
+              vote_count: r.vote_count || 0
+            }))
+          });
+        } else {
+          setSuggestions(null);
+        }
+      } catch (error) {
+        console.error('Error searching for similar recommendations:', error);
+        setSuggestions(null);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300); // 300ms debounce
+  }, [id]);
+
+  // Handle selecting an existing recommendation to vote on instead
+  const handleSelectExistingRecommendation = async (existingRec: SimilarRecommendation, index: number) => {
+    if (!currentUserId) return;
+
+    // Check if user is request creator
+    if (isOwnRequest) {
+      toast({
+        title: "Cannot vote",
+        description: "Request creators cannot vote on recommendations",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      // Check if user already voted
+      const { data: existingVote } = await supabase
+        .from("recommendation_votes")
+        .select("id")
+        .eq("recommendation_id", existingRec.id)
+        .eq("user_id", currentUserId)
+        .maybeSingle();
+
+      if (existingVote) {
+        toast({
+          title: "Already voted",
+          description: `You've already voted for "${existingRec.recommendation_text}"`,
+          variant: "destructive"
+        });
+      } else {
+        // Add vote
+        const { error } = await supabase
+          .from("recommendation_votes")
+          .insert({
+            recommendation_id: existingRec.id,
+            user_id: currentUserId
+          });
+
+        if (error) throw error;
+        
+        toast({
+          title: "Voted on existing recommendation",
+          description: `You voted for "${existingRec.recommendation_text}"`,
+        });
+
+        // Refresh data to show updated vote count
+        await loadRequestData();
+      }
+
+      // Clear the input
+      const updated = [...recommendations];
+      updated[index].name = '';
+      setRecommendations(updated);
+      setSuggestions(null);
+
+    } catch (error) {
+      console.error('Error voting on recommendation:', error);
+      toast({
+        title: "Error",
+        description: "Failed to submit vote",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Dismiss suggestions for a specific input
+  const dismissSuggestions = () => {
+    setSuggestions(null);
   };
 
   const handleSubmitResponse = async () => {
@@ -384,11 +555,11 @@ export default function RequestRespond() {
         responseId = responseData.id;
       }
 
-      // Create individual recommendations
+      // Create individual recommendations with improved normalization
       const recsToInsert = validRecs.map((rec, index) => ({
         response_id: responseId,
         recommendation_text: rec.name.trim(),
-        recommendation_text_normalized: rec.name.trim().toLowerCase(),
+        recommendation_text_normalized: normalizeText(rec.name),
         position: index + 1,
         quick_details: null,
         reason: '',
@@ -1021,8 +1192,56 @@ export default function RequestRespond() {
                     placeholder="Enter product or service"
                     value={rec.name}
                     onChange={(e) => updateRecommendation(index, "name", e.target.value)}
+                    onBlur={() => {
+                      // Delay dismissal to allow click on suggestion
+                      setTimeout(() => {
+                        if (suggestions?.index === index) {
+                          setSuggestions(null);
+                        }
+                      }, 200);
+                    }}
                     maxLength={200}
                   />
+                  
+                  {/* Duplicate detection suggestions */}
+                  {suggestions && suggestions.index === index && suggestions.items.length > 0 && (
+                    <div className="border rounded-md mt-2 p-3 bg-yellow-50 dark:bg-yellow-950 border-yellow-200 dark:border-yellow-800">
+                      <div className="flex items-center gap-2 mb-2">
+                        <AlertTriangle className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+                        <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                          Similar recommendations exist
+                        </p>
+                      </div>
+                      <div className="space-y-1">
+                        {suggestions.items.map(item => (
+                          <div 
+                            key={item.id}
+                            className="flex items-center justify-between text-sm p-2 rounded bg-yellow-100 dark:bg-yellow-900 hover:bg-yellow-200 dark:hover:bg-yellow-800 cursor-pointer transition-colors"
+                            onClick={() => handleSelectExistingRecommendation(item, index)}
+                          >
+                            <span className="text-yellow-900 dark:text-yellow-100">
+                              {item.recommendation_text}
+                            </span>
+                            <span className="flex items-center gap-1 text-xs text-yellow-700 dark:text-yellow-300">
+                              <ThumbsUp className="h-3 w-3" />
+                              {item.vote_count} votes - Click to vote
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex justify-end mt-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={dismissSuggestions}
+                          className="text-xs text-yellow-700 dark:text-yellow-300 hover:text-yellow-900 dark:hover:text-yellow-100"
+                        >
+                          <Check className="h-3 w-3 mr-1" />
+                          No, this is different
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 
                 <div className="space-y-1">
