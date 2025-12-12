@@ -1051,6 +1051,21 @@ export type Database = {
         Returns: Json
       }
       refresh_master_directory: { Args: never; Returns: undefined }
+      search_similar_recommendations: {
+        Args: {
+          req_id: string
+          search_term: string
+          similarity_threshold?: number
+        }
+        Returns: {
+          id: string
+          recommendation_text: string
+          similarity_score: number
+          vote_count: number
+        }[]
+      }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
       update_matched_contacts: {
         Args: { user_id_input: string }
         Returns: number

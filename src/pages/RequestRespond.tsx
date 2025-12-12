@@ -75,6 +75,7 @@ interface SimilarRecommendation {
   id: string;
   recommendation_text: string;
   vote_count: number;
+  similarity_score?: number;
 }
 
 interface Suggestions {
@@ -360,42 +361,30 @@ export default function RequestRespond() {
       try {
         const normalized = normalizeText(value);
         
-        // Search for similar recommendations in this request
+        // Use fuzzy matching with PostgreSQL's pg_trgm similarity
         const { data: similar, error } = await supabase
-          .from('response_recommendations')
-          .select(`
-            id,
-            recommendation_text,
-            vote_count,
-            response_id
-          `)
-          .limit(50);
+          .rpc('search_similar_recommendations', {
+            search_term: normalized,
+            req_id: id,
+            similarity_threshold: 0.4
+          });
 
-        if (error) throw error;
+        if (error) {
+          console.error('Fuzzy search error:', error);
+          setSuggestions(null);
+          return;
+        }
 
-        // Filter to recommendations for this request and matching text
-        // We need to get the response_ids that belong to this request
-        const { data: requestResponses } = await supabase
-          .from('request_responses')
-          .select('id')
-          .eq('request_id', id);
+        console.log('Fuzzy search results:', similar);
 
-        const validResponseIds = requestResponses?.map(r => r.id) || [];
-        
-        const matchingRecs = (similar || [])
-          .filter(rec => 
-            validResponseIds.includes(rec.response_id) &&
-            normalizeText(rec.recommendation_text).includes(normalized)
-          )
-          .slice(0, 5);
-
-        if (matchingRecs.length > 0) {
+        if (similar && similar.length > 0) {
           setSuggestions({
             index,
-            items: matchingRecs.map(r => ({
+            items: similar.map((r: { id: string; recommendation_text: string; vote_count: number; similarity_score: number }) => ({
               id: r.id,
               recommendation_text: r.recommendation_text,
-              vote_count: r.vote_count || 0
+              vote_count: r.vote_count || 0,
+              similarity_score: r.similarity_score
             }))
           });
         } else {
@@ -1222,9 +1211,17 @@ export default function RequestRespond() {
                             <span className="text-yellow-900 dark:text-yellow-100">
                               {item.recommendation_text}
                             </span>
-                            <span className="flex items-center gap-1 text-xs text-yellow-700 dark:text-yellow-300">
-                              <ThumbsUp className="h-3 w-3" />
-                              {item.vote_count} votes - Click to vote
+                            <span className="flex items-center gap-2 text-xs text-yellow-700 dark:text-yellow-300">
+                              {item.similarity_score && (
+                                <span className="bg-yellow-200 dark:bg-yellow-800 px-1.5 py-0.5 rounded">
+                                  {Math.round(item.similarity_score * 100)}% match
+                                </span>
+                              )}
+                              <span className="flex items-center gap-1">
+                                <ThumbsUp className="h-3 w-3" />
+                                {item.vote_count} {item.vote_count === 1 ? 'vote' : 'votes'}
+                              </span>
+                              <span>- Click to vote</span>
                             </span>
                           </div>
                         ))}
