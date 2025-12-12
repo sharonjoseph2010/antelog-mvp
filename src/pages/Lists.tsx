@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/components/ui/use-toast";
+import { CheckCircle } from "lucide-react";
 
 interface ListWithCount {
   id: string;
@@ -14,6 +15,7 @@ interface ListWithCount {
   visibility: string;
   created_at: string;
   itemCount: number;
+  source_request_id: string | null;
 }
 
 const fetchMyLists = async (): Promise<ListWithCount[]> => {
@@ -23,7 +25,7 @@ const fetchMyLists = async (): Promise<ListWithCount[]> => {
 
   const { data: lists, error: listsError } = await supabase
     .from("lists")
-    .select("id,title,category,visibility,created_at")
+    .select("id,title,category,visibility,created_at,source_request_id")
     .eq("owner_id", userId)
     .order("created_at", { ascending: false });
 
@@ -40,7 +42,6 @@ const fetchMyLists = async (): Promise<ListWithCount[]> => {
     .in("list_id", listIds);
 
   if (itemsError) {
-    // Non-fatal: show toast but still render lists with count 0
     console.warn("Items fetch error", itemsError);
   }
 
@@ -56,6 +57,7 @@ const fetchMyLists = async (): Promise<ListWithCount[]> => {
     visibility: l.visibility as string,
     created_at: l.created_at as string,
     itemCount: counts.get(l.id as string) ?? 0,
+    source_request_id: l.source_request_id as string | null,
   }));
 };
 
@@ -89,7 +91,10 @@ const Lists = () => {
             <div className="text-muted-foreground">Loading...</div>
           ) : (data?.length ?? 0) === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-md border border-input p-10 text-center">
-              <p className="mb-4 text-muted-foreground">You haven’t created any lists yet.</p>
+              <p className="mb-2 font-medium">No lists yet</p>
+              <p className="mb-4 text-sm text-muted-foreground">
+                Create a new list or close a request to save recommendations here
+              </p>
               <Button asChild>
                 <Link to="/lists/new">Create Your First List</Link>
               </Button>
@@ -99,7 +104,15 @@ const Lists = () => {
               {data!.map((list) => (
                 <Card key={list.id} className="hover:shadow-md transition-shadow">
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-lg">{list.title}</CardTitle>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      {list.title}
+                      {list.source_request_id && (
+                        <Badge variant="secondary" className="text-xs font-normal flex items-center gap-1">
+                          <CheckCircle className="h-3 w-3" />
+                          From Request
+                        </Badge>
+                      )}
+                    </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-2 text-sm">
                     <div className="flex items-center gap-2">
