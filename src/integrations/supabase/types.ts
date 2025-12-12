@@ -385,6 +385,7 @@ export type Database = {
           description: string | null
           id: string
           owner_id: string
+          source_request_id: string | null
           title: string
           updated_at: string
           visibility: Database["public"]["Enums"]["list_visibility"]
@@ -395,6 +396,7 @@ export type Database = {
           description?: string | null
           id?: string
           owner_id: string
+          source_request_id?: string | null
           title: string
           updated_at?: string
           visibility?: Database["public"]["Enums"]["list_visibility"]
@@ -405,6 +407,7 @@ export type Database = {
           description?: string | null
           id?: string
           owner_id?: string
+          source_request_id?: string | null
           title?: string
           updated_at?: string
           visibility?: Database["public"]["Enums"]["list_visibility"]
@@ -415,6 +418,13 @@ export type Database = {
             columns: ["owner_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lists_source_request_id_fkey"
+            columns: ["source_request_id"]
+            isOneToOne: false
+            referencedRelation: "requests"
             referencedColumns: ["id"]
           },
         ]

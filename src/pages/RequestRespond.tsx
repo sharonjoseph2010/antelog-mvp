@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Plus, ThumbsUp, MessageSquare, User, Users, UserCheck, MapPin, Clock, Share2, ArrowRight, Edit, Trash2, X, Link as LinkIcon, AlertTriangle, Check } from "lucide-react";
+import { ArrowLeft, Plus, ThumbsUp, MessageSquare, User, Users, UserCheck, MapPin, Clock, Share2, ArrowRight, Edit, Trash2, X, Link as LinkIcon, AlertTriangle, Check, CheckCircle, Save } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ForwardRequestModal } from "@/components/ForwardRequestModal";
 import { DeleteRequestDialog } from "@/components/DeleteRequestDialog";
@@ -116,6 +116,7 @@ export default function RequestRespond() {
   const [hasForwarded, setHasForwarded] = useState(false);
   const [isOwnRequest, setIsOwnRequest] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isClosingRequest, setIsClosingRequest] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   
@@ -769,6 +770,110 @@ export default function RequestRespond() {
     }
   };
 
+  // Close request and save top recommendations to My Lists
+  const handleCloseAndSave = async () => {
+    if (!request || !currentUserId) return;
+    
+    console.log('=== CLOSING REQUEST AND SAVING TO MY LISTS ===');
+    setIsClosingRequest(true);
+    
+    try {
+      // 1. Get top 10 recommendations by vote count from aggregated top recs
+      const allRecs = responses.flatMap(r => r.recommendations);
+      const grouped = allRecs.reduce((acc, rec) => {
+        const key = rec.recommendation_text_normalized || rec.recommendation_text.toLowerCase();
+        if (!acc[key]) {
+          acc[key] = { ...rec, total_votes: rec.vote_count };
+        } else {
+          acc[key].total_votes += rec.vote_count;
+        }
+        return acc;
+      }, {} as Record<string, Recommendation & { total_votes: number }>);
+      
+      const topRecommendations = Object.values(grouped)
+        .sort((a, b) => b.total_votes - a.total_votes)
+        .slice(0, 10);
+      
+      console.log('Top 10 recommendations:', topRecommendations);
+      
+      if (!topRecommendations || topRecommendations.length === 0) {
+        toast({
+          title: "No recommendations to save",
+          description: "This request has no recommendations yet.",
+          variant: "destructive"
+        });
+        setIsClosingRequest(false);
+        return;
+      }
+      
+      // 2. Create saved list using existing lists table
+      const { data: savedList, error: listError } = await supabase
+        .from('lists')
+        .insert({
+          owner_id: currentUserId,
+          title: request.title,
+          description: `Saved from request - ${topRecommendations.length} top recommendations with ${topRecommendations.reduce((sum, rec) => sum + rec.total_votes, 0)} total votes`,
+          category: request.category as any,
+          visibility: 'private',
+          source_request_id: request.id
+        })
+        .select()
+        .single();
+      
+      if (listError) throw listError;
+      
+      console.log('Saved list created:', savedList);
+      
+      // 3. Save top items to list_items
+      const listItems = topRecommendations.map((rec, index) => ({
+        list_id: savedList.id,
+        content: rec.recommendation_text,
+        url: rec.link,
+        position: index + 1
+      }));
+      
+      const { error: itemsError } = await supabase
+        .from('list_items')
+        .insert(listItems);
+      
+      if (itemsError) throw itemsError;
+      
+      console.log('List items saved:', listItems.length);
+      
+      // 4. Mark request as closed
+      const { error: updateError } = await supabase
+        .from('requests')
+        .update({ 
+          status: 'closed',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', request.id);
+      
+      if (updateError) throw updateError;
+      
+      console.log('Request marked as closed');
+      
+      // 5. Show success message
+      toast({
+        title: "Request closed!",
+        description: `Saved top ${topRecommendations.length} recommendations to My Lists`
+      });
+      
+      // 6. Reload to show closed state
+      await loadRequestData();
+      
+    } catch (error: any) {
+      console.error('Error closing request:', error);
+      toast({
+        title: "Failed to close request",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setIsClosingRequest(false);
+    }
+  };
+
   const formatCategory = (category: string) => {
     return category.charAt(0).toUpperCase() + category.slice(1).replace('_', ' ');
   };
@@ -990,6 +1095,68 @@ export default function RequestRespond() {
         </CardContent>
       </Card>
 
+      {/* Request Closed Status Banner */}
+      {request.status === 'closed' && (
+        <Card className="mb-8 border-green-500/30 bg-green-500/5">
+          <CardContent className="py-6">
+            <div className="flex items-center gap-4">
+              <div className="flex-shrink-0 w-12 h-12 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center">
+                <CheckCircle className="h-6 w-6 text-green-600 dark:text-green-400" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-medium text-green-800 dark:text-green-200">Request Closed</h3>
+                <p className="text-sm text-green-600 dark:text-green-400">
+                  This request is closed. No new responses will be accepted.
+                </p>
+              </div>
+              {isOwnRequest && (
+                <Button 
+                  variant="outline" 
+                  onClick={() => navigate('/lists')}
+                  className="flex items-center gap-2"
+                >
+                  <Save className="h-4 w-4" />
+                  View in My Lists
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Close Request Button - Only for request creator when open */}
+      {isOwnRequest && request.status === 'open' && topRecommendations.length > 0 && (
+        <Card className="mb-8 border-primary/30 bg-primary/5">
+          <CardContent className="py-6">
+            <div className="flex items-center gap-4">
+              <div className="flex-shrink-0 w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
+                <Save className="h-6 w-6 text-primary" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-medium">Ready to close this request?</h3>
+                <p className="text-sm text-muted-foreground">
+                  Save the top {Math.min(topRecommendations.length, 10)} recommendations to your personal collection
+                </p>
+              </div>
+              <Button 
+                onClick={handleCloseAndSave}
+                disabled={isClosingRequest}
+                className="flex items-center gap-2"
+              >
+                {isClosingRequest ? (
+                  <>Saving...</>
+                ) : (
+                  <>
+                    <CheckCircle className="h-4 w-4" />
+                    Close & Save to My Lists
+                  </>
+                )}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Top Recommendations Summary */}
       {topRecommendations.length > 0 && (
         <Card className="mb-8 border-primary/20 bg-primary/5">
@@ -1128,19 +1295,36 @@ export default function RequestRespond() {
               </p>
             )}
             
-            <div className="flex gap-3 pt-2 border-t">
-              <Button variant="outline" onClick={handleEditResponse} className="flex items-center gap-2">
-                <Edit className="h-4 w-4" />
-                Edit Response
-              </Button>
-              <Button 
-                variant="outline" 
-                onClick={() => setShowDeleteResponseDialog(true)}
-                className="flex items-center gap-2 text-destructive hover:bg-destructive hover:text-destructive-foreground"
-              >
-                <Trash2 className="h-4 w-4" />
-                Delete Response
-              </Button>
+            {request.status !== 'closed' && (
+              <div className="flex gap-3 pt-2 border-t">
+                <Button variant="outline" onClick={handleEditResponse} className="flex items-center gap-2">
+                  <Edit className="h-4 w-4" />
+                  Edit Response
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={() => setShowDeleteResponseDialog(true)}
+                  className="flex items-center gap-2 text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete Response
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      ) : request.status === 'closed' ? (
+        /* Request is closed - show message */
+        <Card className="mb-8 border-muted">
+          <CardContent className="py-8">
+            <div className="text-center">
+              <div className="mx-auto w-12 h-12 bg-muted rounded-full flex items-center justify-center mb-3">
+                <CheckCircle className="h-6 w-6 text-muted-foreground" />
+              </div>
+              <h3 className="font-medium mb-1">This request has been closed</h3>
+              <p className="text-sm text-muted-foreground">
+                The creator is no longer accepting new recommendations
+              </p>
             </div>
           </CardContent>
         </Card>
