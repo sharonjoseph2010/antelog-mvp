@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminDeduplication } from "@/components/AdminDeduplication";
-import { Trash2, Search, Users } from "lucide-react";
+import { Trash2, Search, Users, Mail } from "lucide-react";
 
 type PendingProfile = {
   id: string;
@@ -32,6 +32,12 @@ type UserProfile = {
   email?: string;
 };
 
+type WaitlistEntry = {
+  id: string;
+  email: string;
+  created_at: string;
+};
+
 const Admin = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -44,6 +50,14 @@ const Admin = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<UserProfile | null>(null);
   const [deleting, setDeleting] = useState(false);
+  
+  // Waitlist state
+  const [waitlistEmails, setWaitlistEmails] = useState<WaitlistEntry[]>([]);
+  const [waitlistLoading, setWaitlistLoading] = useState(false);
+  const [waitlistSearch, setWaitlistSearch] = useState("");
+  const [waitlistDeleteDialogOpen, setWaitlistDeleteDialogOpen] = useState(false);
+  const [emailToDelete, setEmailToDelete] = useState<WaitlistEntry | null>(null);
+  const [deletingEmail, setDeletingEmail] = useState(false);
 
   const loadPending = async () => {
     const { data, error } = await supabase
@@ -96,6 +110,23 @@ const Admin = () => {
     setUsersLoading(false);
   };
 
+  const loadWaitlist = async () => {
+    setWaitlistLoading(true);
+    const { data, error } = await supabase
+      .from("temp_waitlist")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      toast.error("Failed to load waitlist");
+      setWaitlistLoading(false);
+      return;
+    }
+
+    setWaitlistEmails(data || []);
+    setWaitlistLoading(false);
+  };
+
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -118,6 +149,7 @@ const Admin = () => {
       if (hasAdminRole) {
         await loadPending();
         await loadUsers();
+        await loadWaitlist();
       }
 
       setLoading(false);
@@ -162,6 +194,29 @@ const Admin = () => {
     }
   };
 
+  const handleDeleteWaitlistEmail = async () => {
+    if (!emailToDelete) return;
+    
+    setDeletingEmail(true);
+    try {
+      const { error } = await supabase
+        .from("temp_waitlist")
+        .delete()
+        .eq("id", emailToDelete.id);
+
+      if (error) throw error;
+
+      toast.success(`${emailToDelete.email} removed from waitlist`);
+      setWaitlistEmails(prev => prev.filter(e => e.id !== emailToDelete.id));
+      setWaitlistDeleteDialogOpen(false);
+      setEmailToDelete(null);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to delete email");
+    } finally {
+      setDeletingEmail(false);
+    }
+  };
+
   const filteredUsers = useMemo(() => {
     if (!searchQuery) return users;
     const query = searchQuery.toLowerCase();
@@ -173,8 +228,15 @@ const Admin = () => {
     );
   }, [users, searchQuery]);
 
+  const filteredWaitlist = useMemo(() => {
+    if (!waitlistSearch) return waitlistEmails;
+    const query = waitlistSearch.toLowerCase();
+    return waitlistEmails.filter(e => e.email.toLowerCase().includes(query));
+  }, [waitlistEmails, waitlistSearch]);
+
   const pendingCount = items.length;
   const totalUsers = users.length;
+  const waitlistCount = waitlistEmails.length;
 
   return (
     <>
@@ -202,7 +264,7 @@ const Admin = () => {
           {isAdmin && (
             <>
               <Tabs defaultValue="users" className="w-full">
-                <TabsList className="grid w-full grid-cols-3">
+                <TabsList className="grid w-full grid-cols-4">
                   <TabsTrigger value="users" className="gap-2">
                     <Users className="h-4 w-4" />
                     User Management
@@ -211,6 +273,11 @@ const Admin = () => {
                   <TabsTrigger value="verifications" className="gap-2">
                     Pending Verifications
                     {pendingCount > 0 && <Badge variant="destructive">{pendingCount}</Badge>}
+                  </TabsTrigger>
+                  <TabsTrigger value="waitlist" className="gap-2">
+                    <Mail className="h-4 w-4" />
+                    Waitlist
+                    <Badge variant="secondary">{waitlistCount}</Badge>
                   </TabsTrigger>
                   <TabsTrigger value="tools">Admin Tools</TabsTrigger>
                 </TabsList>
@@ -363,6 +430,73 @@ const Admin = () => {
             </div>
                 </TabsContent>
 
+                <TabsContent value="waitlist" className="space-y-4">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Waitlist Signups</CardTitle>
+                      <CardDescription>
+                        Manage email addresses from the temporary waitlist. Total: {waitlistCount} signups.
+                      </CardDescription>
+                      <div className="flex items-center gap-2 pt-4">
+                        <Search className="h-4 w-4 text-muted-foreground" />
+                        <Input
+                          placeholder="Search emails..."
+                          value={waitlistSearch}
+                          onChange={(e) => setWaitlistSearch(e.target.value)}
+                          className="max-w-sm"
+                        />
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      {waitlistLoading ? (
+                        <p className="text-center text-muted-foreground py-8">Loading waitlist...</p>
+                      ) : (
+                        <div className="rounded-md border">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Email</TableHead>
+                                <TableHead>Joined Date</TableHead>
+                                <TableHead className="text-right">Actions</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {filteredWaitlist.length === 0 ? (
+                                <TableRow>
+                                  <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
+                                    No waitlist signups yet
+                                  </TableCell>
+                                </TableRow>
+                              ) : (
+                                filteredWaitlist.map((entry) => (
+                                  <TableRow key={entry.id}>
+                                    <TableCell className="font-medium">{entry.email}</TableCell>
+                                    <TableCell className="text-sm">
+                                      {new Date(entry.created_at).toLocaleDateString()}
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                      <Button
+                                        size="sm"
+                                        variant="destructive"
+                                        onClick={() => {
+                                          setEmailToDelete(entry);
+                                          setWaitlistDeleteDialogOpen(true);
+                                        }}
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </TableCell>
+                                  </TableRow>
+                                ))
+                              )}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
                 <TabsContent value="tools">
                   <AdminDeduplication />
                 </TabsContent>
@@ -393,6 +527,29 @@ const Admin = () => {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleting ? "Deleting..." : "Permanently Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={waitlistDeleteDialogOpen} onOpenChange={setWaitlistDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove from Waitlist?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove{" "}
+              <span className="font-semibold">{emailToDelete?.email}</span>{" "}
+              from the waitlist.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingEmail}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteWaitlistEmail}
+              disabled={deletingEmail}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deletingEmail ? "Removing..." : "Remove"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
