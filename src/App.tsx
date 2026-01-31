@@ -40,6 +40,7 @@ import Directory from "./pages/Directory";
 import GuestSignup from "./pages/GuestSignup";
 import ForYou from "./pages/ForYou";
 import Profile from "./pages/Profile";
+import Waitlist from "./pages/Waitlist";
 
 const queryClient = new QueryClient();
 
@@ -305,6 +306,7 @@ function AppContent({
         <Route path="/" element={initializing ? <div className="min-h-screen flex items-center justify-center">Loading...</div> : <Index />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/guest-signup" element={<GuestSignup />} />
+        <Route path="/waitlist" element={<Waitlist />} />
         <Route path="/directory" element={
           <ProtectedRoute isAuthenticated={isAuthenticated}>
             <Directory />

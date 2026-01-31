@@ -53,11 +53,13 @@ const Index = () => {
           <p className="mt-4 text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto">
             {currentContent.description}
           </p>
-          <div className="mt-8">
-            <Button asChild size="lg">
-              <Link to="/guest-signup">{currentContent.buttonText}</Link>
-            </Button>
-          </div>
+          {!isStealthMode && (
+            <div className="mt-8">
+              <Button asChild size="lg">
+                <Link to="/guest-signup">{currentContent.buttonText}</Link>
+              </Button>
+            </div>
+          )}
         </section>
 
         <section id="features" className="container mx-auto px-4 py-12">
@@ -142,7 +144,7 @@ const Index = () => {
           <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center max-w-md mx-auto">
             {isStealthMode ? (
               <Button asChild size="lg" className="w-full">
-                <Link to="/signup">Join Waitlist</Link>
+                <Link to="/waitlist">Join Waitlist</Link>
               </Button>
             ) : (
               <>
