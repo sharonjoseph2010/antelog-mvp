@@ -9,9 +9,9 @@ const Index = () => {
 
   const content = {
     stealth: {
-      title: "A new social platform for students",
-      description: "Connect, share, and discover with your network. Built by students, for students.",
-      metaDescription: "A new social platform for students. Join the waitlist for early access.",
+      title: "Trust-powered recommendations",
+      description: "Discover verified lists from real people. No ads, no influencers, just trusted recommendations from your network.",
+      metaDescription: "Discover verified lists from real people. No ads, no influencers—just trusted recommendations from your network.",
       buttonText: "Join Waitlist"
     },
     public: {
@@ -69,13 +69,10 @@ const Index = () => {
                 <div className="mb-2 text-muted-foreground">
                   <Users className="h-5 w-5" aria-hidden />
                 </div>
-                <CardTitle>{isStealthMode ? "Student Network" : "Trust-Based Network"}</CardTitle>
+                <CardTitle>Trust-Based Network</CardTitle>
               </CardHeader>
               <CardContent className="text-muted-foreground">
-                {isStealthMode 
-                  ? "Connect with fellow students and discover what matters to your network."
-                  : "Connect only with people you know. See recommendations from your contacts and their extended network."
-                }
+                Connect only with people you know. See recommendations from your contacts and their extended network.
               </CardContent>
             </Card>
 
@@ -84,13 +81,10 @@ const Index = () => {
                 <div className="mb-2 text-muted-foreground">
                   <ShieldCheck className="h-5 w-5" aria-hidden />
                 </div>
-                <CardTitle>{isStealthMode ? "Built for Students" : "Verified Lists"}</CardTitle>
+                <CardTitle>Verified Lists</CardTitle>
               </CardHeader>
               <CardContent className="text-muted-foreground">
-                {isStealthMode
-                  ? "By students, for students. A platform designed with your needs in mind."
-                  : "Text-only lists from verified users. No sponsored content, no fake reviews."
-                }
+                Text-only lists from verified users. No sponsored content, no fake reviews.
               </CardContent>
             </Card>
 
@@ -99,13 +93,10 @@ const Index = () => {
                 <div className="mb-2 text-muted-foreground">
                   <ShieldCheck className="h-5 w-5" aria-hidden />
                 </div>
-                <CardTitle>{isStealthMode ? "Coming Soon" : "Smart Discovery"}</CardTitle>
+                <CardTitle>Smart Discovery</CardTitle>
               </CardHeader>
               <CardContent className="text-muted-foreground">
-                {isStealthMode
-                  ? "Join the waitlist for early access. Launching soon for students."
-                  : "Find recommendations based on your network and interests, not algorithms."
-                }
+                Find recommendations based on your network and interests, not algorithms.
               </CardContent>
             </Card>
           </div>
@@ -114,16 +105,16 @@ const Index = () => {
         {/* How It Works */}
         <section className="container mx-auto px-4 py-12">
           <div className="max-w-4xl mx-auto">
-            <h2 className="text-2xl font-semibold">{isStealthMode ? "Join the community" : "How it works"}</h2>
+            <h2 className="text-2xl font-semibold">Join the community</h2>
             <ol className="mt-6 grid gap-4 md:grid-cols-3 list-decimal list-inside">
               <li className="p-4 rounded-md border bg-card text-card-foreground">
-                {isStealthMode ? "Get verified as a student" : "Get verified"}
+                Get verified
               </li>
               <li className="p-4 rounded-md border bg-card text-card-foreground">
-                {isStealthMode ? "Connect with your network" : "Create and share lists"}
+                Create and share lists
               </li>
               <li className="p-4 rounded-md border bg-card text-card-foreground">
-                {isStealthMode ? "Discover and share" : "Discover from your network"}
+                Discover from your network
               </li>
             </ol>
           </div>
@@ -137,7 +128,7 @@ const Index = () => {
           </h2>
           <p className="mt-3 text-muted-foreground max-w-2xl mx-auto">
             {isStealthMode 
-              ? "Be among the first to experience the new social platform for students."
+              ? "Be among the first to experience trust-powered recommendations."
               : "Choose how you want to join our community of curated recommendations."
             }
           </p>
