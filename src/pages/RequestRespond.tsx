@@ -958,7 +958,7 @@ export default function RequestRespond() {
           token: tokenData,
           generated_by_user_id: user.id,
           generated_by_name: profile?.full_name || "You",
-          max_responses: 5,
+          max_responses: 999,  // Unlimited for Antelog users
           current_responses: 0
         });
 
@@ -1300,7 +1300,7 @@ export default function RequestRespond() {
             <CardContent className="space-y-4">
               <p className="text-sm text-muted-foreground">
                 Generate a shareable link for friends who aren't on Antelog. 
-                Each link can be used by up to 5 people, and they can each share with 5 more.
+                Your link has unlimited uses. Each person who responds can share with up to 5 more people.
               </p>
 
               {/* Existing Share Links */}
@@ -1314,7 +1314,9 @@ export default function RequestRespond() {
                         <div className="flex items-center justify-between">
                           <span className="text-sm font-medium">Link #{idx + 1}</span>
                           <Badge variant={link.current_responses >= link.max_responses ? "secondary" : "default"}>
-                            {link.current_responses}/{link.max_responses} used
+                            {link.max_responses >= 999 
+                              ? `${link.current_responses} responses` 
+                              : `${link.current_responses}/${link.max_responses} used`}
                           </Badge>
                         </div>
                         <div className="flex gap-2">
