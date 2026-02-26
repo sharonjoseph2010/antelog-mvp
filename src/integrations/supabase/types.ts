@@ -448,6 +448,8 @@ export type Database = {
           owner_id: string
           source_request_id: string | null
           title: string
+          total_contributors: number | null
+          total_votes: number | null
           updated_at: string
           visibility: Database["public"]["Enums"]["list_visibility"]
         }
@@ -459,6 +461,8 @@ export type Database = {
           owner_id: string
           source_request_id?: string | null
           title: string
+          total_contributors?: number | null
+          total_votes?: number | null
           updated_at?: string
           visibility?: Database["public"]["Enums"]["list_visibility"]
         }
@@ -470,6 +474,8 @@ export type Database = {
           owner_id?: string
           source_request_id?: string | null
           title?: string
+          total_contributors?: number | null
+          total_votes?: number | null
           updated_at?: string
           visibility?: Database["public"]["Enums"]["list_visibility"]
         }
@@ -632,6 +638,59 @@ export type Database = {
             columns: ["college_id"]
             isOneToOne: false
             referencedRelation: "colleges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recommendation_clusters: {
+        Row: {
+          canonical_text: string
+          cluster_method: string | null
+          created_at: string | null
+          id: string
+          mention_count: number | null
+          position: number | null
+          recommendation_ids: string[]
+          request_id: string
+          similarity_score: number | null
+          status: string | null
+          total_votes: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          canonical_text: string
+          cluster_method?: string | null
+          created_at?: string | null
+          id?: string
+          mention_count?: number | null
+          position?: number | null
+          recommendation_ids?: string[]
+          request_id: string
+          similarity_score?: number | null
+          status?: string | null
+          total_votes?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          canonical_text?: string
+          cluster_method?: string | null
+          created_at?: string | null
+          id?: string
+          mention_count?: number | null
+          position?: number | null
+          recommendation_ids?: string[]
+          request_id?: string
+          similarity_score?: number | null
+          status?: string | null
+          total_votes?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recommendation_clusters_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "requests"
             referencedColumns: ["id"]
           },
         ]
@@ -1048,6 +1107,50 @@ export type Database = {
       }
     }
     Views: {
+      cluster_details: {
+        Row: {
+          canonical_text: string | null
+          cluster_id: string | null
+          mention_count: number | null
+          position: number | null
+          request_id: string | null
+          similarity_score: number | null
+          status: string | null
+          total_votes: number | null
+          variations: Json | null
+        }
+        Insert: {
+          canonical_text?: string | null
+          cluster_id?: string | null
+          mention_count?: number | null
+          position?: number | null
+          request_id?: string | null
+          similarity_score?: number | null
+          status?: string | null
+          total_votes?: number | null
+          variations?: never
+        }
+        Update: {
+          canonical_text?: string | null
+          cluster_id?: string | null
+          mention_count?: number | null
+          position?: number | null
+          request_id?: string | null
+          similarity_score?: number | null
+          status?: string | null
+          total_votes?: number | null
+          variations?: never
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recommendation_clusters_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       master_directory_view: {
         Row: {
           category: Database["public"]["Enums"]["list_category"] | null
@@ -1239,7 +1342,7 @@ export type Database = {
         | "specific_people"
         | "public"
       request_category: "films" | "places" | "products" | "services" | "other"
-      request_status: "open" | "responded" | "closed"
+      request_status: "open" | "responded" | "reviewing" | "closed"
       response_type: "existing_list" | "new_recommendations" | "comment"
       user_type: "verified" | "guest"
       verification_status: "pending" | "verified" | "rejected"
@@ -1381,7 +1484,7 @@ export const Constants = {
         "public",
       ],
       request_category: ["films", "places", "products", "services", "other"],
-      request_status: ["open", "responded", "closed"],
+      request_status: ["open", "responded", "reviewing", "closed"],
       response_type: ["existing_list", "new_recommendations", "comment"],
       user_type: ["verified", "guest"],
       verification_status: ["pending", "verified", "rejected"],
