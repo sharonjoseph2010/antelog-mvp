@@ -13,6 +13,7 @@ import { formatDistanceToNow } from "date-fns";
 import { ForwardRequestModal } from "@/components/ForwardRequestModal";
 import { DeleteRequestDialog } from "@/components/DeleteRequestDialog";
 import { areUsersConnected, getDisplayNameSync } from "@/hooks/useNetworkAwareName";
+import { initiateClusteringReview } from "@/lib/clustering";
 
 interface NetworkPathNode {
   user_id: string;
@@ -117,6 +118,7 @@ export default function RequestRespond() {
   const [isOwnRequest, setIsOwnRequest] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isClosingRequest, setIsClosingRequest] = useState(false);
+  const [isStartingReview, setIsStartingReview] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [guestContributions, setGuestContributions] = useState<any[]>([]);
@@ -936,7 +938,31 @@ export default function RequestRespond() {
     }
   };
 
-  const generateShareLink = async () => {
+  // Close & Review: cluster recommendations and navigate to review page
+  const handleStartReview = async () => {
+    if (!request?.id) return;
+    
+    setIsStartingReview(true);
+    try {
+      const clusters = await initiateClusteringReview(request.id);
+      toast({
+        title: "Review Started!",
+        description: `Found ${clusters.length} unique recommendations to review`
+      });
+      navigate(`/requests/${request.id}/review`);
+    } catch (error: any) {
+      console.error('Error starting review:', error);
+      toast({
+        title: "Failed to Start Review",
+        description: error?.message || "Please try again",
+        variant: "destructive"
+      });
+    } finally {
+      setIsStartingReview(false);
+    }
+  };
+
+
     setIsGeneratingLink(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -1243,7 +1269,7 @@ export default function RequestRespond() {
         </Card>
       )}
 
-      {/* Close Request Button - Only for request creator when open */}
+      {/* Close & Review Button - Only for request creator when open */}
       {isOwnRequest && request.status === 'open' && topRecommendations.length > 0 && (
         <Card className="mb-8 border-primary/30 bg-primary/5">
           <CardContent className="py-6">
@@ -1254,23 +1280,51 @@ export default function RequestRespond() {
               <div className="flex-1">
                 <h3 className="font-medium">Ready to close this request?</h3>
                 <p className="text-sm text-muted-foreground">
-                  Save the top {Math.min(topRecommendations.length, 10)} recommendations to your personal collection
+                  Review and save the best recommendations to your list
                 </p>
               </div>
               <Button 
-                onClick={handleCloseAndSave}
-                disabled={isClosingRequest}
+                onClick={handleStartReview}
+                disabled={isStartingReview}
                 className="flex items-center gap-2"
               >
-                {isClosingRequest ? (
-                  <>Saving...</>
+                {isStartingReview ? (
+                  <>Processing...</>
                 ) : (
                   <>
                     <CheckCircle className="h-4 w-4" />
-                    Close & Save to My Lists
+                    Close & Review
                   </>
                 )}
               </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Review in Progress State */}
+      {request.status === 'reviewing' && (
+        <Card className="mb-8 border-amber-500/30 bg-amber-500/5">
+          <CardContent className="py-6">
+            <div className="flex items-center gap-4">
+              <div className="flex-shrink-0 w-12 h-12 bg-amber-100 dark:bg-amber-900 rounded-full flex items-center justify-center">
+                <Clock className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-medium text-amber-800 dark:text-amber-200">Review in Progress</h3>
+                <p className="text-sm text-amber-600 dark:text-amber-400">
+                  You're currently reviewing this request's recommendations
+                </p>
+              </div>
+              {isOwnRequest && (
+                <Button 
+                  onClick={() => navigate(`/requests/${request.id}/review`)} 
+                  variant="outline" 
+                  className="flex items-center gap-2"
+                >
+                  Continue Review
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
