@@ -119,6 +119,7 @@ export default function RequestRespond() {
   const [isClosingRequest, setIsClosingRequest] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [guestContributions, setGuestContributions] = useState<any[]>([]);
   
   // User's existing response state
   const [userResponse, setUserResponse] = useState<RequestResponse | null>(null);
@@ -293,6 +294,42 @@ export default function RequestRespond() {
       // Check if current user has already responded
       const existingUserResponse = processedResponses.find(r => r.responder_id === user.id);
       setUserResponse(existingUserResponse || null);
+
+      // Load guest contributions
+      const { data: guestData, error: guestError } = await supabase
+        .from("guest_contributions")
+        .select(`
+          id,
+          contributor_name,
+          contributor_contact,
+          recommendations,
+          created_at,
+          share_link_id
+        `)
+        .eq("request_id", id!)
+        .order("created_at", { ascending: false });
+
+      if (guestError) {
+        console.error("Error loading guest contributions:", guestError);
+      }
+
+      // Get share link info for each contribution
+      const guestWithLinks = await Promise.all(
+        (guestData || []).map(async (contribution) => {
+          let shareLink = null;
+          if (contribution.share_link_id) {
+            const { data: linkData } = await supabase
+              .from("share_links")
+              .select("id, generated_by_name, parent_link_id")
+              .eq("id", contribution.share_link_id)
+              .maybeSingle();
+            shareLink = linkData;
+          }
+          return { ...contribution, share_links: shareLink };
+        })
+      );
+
+      setGuestContributions(guestWithLinks);
 
     } catch (error) {
       console.error("Error loading request data:", error);
@@ -1488,7 +1525,7 @@ export default function RequestRespond() {
       {/* Existing Responses */}
       <div className="space-y-4">
         <h2 className="text-xl font-semibold">
-          Responses ({responses.length})
+          Responses ({responses.length + guestContributions.length})
         </h2>
         
         {responses.length > 0 ? (
@@ -1585,6 +1622,75 @@ export default function RequestRespond() {
               </div>
             </CardContent>
           </Card>
+        )}
+
+        {/* Guest Contributions */}
+        {guestContributions.length > 0 && (
+          <div className="space-y-4 mt-6">
+            <h3 className="text-lg font-semibold text-muted-foreground">
+              Guest Responses ({guestContributions.length})
+            </h3>
+
+            {guestContributions.map((contribution) => {
+              const recs = Array.isArray(contribution.recommendations)
+                ? contribution.recommendations
+                : [];
+
+              return (
+                <Card key={contribution.id} className="border-dashed">
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <CardTitle className="text-base flex items-center gap-2">
+                          <User className="h-4 w-4" />
+                          {contribution.contributor_name} (Guest)
+                        </CardTitle>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {contribution.share_links?.generated_by_name
+                            ? `via ${contribution.share_links.generated_by_name}`
+                            : 'via your share link'}
+                        </p>
+                      </div>
+                      <Badge variant="outline">Guest</Badge>
+                    </div>
+                  </CardHeader>
+
+                  <CardContent className="space-y-3">
+                    {recs.map((rec: any, idx: number) => (
+                      <div key={idx} className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
+                        <div className="flex-1">
+                          <p className="font-medium">{rec.text}</p>
+                          {rec.reason && (
+                            <p className="text-sm text-muted-foreground mt-1">
+                              {rec.reason}
+                            </p>
+                          )}
+                          {rec.link && (
+                            <a
+                              href={rec.link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-sm text-primary hover:underline mt-1 inline-block"
+                            >
+                              View link →
+                            </a>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                          <ThumbsUp className="h-4 w-4" />
+                          <span>{rec.vote_count || 0}</span>
+                        </div>
+                      </div>
+                    ))}
+
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Responded {formatDistanceToNow(new Date(contribution.created_at), { addSuffix: true })}
+                    </p>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
         )}
       </div>
 
