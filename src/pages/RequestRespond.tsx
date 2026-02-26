@@ -1368,13 +1368,6 @@ export default function RequestRespond() {
                       <div key={link.id} className="p-3 bg-background border rounded-lg space-y-2">
                         <div className="flex items-center justify-between">
                           <span className="text-sm font-medium">Link #{idx + 1}</span>
-                          {link.current_responses > 0 && (
-                            <Badge variant={link.current_responses >= link.max_responses ? "secondary" : "default"}>
-                              {link.max_responses >= 999 
-                                ? `${link.current_responses} responses` 
-                                : `${link.current_responses}/${link.max_responses} used`}
-                            </Badge>
-                          )}
                         </div>
                         <div className="flex gap-2">
                           <Input value={linkUrl} readOnly className="font-mono text-xs" />
