@@ -340,6 +340,67 @@ export type Database = {
         }
         Relationships: []
       }
+      guest_contributions: {
+        Row: {
+          contributor_contact: string | null
+          contributor_name: string
+          converted_user_id: string | null
+          created_at: string | null
+          id: string
+          invited_to_join: boolean | null
+          joined_antelog: boolean | null
+          recommendations: Json
+          request_id: string | null
+          share_link_id: string | null
+        }
+        Insert: {
+          contributor_contact?: string | null
+          contributor_name: string
+          converted_user_id?: string | null
+          created_at?: string | null
+          id?: string
+          invited_to_join?: boolean | null
+          joined_antelog?: boolean | null
+          recommendations?: Json
+          request_id?: string | null
+          share_link_id?: string | null
+        }
+        Update: {
+          contributor_contact?: string | null
+          contributor_name?: string
+          converted_user_id?: string | null
+          created_at?: string | null
+          id?: string
+          invited_to_join?: boolean | null
+          joined_antelog?: boolean | null
+          recommendations?: Json
+          request_id?: string | null
+          share_link_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guest_contributions_converted_user_id_fkey"
+            columns: ["converted_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "guest_contributions_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "guest_contributions_share_link_id_fkey"
+            columns: ["share_link_id"]
+            isOneToOne: false
+            referencedRelation: "share_links"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       list_items: {
         Row: {
           content: string
@@ -852,6 +913,73 @@ export type Database = {
         }
         Relationships: []
       }
+      share_links: {
+        Row: {
+          created_at: string | null
+          current_responses: number | null
+          generated_by_contact: string | null
+          generated_by_name: string | null
+          generated_by_user_id: string | null
+          id: string
+          max_responses: number | null
+          parent_link_id: string | null
+          request_id: string | null
+          times_opened: number | null
+          token: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          current_responses?: number | null
+          generated_by_contact?: string | null
+          generated_by_name?: string | null
+          generated_by_user_id?: string | null
+          id?: string
+          max_responses?: number | null
+          parent_link_id?: string | null
+          request_id?: string | null
+          times_opened?: number | null
+          token: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          current_responses?: number | null
+          generated_by_contact?: string | null
+          generated_by_name?: string | null
+          generated_by_user_id?: string | null
+          id?: string
+          max_responses?: number | null
+          parent_link_id?: string | null
+          request_id?: string | null
+          times_opened?: number | null
+          token?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "share_links_generated_by_user_id_fkey"
+            columns: ["generated_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "share_links_parent_link_id_fkey"
+            columns: ["parent_link_id"]
+            isOneToOne: false
+            referencedRelation: "share_links"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "share_links_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       temp_waitlist: {
         Row: {
           created_at: string | null
@@ -965,6 +1093,7 @@ export type Database = {
         }[]
       }
       generate_anonymous_handle: { Args: never; Returns: string }
+      generate_share_token: { Args: never; Returns: string }
       get_connection_path: {
         Args: { user_a: string; user_b: string }
         Returns: string[]
