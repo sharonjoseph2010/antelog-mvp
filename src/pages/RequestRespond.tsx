@@ -1336,6 +1336,18 @@ export default function RequestRespond() {
                 </div>
               )}
 
+              {/* Generate Button - Only show if no links exist yet */}
+              {existingShareLinks.length === 0 && !myShareLink && (
+                <Button
+                  onClick={generateShareLink}
+                  disabled={isGeneratingLink}
+                  className="w-full"
+                  variant="default"
+                >
+                  {isGeneratingLink ? "Generating..." : "Generate Share Link"}
+                </Button>
+              )}
+
               {/* New Share Link */}
               {myShareLink && !existingShareLinks.some(l => `${window.location.origin}/r/${request.id}/${l.token}` === myShareLink) && (
                 <div className="p-4 border border-primary/30 bg-primary/10 rounded-lg space-y-3">
