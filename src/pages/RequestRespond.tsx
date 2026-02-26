@@ -1271,7 +1271,7 @@ export default function RequestRespond() {
       )}
 
       {/* Close & Review Button - Only for request creator when open */}
-      {isOwnRequest && request.status === 'open' && topRecommendations.length > 0 && (
+      {isOwnRequest && request.status === 'open' && (responses.length > 0 || guestContributions.length > 0) && (
         <Card className="mb-8 border-primary/30 bg-primary/5">
           <CardContent className="py-6">
             <div className="flex items-center gap-4">
