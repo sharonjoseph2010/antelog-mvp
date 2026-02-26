@@ -10,8 +10,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { MessageSquare, ArrowLeft, Users, User, UserCheck, Globe } from "lucide-react";
+import { MessageSquare, ArrowLeft, Users, User, UserCheck, Globe, X, CircleCheck, ExternalLink } from "lucide-react";
 import { z } from "zod";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 interface Group {
   id: string;
@@ -38,6 +39,11 @@ export default function RequestsNew() {
   const [userGroups, setUserGroups] = useState<Group[]>([]);
   const [networkCount, setNetworkCount] = useState(0);
   const [totalUsersCount, setTotalUsersCount] = useState(0);
+  const [showAudienceModal, setShowAudienceModal] = useState(false);
+  const [antelogContacts, setAntelogContacts] = useState<any[]>([]);
+  const [externalContacts, setExternalContacts] = useState<any[]>([]);
+  const [generatedShareLink, setGeneratedShareLink] = useState<string | null>(null);
+  const [isGeneratingLink, setIsGeneratingLink] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     category: '' as 'films' | 'places' | 'products' | 'services' | 'other',
@@ -105,6 +111,47 @@ export default function RequestsNew() {
       setTotalUsersCount(usersCount || 0);
     } catch (error) {
       console.error('Error loading network counts:', error);
+    }
+  };
+
+  const loadNetworkContacts = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: friendships } = await supabase
+        .from("friendships")
+        .select("user1_id, user2_id")
+        .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`);
+
+      const friendIds = friendships?.map(f => 
+        f.user1_id === user.id ? f.user2_id : f.user1_id
+      ) || [];
+
+      if (friendIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("id, full_name, handle, phone_number")
+          .in("id", friendIds);
+        setAntelogContacts(profiles || []);
+
+        const antelogPhones = new Set(profiles?.map(p => p.phone_number).filter(Boolean));
+
+        const { data: allContacts } = await supabase
+          .from("contact_imports")
+          .select("contact_name, contact_phone")
+          .eq("user_id", user.id)
+          .eq("is_matched", false);
+
+        setExternalContacts(allContacts?.filter(c => 
+          c.contact_phone && !antelogPhones.has(c.contact_phone)
+        ) || []);
+      } else {
+        setAntelogContacts([]);
+        setExternalContacts([]);
+      }
+    } catch (error) {
+      console.error("Error loading contacts:", error);
     }
   };
 
@@ -560,10 +607,27 @@ export default function RequestsNew() {
                           className="mt-1"
                         />
                         <div className="flex-1 cursor-pointer" onClick={() => toggleAudienceType(option.value)}>
-                          <Label htmlFor={option.value} className="cursor-pointer font-medium flex items-center gap-2">
-                            <Icon className="h-4 w-4" />
-                            {option.label}
-                          </Label>
+                          <div className="flex items-center justify-between">
+                            <Label htmlFor={option.value} className="cursor-pointer font-medium flex items-center gap-2">
+                              <Icon className="h-4 w-4" />
+                              {option.label}
+                            </Label>
+                            {isChecked && option.value === 'first_network' && (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  loadNetworkContacts();
+                                  setShowAudienceModal(true);
+                                }}
+                              >
+                                <Users className="h-3 w-3 mr-1" />
+                                View & Select People
+                              </Button>
+                            )}
+                          </div>
                           <p className="text-sm text-muted-foreground mt-1">{option.description}</p>
                           {option.helperText && (
                             <p className="text-xs text-muted-foreground mt-2 italic">{option.helperText}</p>
@@ -666,6 +730,106 @@ export default function RequestsNew() {
           </form>
         </CardContent>
       </Card>
+
+      {/* Audience Modal */}
+      <Dialog open={showAudienceModal} onOpenChange={setShowAudienceModal}>
+        <DialogContent className="sm:max-w-[500px] max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Your 1st Network</DialogTitle>
+            <DialogDescription>
+              See who's on Antelog and who needs a share link
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6">
+            {/* On Antelog */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <CircleCheck className="h-4 w-4 text-green-600" />
+                <h3 className="font-semibold">On Antelog ({antelogContacts.length})</h3>
+              </div>
+              <p className="text-xs text-muted-foreground">These people will be notified in-app</p>
+              {antelogContacts.length > 0 ? (
+                <div className="space-y-2">
+                  {antelogContacts.map((contact) => (
+                    <div key={contact.id} className="flex items-center gap-3 p-2 rounded-lg border border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/30">
+                      <div className="h-8 w-8 rounded-full bg-green-200 dark:bg-green-800 flex items-center justify-center text-sm font-medium">
+                        {contact.full_name?.charAt(0) || '?'}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{contact.full_name}</p>
+                        <p className="text-xs text-muted-foreground">@{contact.handle}</p>
+                      </div>
+                      <Badge variant="secondary" className="text-xs shrink-0">On Antelog</Badge>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground italic">None of your contacts are on Antelog yet</p>
+              )}
+            </div>
+
+            {/* Not on Antelog */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <ExternalLink className="h-4 w-4 text-orange-600" />
+                <h3 className="font-semibold">Not on Antelog ({externalContacts.length})</h3>
+              </div>
+              <p className="text-xs text-muted-foreground">Generate a share link for these contacts</p>
+              {externalContacts.length > 0 ? (
+                <>
+                  <div className="space-y-2">
+                    {externalContacts.slice(0, 10).map((contact, idx) => (
+                      <div key={idx} className="flex items-center gap-3 p-2 rounded-lg border border-orange-200 bg-orange-50 dark:border-orange-900 dark:bg-orange-950/30">
+                        <div className="h-8 w-8 rounded-full bg-orange-200 dark:bg-orange-800 flex items-center justify-center text-sm font-medium">
+                          {contact.contact_name?.charAt(0) || '?'}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{contact.contact_name}</p>
+                          <p className="text-xs text-muted-foreground">{contact.contact_phone}</p>
+                        </div>
+                      </div>
+                    ))}
+                    {externalContacts.length > 10 && (
+                      <p className="text-xs text-muted-foreground text-center">
+                        + {externalContacts.length - 10} more contacts
+                      </p>
+                    )}
+                  </div>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => {
+                      toast({
+                        title: "Create Request First",
+                        description: "A share link will be generated after you create the request. You can then share it with contacts not on Antelog.",
+                      });
+                      setShowAudienceModal(false);
+                    }}
+                  >
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    Share link generated after request creation
+                  </Button>
+                </>
+              ) : (
+                <p className="text-sm text-muted-foreground italic">All your contacts are already on Antelog!</p>
+              )}
+            </div>
+          </div>
+
+          <div className="pt-2">
+            <Button
+              type="button"
+              onClick={() => setShowAudienceModal(false)}
+              className="w-full"
+            >
+              Done
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
