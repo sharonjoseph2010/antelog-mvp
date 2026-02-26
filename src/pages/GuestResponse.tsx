@@ -31,6 +31,31 @@ export default function GuestResponse() {
 
   const [myShareLink, setMyShareLink] = useState<string | null>(null);
 
+  const reconstructChainIterative = async (linkId: string): Promise<string[]> => {
+    const chain: string[] = [];
+    let currentId: string | null = linkId;
+    let depth = 0;
+
+    while (currentId && depth < 10) {
+      const { data, error } = await supabase
+        .from("share_links")
+        .select("generated_by_name, parent_link_id")
+        .eq("id", currentId)
+        .single();
+
+      if (error || !data) break;
+
+      if (data.generated_by_name) {
+        chain.unshift(data.generated_by_name);
+      }
+
+      currentId = data.parent_link_id;
+      depth++;
+    }
+
+    return chain;
+  };
+
   useEffect(() => {
     if (requestId && token) {
       loadRequestData();
@@ -75,7 +100,12 @@ export default function GuestResponse() {
         return;
       }
 
-      setShareLink(linkData);
+      // Reconstruct full sharing chain
+      const chainNames = await reconstructChainIterative(linkData.id);
+      setShareLink({
+        ...linkData,
+        fullChain: chainNames,
+      });
 
       if ((linkData.current_responses ?? 0) >= (linkData.max_responses ?? 5)) {
         toast({
@@ -289,7 +319,14 @@ export default function GuestResponse() {
             {shareLink.generated_by_name && (
               <span className="flex items-center gap-1">
                 <Users className="h-4 w-4" />
-                {shareLink.generated_by_name} shared this with you
+                <span>
+                  {shareLink.generated_by_name} shared this with you
+                  {shareLink.fullChain && shareLink.fullChain.length > 1 && (
+                    <span className="text-muted-foreground text-xs">
+                      {" "}(via {shareLink.fullChain.slice(0, -1).reverse().join(" → ")})
+                    </span>
+                  )}
+                </span>
               </span>
             )}
             {request.creator_profile?.full_name && (
