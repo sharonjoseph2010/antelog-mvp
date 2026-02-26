@@ -407,27 +407,39 @@ export type Database = {
           created_at: string
           id: string
           list_id: string
+          mention_count: number | null
+          notes: string | null
           position: number
+          source_recommendation_ids: string[] | null
           updated_at: string
           url: string | null
+          vote_count: number | null
         }
         Insert: {
           content: string
           created_at?: string
           id?: string
           list_id: string
+          mention_count?: number | null
+          notes?: string | null
           position: number
+          source_recommendation_ids?: string[] | null
           updated_at?: string
           url?: string | null
+          vote_count?: number | null
         }
         Update: {
           content?: string
           created_at?: string
           id?: string
           list_id?: string
+          mention_count?: number | null
+          notes?: string | null
           position?: number
+          source_recommendation_ids?: string[] | null
           updated_at?: string
           url?: string | null
+          vote_count?: number | null
         }
         Relationships: [
           {
@@ -445,6 +457,7 @@ export type Database = {
           created_at: string
           description: string | null
           id: string
+          item_count: number | null
           owner_id: string
           source_request_id: string | null
           title: string
@@ -458,6 +471,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          item_count?: number | null
           owner_id: string
           source_request_id?: string | null
           title: string
@@ -471,6 +485,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          item_count?: number | null
           owner_id?: string
           source_request_id?: string | null
           title?: string
