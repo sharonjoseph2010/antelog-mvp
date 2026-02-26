@@ -120,6 +120,10 @@ export default function RequestRespond() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [guestContributions, setGuestContributions] = useState<any[]>([]);
+  const [showShareSection, setShowShareSection] = useState(false);
+  const [myShareLink, setMyShareLink] = useState<string | null>(null);
+  const [isGeneratingLink, setIsGeneratingLink] = useState(false);
+  const [existingShareLinks, setExistingShareLinks] = useState<any[]>([]);
   
   // User's existing response state
   const [userResponse, setUserResponse] = useState<RequestResponse | null>(null);
@@ -139,9 +143,30 @@ export default function RequestRespond() {
   const [isSearching, setIsSearching] = useState(false);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  const loadExistingShareLinks = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user || !id) return;
+
+      const { data, error } = await supabase
+        .from("share_links")
+        .select("id, token, generated_by_name, current_responses, max_responses, created_at")
+        .eq("request_id", id)
+        .eq("generated_by_user_id", user.id)
+        .is("parent_link_id", null)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setExistingShareLinks(data || []);
+    } catch (error) {
+      console.error("Error loading share links:", error);
+    }
+  };
+
   useEffect(() => {
     if (id) {
       loadRequestData();
+      loadExistingShareLinks();
     }
   }, [id]);
 
@@ -911,6 +936,63 @@ export default function RequestRespond() {
     }
   };
 
+  const generateShareLink = async () => {
+    setIsGeneratingLink(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", user.id)
+        .single();
+
+      const { data: tokenData, error: tokenError } = await supabase.rpc("generate_share_token");
+      if (tokenError) throw tokenError;
+
+      const { error: linkError } = await supabase
+        .from("share_links")
+        .insert({
+          request_id: id,
+          token: tokenData,
+          generated_by_user_id: user.id,
+          generated_by_name: profile?.full_name || "You",
+          max_responses: 5,
+          current_responses: 0
+        });
+
+      if (linkError) throw linkError;
+
+      const generatedUrl = `${window.location.origin}/r/${id}/${tokenData}`;
+      setMyShareLink(generatedUrl);
+
+      toast({
+        title: "Share Link Generated!",
+        description: "Copy and share this link with friends not on Antelog"
+      });
+
+      await loadExistingShareLinks();
+    } catch (error) {
+      console.error("Error generating link:", error);
+      toast({
+        title: "Failed to Generate Link",
+        description: "Please try again",
+        variant: "destructive"
+      });
+    } finally {
+      setIsGeneratingLink(false);
+    }
+  };
+
+  const copyShareLink = (link: string) => {
+    navigator.clipboard.writeText(link);
+    toast({
+      title: "Copied!",
+      description: "Share link copied to clipboard"
+    });
+  };
+
   const formatCategory = (category: string) => {
     return category.charAt(0).toUpperCase() + category.slice(1).replace('_', ' ');
   };
@@ -1191,6 +1273,98 @@ export default function RequestRespond() {
               </Button>
             </div>
           </CardContent>
+        </Card>
+      )}
+
+      {/* Share Externally Section - Only show to request creator */}
+      {currentUserId === request?.creator_id && request.status === 'open' && (
+        <Card className="mb-8 border-primary/20 bg-primary/5">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Share2 className="h-5 w-5" />
+                Share with Friends Not on Antelog
+              </CardTitle>
+              {!showShareSection && existingShareLinks.length === 0 && !myShareLink && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowShareSection(true)}
+                >
+                  Show
+                </Button>
+              )}
+            </div>
+          </CardHeader>
+          {(showShareSection || existingShareLinks.length > 0 || myShareLink) && (
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Generate a shareable link for friends who aren't on Antelog. 
+                Each link can be used by up to 5 people, and they can each share with 5 more.
+              </p>
+
+              {/* Existing Share Links */}
+              {existingShareLinks.length > 0 && (
+                <div className="space-y-3">
+                  <h4 className="text-sm font-semibold">Your Share Links:</h4>
+                  {existingShareLinks.map((link, idx) => {
+                    const linkUrl = `${window.location.origin}/r/${request.id}/${link.token}`;
+                    return (
+                      <div key={link.id} className="p-3 bg-background border rounded-lg space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium">Link #{idx + 1}</span>
+                          <Badge variant={link.current_responses >= link.max_responses ? "secondary" : "default"}>
+                            {link.current_responses}/{link.max_responses} used
+                          </Badge>
+                        </div>
+                        <div className="flex gap-2">
+                          <Input value={linkUrl} readOnly className="font-mono text-xs" />
+                          <Button size="sm" variant="outline" onClick={() => copyShareLink(linkUrl)}>
+                            Copy
+                          </Button>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Created {formatDistanceToNow(new Date(link.created_at), { addSuffix: true })}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* New Share Link */}
+              {myShareLink && !existingShareLinks.some(l => `${window.location.origin}/r/${request.id}/${l.token}` === myShareLink) && (
+                <div className="p-4 border border-primary/30 bg-primary/10 rounded-lg space-y-3">
+                  <p className="text-sm font-semibold">✓ New Share Link Generated!</p>
+                  <div className="flex gap-2">
+                    <Input value={myShareLink} readOnly className="font-mono text-sm" />
+                    <Button size="sm" onClick={() => copyShareLink(myShareLink)}>Copy</Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Share this link via WhatsApp, SMS, or email with up to 5 friends
+                  </p>
+                </div>
+              )}
+
+              {/* Generate Button */}
+              <Button
+                onClick={generateShareLink}
+                disabled={isGeneratingLink}
+                className="w-full"
+                variant="outline"
+              >
+                {isGeneratingLink ? "Generating..." : "+ Generate New Share Link"}
+              </Button>
+
+              <div className="flex items-start gap-2 p-3 bg-muted rounded-lg">
+                <MessageSquare className="h-4 w-4 mt-0.5 text-muted-foreground" />
+                <p className="text-xs text-muted-foreground">
+                  <strong>Tip:</strong> Each person who uses your link can generate their own link 
+                  to share with 5 more people. This creates a network chain you can track!
+                </p>
+              </div>
+            </CardContent>
+          )}
         </Card>
       )}
 
