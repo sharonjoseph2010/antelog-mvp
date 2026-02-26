@@ -10,46 +10,20 @@ import { supabase } from "@/integrations/supabase/client";
 import { MapPin, Users, Clock, Share2, CheckCircle2, Eye, ThumbsUp } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
-interface RequestData {
-  id: string;
-  title: string;
-  category: string;
-  location: string | null;
-  created_at: string;
-  creator_id: string;
-  creator_profile?: {
-    full_name: string | null;
-  } | null;
-}
-
-interface ShareLinkData {
-  id: string;
-  generated_by_name: string | null;
-  current_responses: number;
-  max_responses: number;
-}
-
-interface Recommendation {
-  text: string;
-  reason: string;
-  link: string;
-  position: number;
-}
-
 export default function GuestResponse() {
   const { requestId, token } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const [request, setRequest] = useState<RequestData | null>(null);
-  const [shareLink, setShareLink] = useState<ShareLinkData | null>(null);
+  const [request, setRequest] = useState<any>(null);
+  const [shareLink, setShareLink] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasSubmitted, setHasSubmitted] = useState(false);
 
   const [contributorName, setContributorName] = useState("");
   const [contributorContact, setContributorContact] = useState("");
-  const [recommendations, setRecommendations] = useState<Recommendation[]>([
+  const [recommendations, setRecommendations] = useState([
     { text: "", reason: "", link: "", position: 1 },
     { text: "", reason: "", link: "", position: 2 },
     { text: "", reason: "", link: "", position: 3 },
@@ -106,12 +80,11 @@ export default function GuestResponse() {
       if ((linkData.current_responses ?? 0) >= (linkData.max_responses ?? 5)) {
         toast({
           title: "Link Full",
-          description: "This share link has reached its limit (5 responses). Ask your friend for a new link!",
+          description: "This share link has reached its limit (5 responses).",
           variant: "destructive",
         });
       }
 
-      // Track link opened
       await supabase
         .from("share_links")
         .update({ times_opened: (linkData.times_opened ?? 0) + 1 })
@@ -143,7 +116,7 @@ export default function GuestResponse() {
     }
   };
 
-  const updateRecommendation = (index: number, field: keyof Recommendation, value: string) => {
+  const updateRecommendation = (index: number, field: string, value: string) => {
     const updated = [...recommendations];
     updated[index] = { ...updated[index], [field]: value };
     setRecommendations(updated);
@@ -153,22 +126,36 @@ export default function GuestResponse() {
     e.preventDefault();
 
     if (!contributorName.trim()) {
-      toast({ title: "Name Required", description: "Please enter your name", variant: "destructive" });
+      toast({
+        title: "Name Required",
+        description: "Please enter your name",
+        variant: "destructive",
+      });
       return;
     }
 
     const validRecs = recommendations.filter((r) => r.text.trim());
+
     if (validRecs.length === 0) {
-      toast({ title: "Recommendations Required", description: "Please add at least one recommendation", variant: "destructive" });
+      toast({
+        title: "Recommendations Required",
+        description: "Please add at least one recommendation",
+        variant: "destructive",
+      });
       return;
     }
 
     if (shareLink && (shareLink.current_responses ?? 0) >= (shareLink.max_responses ?? 5)) {
-      toast({ title: "Link Full", description: "This share link has reached its limit", variant: "destructive" });
+      toast({
+        title: "Link Full",
+        description: "This share link has reached its limit",
+        variant: "destructive",
+      });
       return;
     }
 
     setIsSubmitting(true);
+
     try {
       const formattedRecs = validRecs.map((rec, idx) => ({
         text: rec.text.trim(),
@@ -190,7 +177,6 @@ export default function GuestResponse() {
 
       if (contributionError) throw contributionError;
 
-      // Increment response count
       if (shareLink) {
         await supabase
           .from("share_links")
@@ -202,10 +188,18 @@ export default function GuestResponse() {
       }
 
       setHasSubmitted(true);
-      toast({ title: "Thanks for your input!", description: "Your recommendations have been saved." });
+
+      toast({
+        title: "Thanks for your input!",
+        description: "Your recommendations have been saved.",
+      });
     } catch (error) {
       console.error("Error submitting:", error);
-      toast({ title: "Submission Failed", description: "Please try again", variant: "destructive" });
+      toast({
+        title: "Submission Failed",
+        description: "Please try again",
+        variant: "destructive",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -214,6 +208,7 @@ export default function GuestResponse() {
   const generateMyShareLink = async () => {
     try {
       const { data: tokenData, error: tokenError } = await supabase.rpc("generate_share_token");
+
       if (tokenError) throw tokenError;
 
       const { error: linkError } = await supabase
@@ -232,17 +227,28 @@ export default function GuestResponse() {
 
       const generatedUrl = `${window.location.origin}/r/${requestId}/${tokenData}`;
       setMyShareLink(generatedUrl);
-      toast({ title: "Share Link Generated!", description: "You can now share this with up to 5 people" });
+
+      toast({
+        title: "Share Link Generated!",
+        description: "You can now share this with up to 5 people",
+      });
     } catch (error) {
       console.error("Error generating link:", error);
-      toast({ title: "Failed to Generate Link", description: "Please try again", variant: "destructive" });
+      toast({
+        title: "Failed to Generate Link",
+        description: "Please try again",
+        variant: "destructive",
+      });
     }
   };
 
   const copyShareLink = () => {
     if (myShareLink) {
       navigator.clipboard.writeText(myShareLink);
-      toast({ title: "Copied!", description: "Share link copied to clipboard" });
+      toast({
+        title: "Copied!",
+        description: "Share link copied to clipboard",
+      });
     }
   };
 
@@ -304,7 +310,6 @@ export default function GuestResponse() {
 
         {hasSubmitted ? (
           <div className="space-y-6">
-            {/* Success message */}
             <Card>
               <CardContent className="pt-6 space-y-6">
                 <div className="flex items-start gap-3">
@@ -314,7 +319,6 @@ export default function GuestResponse() {
                   </p>
                 </div>
 
-                {/* Conversion nudge */}
                 <div className="border-t pt-4 space-y-3">
                   <p className="font-medium text-foreground">Want to see what others recommended?</p>
                   <ul className="space-y-2 text-sm text-muted-foreground">
@@ -341,7 +345,6 @@ export default function GuestResponse() {
               </CardContent>
             </Card>
 
-            {/* Share section */}
             {!myShareLink ? (
               <Card>
                 <CardHeader>
@@ -352,7 +355,7 @@ export default function GuestResponse() {
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <p className="text-sm text-muted-foreground">
-                    Share this request with up to 5 people in your network. They'll see it came from you!
+                    Share this request with up to 5 people in your network.
                   </p>
                   <Button variant="outline" className="w-full" onClick={generateMyShareLink}>
                     Generate My Share Link
@@ -366,7 +369,7 @@ export default function GuestResponse() {
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <p className="text-sm text-muted-foreground">
-                    Share this link with up to 5 people. Each person can then share with 5 more.
+                    Share with up to 5 people. Each can share with 5 more.
                   </p>
                   <div className="flex gap-2">
                     <Input value={myShareLink} readOnly className="text-xs" />
@@ -380,7 +383,6 @@ export default function GuestResponse() {
             )}
           </div>
         ) : (
-          /* Response Form */
           <form onSubmit={handleSubmit} className="space-y-6">
             <Card>
               <CardHeader>
@@ -394,7 +396,6 @@ export default function GuestResponse() {
                     onChange={(e) => setContributorName(e.target.value)}
                     placeholder="e.g., John Doe"
                     required
-                    maxLength={100}
                   />
                 </div>
                 <div className="space-y-2">
@@ -402,8 +403,7 @@ export default function GuestResponse() {
                   <Input
                     value={contributorContact}
                     onChange={(e) => setContributorContact(e.target.value)}
-                    placeholder="Phone or email (optional)"
-                    maxLength={255}
+                    placeholder="Phone or email"
                   />
                   <p className="text-xs text-muted-foreground">We'll notify you when the request is closed</p>
                 </div>
@@ -436,28 +436,25 @@ export default function GuestResponse() {
                       onChange={(e) => updateRecommendation(idx, "text", e.target.value)}
                       placeholder="What do you recommend?"
                       required={idx === 0}
-                      maxLength={200}
                     />
                     <Textarea
                       value={rec.reason}
                       onChange={(e) => updateRecommendation(idx, "reason", e.target.value)}
-                      placeholder="Why do you recommend this? (optional)"
+                      placeholder="Why? (optional)"
                       rows={2}
-                      maxLength={500}
                     />
                     <Input
                       value={rec.link}
                       onChange={(e) => updateRecommendation(idx, "link", e.target.value)}
                       placeholder="Link (optional)"
                       type="url"
-                      maxLength={500}
                     />
                   </div>
                 ))}
 
                 {recommendations.length < 5 && (
                   <Button type="button" variant="outline" onClick={handleAddRecommendation} className="w-full">
-                    + Add Another Recommendation
+                    + Add Another
                   </Button>
                 )}
               </CardContent>
@@ -469,7 +466,7 @@ export default function GuestResponse() {
 
             {isAtCapacity && (
               <p className="text-sm text-destructive text-center">
-                This link has reached its capacity. Please ask for a new link.
+                This link is full. Please ask for a new link.
               </p>
             )}
           </form>
