@@ -963,6 +963,7 @@ export default function RequestRespond() {
   };
 
 
+  const generateShareLink = async () => {
     setIsGeneratingLink(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
