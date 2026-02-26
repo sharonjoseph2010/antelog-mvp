@@ -1313,11 +1313,13 @@ export default function RequestRespond() {
                       <div key={link.id} className="p-3 bg-background border rounded-lg space-y-2">
                         <div className="flex items-center justify-between">
                           <span className="text-sm font-medium">Link #{idx + 1}</span>
-                          <Badge variant={link.current_responses >= link.max_responses ? "secondary" : "default"}>
-                            {link.max_responses >= 999 
-                              ? `${link.current_responses} responses` 
-                              : `${link.current_responses}/${link.max_responses} used`}
-                          </Badge>
+                          {link.current_responses > 0 && (
+                            <Badge variant={link.current_responses >= link.max_responses ? "secondary" : "default"}>
+                              {link.max_responses >= 999 
+                                ? `${link.current_responses} responses` 
+                                : `${link.current_responses}/${link.max_responses} used`}
+                            </Badge>
+                          )}
                         </div>
                         <div className="flex gap-2">
                           <Input value={linkUrl} readOnly className="font-mono text-xs" />
@@ -1347,16 +1349,6 @@ export default function RequestRespond() {
                   </p>
                 </div>
               )}
-
-              {/* Generate Button */}
-              <Button
-                onClick={generateShareLink}
-                disabled={isGeneratingLink}
-                className="w-full"
-                variant="outline"
-              >
-                {isGeneratingLink ? "Generating..." : "+ Generate New Share Link"}
-              </Button>
 
               <div className="flex items-start gap-2 p-3 bg-muted rounded-lg">
                 <MessageSquare className="h-4 w-4 mt-0.5 text-muted-foreground" />
