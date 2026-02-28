@@ -220,12 +220,12 @@ const Profile = () => {
               
               {/* Handle (Read-only) */}
               <div className="space-y-2">
-                <Label>Username (Handle)</Label>
-                <p className="text-sm text-muted-foreground font-mono">
+                <Label>Anonymous Handle</Label>
+                <p className="text-sm font-mono font-semibold">
                   @{handle}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Read-only, generated from your email
+                  This is how you appear to others on Antelog. Randomly generated for your privacy.
                 </p>
               </div>
               
