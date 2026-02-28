@@ -1,17 +1,34 @@
+import { useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/components/ui/use-toast";
-import { CheckCircle } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { CheckCircle, Globe, Loader2, Merge } from "lucide-react";
+import {
+  publishToMasterDirectory,
+  checkForDuplicates,
+  mergeWithExisting,
+} from "@/lib/masterDirectory";
+import type { Database } from "@/integrations/supabase/types";
+
+type ListCategory = Database["public"]["Enums"]["list_category"];
 
 interface ListWithCount {
   id: string;
   title: string;
-  category: string;
+  category: ListCategory;
   visibility: string;
   created_at: string;
   itemCount: number;
@@ -29,10 +46,7 @@ const fetchMyLists = async (): Promise<ListWithCount[]> => {
     .eq("owner_id", userId)
     .order("created_at", { ascending: false });
 
-  if (listsError) {
-    throw new Error(listsError.message);
-  }
-
+  if (listsError) throw new Error(listsError.message);
   if (!lists || lists.length === 0) return [];
 
   const listIds = lists.map((l) => l.id);
@@ -41,9 +55,7 @@ const fetchMyLists = async (): Promise<ListWithCount[]> => {
     .select("id,list_id")
     .in("list_id", listIds);
 
-  if (itemsError) {
-    console.warn("Items fetch error", itemsError);
-  }
+  if (itemsError) console.warn("Items fetch error", itemsError);
 
   const counts = new Map<string, number>();
   for (const it of items ?? []) {
@@ -53,7 +65,7 @@ const fetchMyLists = async (): Promise<ListWithCount[]> => {
   return (lists ?? []).map((l) => ({
     id: l.id as string,
     title: l.title as string,
-    category: l.category as string,
+    category: l.category as ListCategory,
     visibility: l.visibility as string,
     created_at: l.created_at as string,
     itemCount: counts.get(l.id as string) ?? 0,
@@ -62,14 +74,98 @@ const fetchMyLists = async (): Promise<ListWithCount[]> => {
 };
 
 const Lists = () => {
+  const queryClient = useQueryClient();
   const { data, isLoading, error } = useQuery({
     queryKey: ["my-lists"],
     queryFn: fetchMyLists,
   });
 
+  const [publishingListId, setPublishingListId] = useState<string | null>(null);
+  const [showMergeDialog, setShowMergeDialog] = useState(false);
+  const [duplicateCheck, setDuplicateCheck] = useState<{
+    existingEntry: any;
+    similarity: number;
+  } | null>(null);
+
   if (error) {
     toast({ title: "Failed to load lists", description: (error as Error).message });
   }
+
+  const handlePublish = async (listId: string) => {
+    setPublishingListId(listId);
+
+    const list = data?.find((l) => l.id === listId);
+    if (!list) {
+      setPublishingListId(null);
+      return;
+    }
+
+    const check = await checkForDuplicates(list.title, list.category);
+
+    if (check.isDuplicate) {
+      setDuplicateCheck({
+        existingEntry: check.existingEntry,
+        similarity: check.similarity ?? 0,
+      });
+      setShowMergeDialog(true);
+      return;
+    }
+
+    const { data: userRes } = await supabase.auth.getUser();
+    if (!userRes.user) {
+      setPublishingListId(null);
+      return;
+    }
+
+    const result = await publishToMasterDirectory(listId, userRes.user.id);
+
+    if (result.success) {
+      toast({
+        title: "Published!",
+        description: "Your list is now in the Master Directory",
+      });
+      queryClient.invalidateQueries({ queryKey: ["my-lists"] });
+    } else {
+      toast({
+        title: "Failed to Publish",
+        description: result.error,
+        variant: "destructive",
+      });
+    }
+
+    setPublishingListId(null);
+  };
+
+  const handleMergeConfirm = async () => {
+    if (!publishingListId || !duplicateCheck?.existingEntry) return;
+
+    const { data: userRes } = await supabase.auth.getUser();
+    if (!userRes.user) return;
+
+    const result = await mergeWithExisting(
+      publishingListId,
+      userRes.user.id,
+      duplicateCheck.existingEntry.id
+    );
+
+    if (result.success) {
+      toast({
+        title: "Merged Successfully!",
+        description: "Your recommendations have been added to the existing list",
+      });
+      queryClient.invalidateQueries({ queryKey: ["my-lists"] });
+    } else {
+      toast({
+        title: "Merge Failed",
+        description: result.error,
+        variant: "destructive",
+      });
+    }
+
+    setShowMergeDialog(false);
+    setPublishingListId(null);
+    setDuplicateCheck(null);
+  };
 
   return (
     <>
@@ -114,15 +210,45 @@ const Lists = () => {
                       )}
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-2 text-sm">
+                  <CardContent className="space-y-3 text-sm">
                     <div className="flex items-center gap-2">
                       <Badge variant="secondary">{list.category}</Badge>
                       <Badge variant="outline">{list.visibility}</Badge>
                     </div>
                     <div className="text-muted-foreground">{list.itemCount} items</div>
-                    <Button asChild variant="link" className="p-0">
-                      <Link to={`/lists/${list.id}`}>View details</Link>
-                    </Button>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Button asChild variant="link" className="p-0">
+                        <Link to={`/lists/${list.id}`}>View details</Link>
+                      </Button>
+
+                      {list.visibility === "private" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handlePublish(list.id)}
+                          disabled={publishingListId === list.id}
+                        >
+                          {publishingListId === list.id ? (
+                            <>
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                              Publishing…
+                            </>
+                          ) : (
+                            <>
+                              <Globe className="h-3 w-3" />
+                              Publish to Directory
+                            </>
+                          )}
+                        </Button>
+                      )}
+
+                      {list.visibility === "public" && (
+                        <Badge variant="default" className="text-xs flex items-center gap-1">
+                          <CheckCircle className="h-3 w-3" />
+                          In Directory
+                        </Badge>
+                      )}
+                    </div>
                   </CardContent>
                 </Card>
               ))}
@@ -130,6 +256,51 @@ const Lists = () => {
           )}
         </section>
       </main>
+
+      {/* Merge Dialog */}
+      <Dialog open={showMergeDialog} onOpenChange={setShowMergeDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Similar List Found</DialogTitle>
+            <DialogDescription>
+              A similar list already exists in the Master Directory
+            </DialogDescription>
+          </DialogHeader>
+
+          {duplicateCheck && (
+            <div className="space-y-4 py-2">
+              <div className="rounded-md border border-input p-4">
+                <p className="text-sm font-medium text-muted-foreground">Existing List:</p>
+                <p className="text-lg font-semibold">{duplicateCheck.existingEntry.display_content}</p>
+                <Badge variant="secondary" className="mt-1">
+                  {(duplicateCheck.similarity * 100).toFixed(0)}% similar to your list
+                </Badge>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                To keep the Master Directory clutter-free, we merge similar lists.
+                Your recommendations will be added to the existing list.
+              </p>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowMergeDialog(false);
+                setPublishingListId(null);
+                setDuplicateCheck(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleMergeConfirm}>
+              <Merge className="h-4 w-4" />
+              Merge with Existing
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
