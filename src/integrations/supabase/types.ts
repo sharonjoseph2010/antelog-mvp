@@ -449,6 +449,13 @@ export type Database = {
             referencedRelation: "lists"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fk_list_items_list"
+            columns: ["list_id"]
+            isOneToOne: false
+            referencedRelation: "master_directory_lists_view"
+            referencedColumns: ["list_id"]
+          },
         ]
       }
       lists: {
@@ -1162,6 +1169,33 @@ export type Database = {
             columns: ["request_id"]
             isOneToOne: false
             referencedRelation: "requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      master_directory_lists_view: {
+        Row: {
+          category: Database["public"]["Enums"]["list_category"] | null
+          created_at: string | null
+          creator_handle: string | null
+          creator_name: string | null
+          item_count: number | null
+          items_array: string[] | null
+          items_preview: string | null
+          latest_item_at: string | null
+          list_description: string | null
+          list_id: string | null
+          list_title: string | null
+          owner_id: string | null
+          searchable_text: string | null
+          updated_at: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_lists_owner"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]

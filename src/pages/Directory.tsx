@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
-import { Search, Filter, ChevronDown, ExternalLink, Users, TrendingUp, Plus, MessageSquare, ShieldCheck } from "lucide-react";
+import { Search, Filter, ChevronDown, ChevronRight, Users, MessageSquare, ShieldCheck } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -10,25 +10,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
-interface MasterDirectoryEntry {
-  id: string;
-  display_content: string;
-  normalized_content: string;
+interface MasterDirectoryList {
+  list_id: string;
+  list_title: string;
+  list_description: string | null;
   category: string;
-  url?: string;
-  mention_count: number;
-  mentioned_by_users: string[];
-  total_search_count: number;
-  latest_mention_at: string;
-  network_contributors?: NetworkContributor[];
-}
-
-interface NetworkContributor {
-  contributor_id: string;
-  full_name: string;
-  handle: string;
-  is_friend: boolean;
-  is_extended_network: boolean;
+  owner_id: string;
+  creator_handle: string;
+  creator_name: string;
+  item_count: number;
+  items_preview: string;
+  items_array: string[];
+  searchable_text: string;
+  latest_item_at: string;
+  created_at: string;
+  updated_at: string;
 }
 
 const CATEGORIES = [
@@ -40,9 +36,7 @@ const CATEGORIES = [
 ];
 
 const SORT_OPTIONS = [
-  { value: 'relevance', label: 'Most Relevant' },
-  { value: 'votes', label: 'Most Voted' },
-  { value: 'popular', label: 'Most Searched' },
+  { value: 'items', label: 'Most Items' },
   { value: 'recent', label: 'Most Recent' }
 ];
 
@@ -51,25 +45,21 @@ export default function Directory() {
   const [searchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || "");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  const [sortBy, setSortBy] = useState("relevance");
-  const [results, setResults] = useState<MasterDirectoryEntry[]>([]);
+  const [sortBy, setSortBy] = useState("items");
+  const [results, setResults] = useState<MasterDirectoryList[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [userType, setUserType] = useState<'verified' | 'guest' | null>(null);
-  const [contributingToEntry, setContributingToEntry] = useState<string | null>(null);
-  const [newRecommendation, setNewRecommendation] = useState("");
   const { toast } = useToast();
 
   useEffect(() => {
     checkUserType();
   }, []);
 
-  // Auto-search if query param provided
   useEffect(() => {
     const searchFromParams = searchParams.get('search');
     if (searchFromParams) {
       setSearchQuery(searchFromParams);
-      // Trigger search after state is set
       setTimeout(() => searchDirectory(searchFromParams), 100);
     }
   }, [searchParams]);
@@ -82,7 +72,6 @@ export default function Directory() {
         .select('user_type')
         .eq('id', session.user.id)
         .single();
-      
       setUserType(profile?.user_type || 'guest');
     }
   };
@@ -102,23 +91,14 @@ export default function Directory() {
 
     try {
       let dbQuery = supabase
-        .from('master_directory_entries')
-        .select(`
-          id,
-          display_content,
-          normalized_content,
-          category,
-          url,
-          mention_count,
-          mentioned_by_users,
-          total_search_count,
-          latest_mention_at,
-          searchable_text
-        `);
+        .from('master_directory_lists_view')
+        .select('*');
 
       if (query.trim()) {
         const searchTerm = query.trim();
-        dbQuery = dbQuery.or(`display_content.ilike.%${searchTerm}%,normalized_content.ilike.%${searchTerm}%,searchable_text.ilike.%${searchTerm}%`);
+        dbQuery = dbQuery.or(
+          `list_title.ilike.%${searchTerm}%,searchable_text.ilike.%${searchTerm}%,items_preview.ilike.%${searchTerm}%`
+        );
       }
 
       if (selectedCategory && selectedCategory !== "all") {
@@ -126,77 +106,26 @@ export default function Directory() {
       }
 
       switch (sortBy) {
-        case 'votes':
-          dbQuery = dbQuery.order('mention_count', { ascending: false });
-          break;
-        case 'popular':
-          dbQuery = dbQuery.order('total_search_count', { ascending: false });
-          break;
         case 'recent':
-          dbQuery = dbQuery.order('latest_mention_at', { ascending: false });
+          dbQuery = dbQuery.order('latest_item_at', { ascending: false });
           break;
         default:
-          dbQuery = dbQuery.order('mention_count', { ascending: false })
-                          .order('total_search_count', { ascending: false });
+          dbQuery = dbQuery.order('item_count', { ascending: false });
       }
 
-      const { data, error } = await dbQuery.limit(50);
-
+      const { data, error } = await dbQuery.limit(20);
       if (error) throw error;
-
-      let processedResults: MasterDirectoryEntry[] = [];
-      
-      if (data && data.length > 0) {
-        if (userType === 'verified') {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (session) {
-            const allContributorIds = [...new Set(
-              data.flatMap(item => item.mentioned_by_users || [])
-            )];
-
-            const { data: networkContributors } = await supabase
-              .rpc('get_network_contributors', {
-                user_id_param: session.user.id,
-                contributor_ids: allContributorIds
-              });
-
-            const contributorMap = new Map(
-              networkContributors?.map(c => [c.contributor_id, c]) || []
-            );
-
-            processedResults = data.map(item => ({
-              ...item,
-              network_contributors: item.mentioned_by_users
-                ?.map(userId => contributorMap.get(userId))
-                .filter(Boolean) || []
-            }));
-          }
-        } else {
-          processedResults = data.map(item => ({ 
-            ...item, 
-            network_contributors: [] 
-          }));
-        }
-      }
-
-      setResults(processedResults);
+      setResults((data as any[]) || []);
 
       // Track search analytics
       const { data: { session } } = await supabase.auth.getSession();
       const categoryValue = selectedCategory !== "all" ? selectedCategory as any : null;
-      
       await supabase.from('search_analytics').insert({
         user_id: session?.user.id || null,
         search_query: query.trim(),
         category: categoryValue,
-        results_count: processedResults.length
+        results_count: data?.length || 0
       });
-
-      if (processedResults.length > 0) {
-        await supabase.rpc('increment_master_directory_search_count', {
-          entry_ids: processedResults.map(r => r.id)
-        });
-      }
 
     } catch (error: any) {
       console.error('Search error:', error);
@@ -210,95 +139,13 @@ export default function Directory() {
     }
   };
 
-  const handleAddRecommendation = async (entryId: string) => {
-    if (!newRecommendation.trim()) return;
-
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data: entry } = await supabase
-        .from('master_directory_entries')
-        .select('display_content, category')
-        .eq('id', entryId)
-        .single();
-
-      if (!entry) throw new Error('Entry not found');
-
-      let { data: userList } = await supabase
-        .from('lists')
-        .select('id')
-        .eq('owner_id', user.id)
-        .eq('title', entry.display_content)
-        .eq('visibility', 'public' as const)
-        .maybeSingle();
-
-      let listId: string;
-
-      if (!userList) {
-        const { data: newList, error: listError } = await supabase
-          .from('lists')
-          .insert({
-            owner_id: user.id,
-            title: entry.display_content,
-            category: entry.category,
-            visibility: 'public' as const
-          })
-          .select()
-          .single();
-
-        if (listError) throw listError;
-        listId = newList.id;
-      } else {
-        listId = userList.id;
-      }
-
-      const { data: items } = await supabase
-        .from('list_items')
-        .select('position')
-        .eq('list_id', listId)
-        .order('position', { ascending: false })
-        .limit(1);
-
-      const nextPosition = (items?.[0]?.position || 0) + 1;
-
-      await supabase
-        .from('list_items')
-        .insert({
-          list_id: listId,
-          content: newRecommendation,
-          position: nextPosition,
-          vote_count: 1
-        });
-
-      await supabase.rpc('refresh_master_directory');
-
-      toast({
-        title: "Recommendation Added!",
-        description: "Your suggestion has been added to the directory"
-      });
-
-      setNewRecommendation("");
-      setContributingToEntry(null);
-      searchDirectory();
-
-    } catch (error: any) {
-      console.error('Error adding recommendation:', error);
-      toast({
-        title: "Failed to Add",
-        description: error.message,
-        variant: "destructive"
-      });
-    }
-  };
-
   return (
     <>
       <Helmet>
-        <title>Antelog Directory - Discover Recommendations</title>
+        <title>Antelog Directory - Discover Curated Lists</title>
         <meta 
           name="description" 
-          content="Search through curated recommendations from verified users. Find places, films, books, products and more." 
+          content="Search through curated lists from verified users. Find places, films, products and more — discover by list title or items inside." 
         />
       </Helmet>
 
@@ -308,8 +155,8 @@ export default function Directory() {
           <div className="text-center mb-8">
             <h1 className="text-4xl font-bold mb-4">Master Directory</h1>
             <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-              Search through curated recommendations from our verified community. 
-              Discover places, films, products, and more based on real experiences.
+              Search through curated lists from our verified community.
+              Find lists by title or search for items inside them.
             </p>
           </div>
 
@@ -318,14 +165,14 @@ export default function Directory() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Search className="h-5 w-5" />
-                Search Directory
+                Search Lists
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex gap-4 flex-col sm:flex-row">
                 <div className="flex-1">
                   <Input
-                    placeholder="Search for recommendations..."
+                    placeholder="Search for lists or items inside them..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && searchDirectory()}
@@ -374,7 +221,7 @@ export default function Directory() {
             <div>
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-2xl font-semibold">
-                  {results.length} Results
+                  {results.length} {results.length === 1 ? 'List' : 'Lists'}
                   {searchQuery && ` for "${searchQuery}"`}
                 </h2>
                 {selectedCategory !== "all" && (
@@ -386,23 +233,27 @@ export default function Directory() {
 
               {loading ? (
                 <div className="space-y-4">
-                  {[...Array(5)].map((_, i) => (
+                  {[...Array(4)].map((_, i) => (
                     <Card key={i} className="animate-pulse">
                       <CardContent className="p-6">
-                        <div className="h-4 bg-muted rounded w-3/4 mb-2"></div>
-                        <div className="h-3 bg-muted rounded w-1/2"></div>
+                        <div className="h-5 bg-muted rounded w-3/4 mb-3" />
+                        <div className="h-3 bg-muted rounded w-1/2 mb-4" />
+                        <div className="flex gap-2">
+                          <div className="h-6 bg-muted rounded w-16" />
+                          <div className="h-6 bg-muted rounded w-20" />
+                          <div className="h-6 bg-muted rounded w-14" />
+                        </div>
                       </CardContent>
                     </Card>
                   ))}
                 </div>
               ) : results.length === 0 ? (
-                /* No Results CTA */
                 <Card>
                   <CardContent className="p-8 text-center">
                     <Search className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">No results found</h3>
+                    <h3 className="text-lg font-semibold mb-2">No lists found</h3>
                     <p className="text-muted-foreground mb-6">
-                      "{searchQuery}" doesn't exist in our directory yet
+                      "{searchQuery}" doesn't match any lists in our directory yet
                     </p>
                     {userType === 'verified' ? (
                       <Button onClick={() => navigate('/requests/new')}>
@@ -419,97 +270,71 @@ export default function Directory() {
                 </Card>
               ) : (
                 <div className="space-y-4">
-                  {results.map((entry) => (
-                    <Card key={entry.id} className="hover:shadow-md transition-shadow">
+                  {results.map((list) => (
+                    <Card
+                      key={list.list_id}
+                      className="hover:shadow-md transition-shadow cursor-pointer"
+                      onClick={() => navigate(`/lists/${list.list_id}`)}
+                    >
                       <CardContent className="p-6">
                         <div className="flex items-start justify-between gap-4">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-2">
-                              <h3 className="font-semibold text-lg">{entry.display_content}</h3>
-                              {entry.url && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  asChild
-                                  className="h-6 w-6 p-0"
-                                >
-                                  <a href={entry.url} target="_blank" rel="noopener noreferrer">
-                                    <ExternalLink className="h-3 w-3" />
-                                  </a>
-                                </Button>
-                              )}
-                            </div>
+                          <div className="flex-1 min-w-0">
+                            {/* List Title */}
+                            <h3 className="font-semibold text-lg mb-1">{list.list_title}</h3>
 
-                            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                            {/* Metadata */}
+                            <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground mb-3">
                               <Badge variant="outline" className="capitalize">
-                                {entry.category}
+                                {list.category}
                               </Badge>
-                              
-                              {entry.network_contributors && entry.network_contributors.length > 0 && (
-                                <div className="flex items-center gap-1">
-                                  <Users className="h-3 w-3" />
-                                  <span>by {entry.network_contributors.map(c => c.full_name).join(', ')}</span>
-                                </div>
-                              )}
-                              
-                              <div className="flex items-center gap-1">
-                                <TrendingUp className="h-3 w-3" />
-                                <span>{entry.total_search_count} searches</span>
-                              </div>
+                              <span>•</span>
+                              <span className="flex items-center gap-1">
+                                <Users className="h-3 w-3" />
+                                by @{list.creator_handle}
+                              </span>
+                              <span>•</span>
+                              <span>{list.item_count} {list.item_count === 1 ? 'item' : 'items'}</span>
                             </div>
 
-                            {/* Add Recommendation for verified users */}
-                            {userType === 'verified' && (
-                              <div className="mt-3">
-                                {contributingToEntry === entry.id ? (
-                                  <div className="flex gap-2">
-                                    <Input
-                                      placeholder="Add your recommendation..."
-                                      value={newRecommendation}
-                                      onChange={(e) => setNewRecommendation(e.target.value)}
-                                      onKeyDown={(e) => {
-                                        if (e.key === 'Enter') handleAddRecommendation(entry.id);
-                                      }}
-                                      className="flex-1"
-                                    />
-                                    <Button size="sm" onClick={() => handleAddRecommendation(entry.id)}>
-                                      Add
-                                    </Button>
-                                    <Button size="sm" variant="ghost" onClick={() => setContributingToEntry(null)}>
-                                      Cancel
-                                    </Button>
-                                  </div>
-                                ) : (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => setContributingToEntry(entry.id)}
-                                    className="text-xs"
-                                  >
-                                    <Plus className="h-3 w-3 mr-1" />
-                                    Add Your Recommendation
-                                  </Button>
-                                )}
+                            {/* Items Preview */}
+                            {list.items_array && list.items_array.length > 0 && (
+                              <div>
+                                <p className="text-xs text-muted-foreground mb-1.5">Items in this list:</p>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {list.items_array.slice(0, 6).map((item, idx) => (
+                                    <Badge key={idx} variant="secondary" className="text-xs font-normal">
+                                      {item}
+                                    </Badge>
+                                  ))}
+                                  {list.items_array.length > 6 && (
+                                    <Badge variant="secondary" className="text-xs font-normal">
+                                      +{list.items_array.length - 6} more
+                                    </Badge>
+                                  )}
+                                </div>
                               </div>
                             )}
                           </div>
 
-                          <div className="flex items-center gap-2">
-                            <div className="text-center">
-                              <div className="text-sm font-medium text-green-600">
-                                ↑ {entry.mention_count}
-                              </div>
-                              <div className="text-xs text-muted-foreground">
-                                {entry.mention_count === 1 ? '1 person' : `${entry.mention_count} people`}
-                              </div>
-                            </div>
-                          </div>
+                          {/* View Button */}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="shrink-0"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/lists/${list.list_id}`);
+                            }}
+                          >
+                            View List
+                            <ChevronRight className="h-4 w-4 ml-1" />
+                          </Button>
                         </div>
                       </CardContent>
                     </Card>
                   ))}
 
-                  {/* Create Request CTA after results */}
+                  {/* Create Request CTA */}
                   {userType === 'verified' && (
                     <Card className="border-dashed">
                       <CardContent className="p-6">
@@ -533,17 +358,17 @@ export default function Directory() {
             </div>
           )}
 
-          {/* CTA for non-searched state */}
+          {/* Initial state */}
           {!hasSearched && (
             <Card className="text-center py-12">
               <CardContent>
                 <Search className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
                 <h3 className="text-xl font-semibold mb-2">Start Exploring</h3>
                 <p className="text-muted-foreground mb-6">
-                  Search for recommendations or browse by category to discover curated content from our verified community.
+                  Search for lists or browse by category to discover curated content from our verified community.
                 </p>
                 <div className="flex flex-wrap gap-2 justify-center">
-                  {CATEGORIES.slice(0, 4).map((cat) => (
+                  {CATEGORIES.map((cat) => (
                     <Button
                       key={cat.value}
                       variant="outline"
