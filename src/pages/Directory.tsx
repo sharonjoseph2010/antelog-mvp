@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
-import { Search, Filter, ChevronDown, ExternalLink, Users, TrendingUp } from "lucide-react";
+import { Search, Filter, ChevronDown, ExternalLink, Users, TrendingUp, Plus, MessageSquare, ShieldCheck } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -31,12 +31,6 @@ interface NetworkContributor {
   is_extended_network: boolean;
 }
 
-interface ContributorProfile {
-  full_name: string;
-  handle: string;
-  id: string;
-}
-
 const CATEGORIES = [
   { value: 'places', label: 'Places' },
   { value: 'films', label: 'Films' },
@@ -53,18 +47,32 @@ const SORT_OPTIONS = [
 ];
 
 export default function Directory() {
-  const [searchQuery, setSearchQuery] = useState("");
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || "");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [sortBy, setSortBy] = useState("relevance");
   const [results, setResults] = useState<MasterDirectoryEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [userType, setUserType] = useState<'verified' | 'guest' | null>(null);
+  const [contributingToEntry, setContributingToEntry] = useState<string | null>(null);
+  const [newRecommendation, setNewRecommendation] = useState("");
   const { toast } = useToast();
 
   useEffect(() => {
     checkUserType();
   }, []);
+
+  // Auto-search if query param provided
+  useEffect(() => {
+    const searchFromParams = searchParams.get('search');
+    if (searchFromParams) {
+      setSearchQuery(searchFromParams);
+      // Trigger search after state is set
+      setTimeout(() => searchDirectory(searchFromParams), 100);
+    }
+  }, [searchParams]);
 
   const checkUserType = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -79,8 +87,9 @@ export default function Directory() {
     }
   };
 
-  const searchDirectory = async () => {
-    if (!searchQuery.trim() && selectedCategory === "all") {
+  const searchDirectory = async (overrideQuery?: string) => {
+    const query = overrideQuery || searchQuery;
+    if (!query.trim() && selectedCategory === "all") {
       toast({
         title: "Please enter a search term or select a category",
         variant: "destructive"
@@ -92,8 +101,7 @@ export default function Directory() {
     setHasSearched(true);
 
     try {
-      // Search the new master directory entries
-      let query = supabase
+      let dbQuery = supabase
         .from('master_directory_entries')
         .select(`
           id,
@@ -108,61 +116,50 @@ export default function Directory() {
           searchable_text
         `);
 
-      // Apply search filters with broader matching across content and list titles
-      if (searchQuery.trim()) {
-        const searchTerm = searchQuery.trim();
-        console.log('Search term:', searchTerm);
-        query = query.or(`display_content.ilike.%${searchTerm}%,normalized_content.ilike.%${searchTerm}%,searchable_text.ilike.%${searchTerm}%`);
-        console.log('Query after or filter applied');
+      if (query.trim()) {
+        const searchTerm = query.trim();
+        dbQuery = dbQuery.or(`display_content.ilike.%${searchTerm}%,normalized_content.ilike.%${searchTerm}%,searchable_text.ilike.%${searchTerm}%`);
       }
 
       if (selectedCategory && selectedCategory !== "all") {
-        query = query.eq('category', selectedCategory as any);
+        dbQuery = dbQuery.eq('category', selectedCategory as any);
       }
 
-      // Apply sorting
       switch (sortBy) {
         case 'votes':
-          query = query.order('mention_count', { ascending: false });
+          dbQuery = dbQuery.order('mention_count', { ascending: false });
           break;
         case 'popular':
-          query = query.order('total_search_count', { ascending: false });
+          dbQuery = dbQuery.order('total_search_count', { ascending: false });
           break;
         case 'recent':
-          query = query.order('latest_mention_at', { ascending: false });
+          dbQuery = dbQuery.order('latest_mention_at', { ascending: false });
           break;
         default:
-          // For relevance, combine mention_count and search_count
-          query = query.order('mention_count', { ascending: false })
-                      .order('total_search_count', { ascending: false });
+          dbQuery = dbQuery.order('mention_count', { ascending: false })
+                          .order('total_search_count', { ascending: false });
       }
 
-      const { data, error } = await query.limit(50);
-      
-      console.log('Query result:', { data, error, dataLength: data?.length });
+      const { data, error } = await dbQuery.limit(50);
 
       if (error) throw error;
 
-      // Get network contributor info for verified users
       let processedResults: MasterDirectoryEntry[] = [];
       
       if (data && data.length > 0) {
         if (userType === 'verified') {
           const { data: { session } } = await supabase.auth.getSession();
           if (session) {
-            // Get all unique contributor IDs
             const allContributorIds = [...new Set(
               data.flatMap(item => item.mentioned_by_users || [])
             )];
 
-            // Get network contributor info
             const { data: networkContributors } = await supabase
               .rpc('get_network_contributors', {
                 user_id_param: session.user.id,
                 contributor_ids: allContributorIds
               });
 
-            // Create a map for easy lookup
             const contributorMap = new Map(
               networkContributors?.map(c => [c.contributor_id, c]) || []
             );
@@ -175,7 +172,6 @@ export default function Directory() {
             }));
           }
         } else {
-          // For guest users, no network contributor info
           processedResults = data.map(item => ({ 
             ...item, 
             network_contributors: [] 
@@ -191,12 +187,11 @@ export default function Directory() {
       
       await supabase.from('search_analytics').insert({
         user_id: session?.user.id || null,
-        search_query: searchQuery.trim(),
+        search_query: query.trim(),
         category: categoryValue,
         results_count: processedResults.length
       });
 
-      // Increment search count for returned results
       if (processedResults.length > 0) {
         await supabase.rpc('increment_master_directory_search_count', {
           entry_ids: processedResults.map(r => r.id)
@@ -215,8 +210,87 @@ export default function Directory() {
     }
   };
 
-  // Note: In the master directory, vote count represents unique user mentions
-  // User voting on directory entries is separate from mention counting
+  const handleAddRecommendation = async (entryId: string) => {
+    if (!newRecommendation.trim()) return;
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: entry } = await supabase
+        .from('master_directory_entries')
+        .select('display_content, category')
+        .eq('id', entryId)
+        .single();
+
+      if (!entry) throw new Error('Entry not found');
+
+      let { data: userList } = await supabase
+        .from('lists')
+        .select('id')
+        .eq('owner_id', user.id)
+        .eq('title', entry.display_content)
+        .eq('visibility', 'public' as const)
+        .maybeSingle();
+
+      let listId: string;
+
+      if (!userList) {
+        const { data: newList, error: listError } = await supabase
+          .from('lists')
+          .insert({
+            owner_id: user.id,
+            title: entry.display_content,
+            category: entry.category,
+            visibility: 'public' as const
+          })
+          .select()
+          .single();
+
+        if (listError) throw listError;
+        listId = newList.id;
+      } else {
+        listId = userList.id;
+      }
+
+      const { data: items } = await supabase
+        .from('list_items')
+        .select('position')
+        .eq('list_id', listId)
+        .order('position', { ascending: false })
+        .limit(1);
+
+      const nextPosition = (items?.[0]?.position || 0) + 1;
+
+      await supabase
+        .from('list_items')
+        .insert({
+          list_id: listId,
+          content: newRecommendation,
+          position: nextPosition,
+          vote_count: 1
+        });
+
+      await supabase.rpc('refresh_master_directory');
+
+      toast({
+        title: "Recommendation Added!",
+        description: "Your suggestion has been added to the directory"
+      });
+
+      setNewRecommendation("");
+      setContributingToEntry(null);
+      searchDirectory();
+
+    } catch (error: any) {
+      console.error('Error adding recommendation:', error);
+      toast({
+        title: "Failed to Add",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  };
 
   return (
     <>
@@ -254,10 +328,10 @@ export default function Directory() {
                     placeholder="Search for recommendations..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && searchDirectory()}
+                    onKeyDown={(e) => e.key === 'Enter' && searchDirectory()}
                   />
                 </div>
-                <Button onClick={searchDirectory} disabled={loading} className="px-8">
+                <Button onClick={() => searchDirectory()} disabled={loading} className="px-8">
                   {loading ? "Searching..." : "Search"}
                 </Button>
               </div>
@@ -322,11 +396,25 @@ export default function Directory() {
                   ))}
                 </div>
               ) : results.length === 0 ? (
+                /* No Results CTA */
                 <Card>
                   <CardContent className="p-8 text-center">
-                    <div className="text-muted-foreground">
-                      No results found. Try adjusting your search terms or category filter.
-                    </div>
+                    <Search className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">No results found</h3>
+                    <p className="text-muted-foreground mb-6">
+                      "{searchQuery}" doesn't exist in our directory yet
+                    </p>
+                    {userType === 'verified' ? (
+                      <Button onClick={() => navigate('/requests/new')}>
+                        <MessageSquare className="h-4 w-4 mr-2" />
+                        Be the First! Create a Request
+                      </Button>
+                    ) : (
+                      <Button variant="outline" onClick={() => navigate('/signup')}>
+                        <ShieldCheck className="h-4 w-4 mr-2" />
+                        Get Verified to Create Requests
+                      </Button>
+                    )}
                   </CardContent>
                 </Card>
               ) : (
@@ -345,11 +433,7 @@ export default function Directory() {
                                   asChild
                                   className="h-6 w-6 p-0"
                                 >
-                                  <a
-                                    href={entry.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                  >
+                                  <a href={entry.url} target="_blank" rel="noopener noreferrer">
                                     <ExternalLink className="h-3 w-3" />
                                   </a>
                                 </Button>
@@ -373,6 +457,41 @@ export default function Directory() {
                                 <span>{entry.total_search_count} searches</span>
                               </div>
                             </div>
+
+                            {/* Add Recommendation for verified users */}
+                            {userType === 'verified' && (
+                              <div className="mt-3">
+                                {contributingToEntry === entry.id ? (
+                                  <div className="flex gap-2">
+                                    <Input
+                                      placeholder="Add your recommendation..."
+                                      value={newRecommendation}
+                                      onChange={(e) => setNewRecommendation(e.target.value)}
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') handleAddRecommendation(entry.id);
+                                      }}
+                                      className="flex-1"
+                                    />
+                                    <Button size="sm" onClick={() => handleAddRecommendation(entry.id)}>
+                                      Add
+                                    </Button>
+                                    <Button size="sm" variant="ghost" onClick={() => setContributingToEntry(null)}>
+                                      Cancel
+                                    </Button>
+                                  </div>
+                                ) : (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setContributingToEntry(entry.id)}
+                                    className="text-xs"
+                                  >
+                                    <Plus className="h-3 w-3 mr-1" />
+                                    Add Your Recommendation
+                                  </Button>
+                                )}
+                              </div>
+                            )}
                           </div>
 
                           <div className="flex items-center gap-2">
@@ -381,7 +500,7 @@ export default function Directory() {
                                 ↑ {entry.mention_count}
                               </div>
                               <div className="text-xs text-muted-foreground">
-                                Recommended by {entry.mention_count === 1 ? '1 person' : `${entry.mention_count} people`}
+                                {entry.mention_count === 1 ? '1 person' : `${entry.mention_count} people`}
                               </div>
                             </div>
                           </div>
@@ -389,6 +508,26 @@ export default function Directory() {
                       </CardContent>
                     </Card>
                   ))}
+
+                  {/* Create Request CTA after results */}
+                  {userType === 'verified' && (
+                    <Card className="border-dashed">
+                      <CardContent className="p-6">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium">Not satisfied with these results?</p>
+                            <p className="text-sm text-muted-foreground">
+                              Create your own request and ask your network
+                            </p>
+                          </div>
+                          <Button variant="outline" onClick={() => navigate('/requests/new')}>
+                            <MessageSquare className="h-4 w-4 mr-2" />
+                            Create Request
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
                 </div>
               )}
             </div>
@@ -410,7 +549,7 @@ export default function Directory() {
                       variant="outline"
                       onClick={() => {
                         setSelectedCategory(cat.value);
-                        searchDirectory();
+                        setTimeout(() => searchDirectory(), 50);
                       }}
                     >
                       Browse {cat.label}

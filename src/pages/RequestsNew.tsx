@@ -8,9 +8,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { MessageSquare, ArrowLeft, Users, User, UserCheck, Globe, X, CircleCheck, ExternalLink } from "lucide-react";
+import { checkForDuplicates } from "@/lib/masterDirectory";
+import { MessageSquare, ArrowLeft, Users, User, UserCheck, Globe, X, CircleCheck, ExternalLink, AlertTriangle, Search } from "lucide-react";
 import { z } from "zod";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
@@ -44,6 +46,8 @@ export default function RequestsNew() {
   const [externalContacts, setExternalContacts] = useState<any[]>([]);
   const [generatedShareLink, setGeneratedShareLink] = useState<string | null>(null);
   const [isGeneratingLink, setIsGeneratingLink] = useState(false);
+  const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
+  const [duplicateResults, setDuplicateResults] = useState<any[]>([]);
   const [formData, setFormData] = useState({
     title: '',
     category: '' as 'films' | 'places' | 'products' | 'services' | 'other',
@@ -162,6 +166,38 @@ export default function RequestsNew() {
         ? prev.audience_types.filter(t => t !== type)
         : [...prev.audience_types, type]
     }));
+  };
+
+  const handleTitleBlur = async () => {
+    if (!formData.title.trim() || !formData.category) return;
+
+    try {
+      const check = await checkForDuplicates(formData.title, formData.category as any);
+      
+      if (check.isDuplicate && check.existingEntry) {
+        setDuplicateResults([check.existingEntry]);
+        setShowDuplicateWarning(true);
+        return;
+      }
+
+      // Also search master directory for similar entries
+      const { data } = await supabase
+        .from('master_directory_entries')
+        .select('*')
+        .eq('category', formData.category as any)
+        .ilike('display_content', `%${formData.title}%`)
+        .limit(3);
+
+      if (data && data.length > 0) {
+        setDuplicateResults(data);
+        setShowDuplicateWarning(true);
+      } else {
+        setShowDuplicateWarning(false);
+        setDuplicateResults([]);
+      }
+    } catch (error) {
+      console.error('Error checking duplicates:', error);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -541,12 +577,63 @@ export default function RequestsNew() {
                 placeholder="e.g., Can someone recommend good coffee shops near SRFTI campus?"
                 value={formData.title}
                 onChange={(e) => setFormData({...formData, title: e.target.value})}
+                onBlur={handleTitleBlur}
                 className="min-h-[100px] resize-none"
                 maxLength={500}
               />
               <p className="text-sm text-muted-foreground">
                 {formData.title.length}/500 characters
               </p>
+
+              {/* Duplicate Warning */}
+              {showDuplicateWarning && duplicateResults.length > 0 && (
+                <Alert variant="default" className="border-yellow-500/50 bg-yellow-50 dark:bg-yellow-950/20">
+                  <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                  <AlertTitle>Similar lists already exist</AlertTitle>
+                  <AlertDescription className="space-y-3">
+                    <p className="text-sm">These might already have what you're looking for:</p>
+                    <div className="space-y-2">
+                      {duplicateResults.map((result: any) => (
+                        <div key={result.id} className="flex items-center justify-between p-2 rounded border bg-background">
+                          <div>
+                            <p className="text-sm font-medium">{result.display_content}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {result.mention_count} {result.mention_count === 1 ? 'person recommends' : 'people recommend'} this
+                            </p>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="link"
+                            size="sm"
+                            onClick={() => navigate(`/directory?search=${encodeURIComponent(result.display_content)}`)}
+                          >
+                            <Search className="h-3 w-3 mr-1" />
+                            View
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex gap-2 pt-1">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => navigate(`/directory?search=${encodeURIComponent(formData.title)}`)}
+                      >
+                        Search Directory First
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowDuplicateWarning(false)}
+                      >
+                        Continue Anyway
+                      </Button>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+              )}
             </div>
 
             {/* Category */}
