@@ -225,7 +225,7 @@ const Profile = () => {
                   @{handle}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  This is how you appear to others on Antelog. Randomly generated for your privacy.
+                  This is how you appear to others on Antelog. Changes each time you log in for privacy.
                 </p>
               </div>
               
