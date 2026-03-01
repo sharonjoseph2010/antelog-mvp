@@ -38,6 +38,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Session, User } from "@supabase/supabase-js";
 import { ProtectedRoute, AdminRoute, InternalRoute, VerifiedRoute } from "@/components/routes/RouteGuards";
 import Directory from "./pages/Directory";
+import DirectoryListDetail from "./pages/DirectoryListDetail";
 import GuestSignup from "./pages/GuestSignup";
 import ForYou from "./pages/ForYou";
 import Profile from "./pages/Profile";
@@ -312,6 +313,11 @@ function AppContent({
         <Route path="/directory" element={
           <ProtectedRoute isAuthenticated={isAuthenticated}>
             <Directory />
+          </ProtectedRoute>
+        } />
+        <Route path="/directory/:id" element={
+          <ProtectedRoute isAuthenticated={isAuthenticated}>
+            <DirectoryListDetail />
           </ProtectedRoute>
         } />
         <Route path="/login" element={<Login />} />

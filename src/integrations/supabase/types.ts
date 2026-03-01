@@ -563,6 +563,131 @@ export type Database = {
         }
         Relationships: []
       }
+      master_directory_items: {
+        Row: {
+          added_by: string | null
+          created_at: string | null
+          id: string
+          item_name: string
+          item_name_normalized: string
+          list_id: string | null
+          vote_count: number | null
+        }
+        Insert: {
+          added_by?: string | null
+          created_at?: string | null
+          id?: string
+          item_name: string
+          item_name_normalized: string
+          list_id?: string | null
+          vote_count?: number | null
+        }
+        Update: {
+          added_by?: string | null
+          created_at?: string | null
+          id?: string
+          item_name?: string
+          item_name_normalized?: string
+          list_id?: string | null
+          vote_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "master_directory_items_added_by_fkey"
+            columns: ["added_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "master_directory_items_list_id_fkey"
+            columns: ["list_id"]
+            isOneToOne: false
+            referencedRelation: "master_directory_lists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      master_directory_lists: {
+        Row: {
+          category: string
+          contributor_count: number | null
+          created_at: string | null
+          id: string
+          original_contributor_id: string | null
+          title: string
+          title_normalized: string
+          total_votes: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          category?: string
+          contributor_count?: number | null
+          created_at?: string | null
+          id?: string
+          original_contributor_id?: string | null
+          title: string
+          title_normalized: string
+          total_votes?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string
+          contributor_count?: number | null
+          created_at?: string | null
+          id?: string
+          original_contributor_id?: string | null
+          title?: string
+          title_normalized?: string
+          total_votes?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "master_directory_lists_original_contributor_id_fkey"
+            columns: ["original_contributor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      master_directory_votes: {
+        Row: {
+          created_at: string | null
+          id: string
+          item_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          item_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          item_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "master_directory_votes_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "master_directory_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "master_directory_votes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           created_at: string
@@ -1247,6 +1372,16 @@ export type Database = {
           phone_number: string
         }[]
       }
+      find_similar_directory_lists: {
+        Args: { p_threshold?: number; p_title: string }
+        Returns: {
+          contributor_count: number
+          id: string
+          similarity_score: number
+          title: string
+          total_votes: number
+        }[]
+      }
       generate_anonymous_handle: { Args: never; Returns: string }
       generate_share_token: { Args: never; Returns: string }
       get_connection_path: {
@@ -1357,12 +1492,22 @@ export type Database = {
         Args: { new_user_id: string; new_user_phone: string }
         Returns: number
       }
+      normalize_directory_text: { Args: { input: string }; Returns: string }
       normalize_phone_number: { Args: { phone_input: string }; Returns: string }
       refresh_contact_matches: {
         Args: { user_id_param?: string }
         Returns: Json
       }
       refresh_master_directory: { Args: never; Returns: undefined }
+      search_directory_pool_items: {
+        Args: { p_list_id: string; p_query: string; p_threshold?: number }
+        Returns: {
+          id: string
+          item_name: string
+          similarity_score: number
+          vote_count: number
+        }[]
+      }
       search_similar_recommendations: {
         Args: {
           req_id: string
