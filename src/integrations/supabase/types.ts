@@ -1176,6 +1176,8 @@ export type Database = {
       master_directory_lists_view: {
         Row: {
           category: Database["public"]["Enums"]["list_category"] | null
+          contributor_count: number | null
+          contributor_handles: string[] | null
           created_at: string | null
           creator_handle: string | null
           creator_name: string | null
@@ -1187,6 +1189,7 @@ export type Database = {
           list_id: string | null
           list_title: string | null
           owner_id: string | null
+          primary_creator_handle: string | null
           searchable_text: string | null
           updated_at: string | null
         }

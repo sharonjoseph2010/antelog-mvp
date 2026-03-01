@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { Search, Filter, ChevronDown, ChevronRight, Users, MessageSquare, ShieldCheck } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,9 @@ interface MasterDirectoryList {
   owner_id: string;
   creator_handle: string;
   creator_name: string;
+  primary_creator_handle: string;
+  contributor_count: number;
+  contributor_handles: string[];
   item_count: number;
   items_preview: string;
   items_array: string[];
@@ -288,10 +292,31 @@ export default function Directory() {
                                 {list.category}
                               </Badge>
                               <span>•</span>
-                              <span className="flex items-center gap-1">
-                                <Users className="h-3 w-3" />
-                                by @{list.creator_handle}
-                              </span>
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="flex items-center gap-1 cursor-help">
+                                      <Users className="h-3 w-3" />
+                                      by @{list.primary_creator_handle || list.creator_handle}
+                                      {list.contributor_count > 1 && (
+                                        <span className="text-primary font-medium">
+                                          {" "}(+{list.contributor_count - 1} {list.contributor_count - 1 === 1 ? 'other' : 'others'})
+                                        </span>
+                                      )}
+                                    </span>
+                                  </TooltipTrigger>
+                                  {list.contributor_count > 1 && list.contributor_handles && (
+                                    <TooltipContent>
+                                      <div className="space-y-1">
+                                        <p className="font-medium text-xs">Contributors:</p>
+                                        {list.contributor_handles.map((handle: string) => (
+                                          <p key={handle} className="text-xs">@{handle}</p>
+                                        ))}
+                                      </div>
+                                    </TooltipContent>
+                                  )}
+                                </Tooltip>
+                              </TooltipProvider>
                               <span>•</span>
                               <span>{list.item_count} {list.item_count === 1 ? 'item' : 'items'}</span>
                             </div>
