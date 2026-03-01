@@ -15,12 +15,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { CheckCircle, Globe, Loader2, Merge } from "lucide-react";
-import {
-  publishToMasterDirectory,
-  checkForDuplicates,
-  mergeWithExisting,
-} from "@/lib/masterDirectory";
+import { CheckCircle, Globe, Loader2 } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 
 type ListCategory = Database["public"]["Enums"]["list_category"];
@@ -82,9 +77,12 @@ const Lists = () => {
 
   const [publishingListId, setPublishingListId] = useState<string | null>(null);
   const [showMergeDialog, setShowMergeDialog] = useState(false);
-  const [duplicateCheck, setDuplicateCheck] = useState<{
-    existingEntry: any;
-    similarity: number;
+  const [duplicateMatch, setDuplicateMatch] = useState<{
+    id: string;
+    title: string;
+    contributor_count: number;
+    total_votes: number;
+    similarity_score: number;
   } | null>(null);
 
   if (error) {
@@ -100,71 +98,94 @@ const Lists = () => {
       return;
     }
 
-    const check = await checkForDuplicates(list.title, list.category);
-
-    if (check.isDuplicate) {
-      setDuplicateCheck({
-        existingEntry: check.existingEntry,
-        similarity: check.similarity ?? 0,
-      });
-      setShowMergeDialog(true);
-      return;
-    }
-
     const { data: userRes } = await supabase.auth.getUser();
     if (!userRes.user) {
       setPublishingListId(null);
       return;
     }
 
-    const result = await publishToMasterDirectory(listId, userRes.user.id);
+    try {
+      // Check for similar lists in master_directory_lists
+      const { data: similar, error: simErr } = await supabase.rpc("find_similar_directory_lists", {
+        p_title: list.title,
+        p_threshold: 0.5,
+      });
 
-    if (result.success) {
+      if (simErr) throw simErr;
+
+      if (similar && similar.length > 0) {
+        setDuplicateMatch(similar[0] as any);
+        setShowMergeDialog(true);
+        return;
+      }
+
+      // No duplicate — create new directory list
+      const normalized = list.title.trim().toLowerCase().replace(/\s+/g, " ");
+      const { data: newDirList, error: createErr } = await supabase
+        .from("master_directory_lists")
+        .insert({
+          title: list.title,
+          title_normalized: normalized,
+          category: list.category,
+          original_contributor_id: userRes.user.id,
+        })
+        .select()
+        .single();
+
+      if (createErr) throw createErr;
+
+      // Get items from user's list
+      const { data: listItems } = await supabase
+        .from("list_items")
+        .select("content")
+        .eq("list_id", listId)
+        .order("position");
+
+      if (listItems && listItems.length > 0) {
+        for (const item of listItems) {
+          const itemNorm = item.content.trim().toLowerCase().replace(/\s+/g, " ");
+          const { data: inserted, error: itemErr } = await supabase
+            .from("master_directory_items")
+            .insert({
+              list_id: newDirList.id,
+              item_name: item.content,
+              item_name_normalized: itemNorm,
+              added_by: userRes.user.id,
+            })
+            .select()
+            .single();
+
+          if (!itemErr && inserted) {
+            // Auto-vote
+            await supabase
+              .from("master_directory_votes")
+              .insert({ item_id: inserted.id, user_id: userRes.user.id });
+          }
+        }
+      }
+
+      // Mark the user's list as public
+      await supabase.from("lists").update({ visibility: "public" as const }).eq("id", listId);
+
       toast({
         title: "Published!",
-        description: "Your list is now in the Master Directory",
+        description: "Your list is now live in the Master Directory!",
       });
       queryClient.invalidateQueries({ queryKey: ["my-lists"] });
-    } else {
-      toast({
-        title: "Failed to Publish",
-        description: result.error,
-        variant: "destructive",
-      });
+    } catch (err: any) {
+      toast({ title: "Publish failed", description: err.message, variant: "destructive" });
+    } finally {
+      setPublishingListId(null);
     }
-
-    setPublishingListId(null);
   };
 
-  const handleMergeConfirm = async () => {
-    if (!publishingListId || !duplicateCheck?.existingEntry) return;
-
-    const { data: userRes } = await supabase.auth.getUser();
-    if (!userRes.user) return;
-
-    const result = await mergeWithExisting(
-      publishingListId,
-      userRes.user.id,
-      duplicateCheck.existingEntry.id
-    );
-
-    if (result.success) {
-      toast({
-        title: "Merged Successfully!",
-        description: "Your recommendations have been added to the existing list",
-      });
-      queryClient.invalidateQueries({ queryKey: ["my-lists"] });
-    } else {
-      toast({
-        title: "Merge Failed",
-        description: result.error,
-        variant: "destructive",
-      });
+  const handleViewExisting = () => {
+    if (duplicateMatch) {
+      window.location.href = `/directory/${duplicateMatch.id}`;
     }
-
     setShowMergeDialog(false);
     setPublishingListId(null);
-    setDuplicateCheck(null);
+    setDuplicateMatch(null);
   };
 
   return (
@@ -267,18 +288,25 @@ const Lists = () => {
             </DialogDescription>
           </DialogHeader>
 
-          {duplicateCheck && (
+          {duplicateMatch && (
             <div className="space-y-4 py-2">
               <div className="rounded-md border border-input p-4">
                 <p className="text-sm font-medium text-muted-foreground">Existing List:</p>
-                <p className="text-lg font-semibold">{duplicateCheck.existingEntry.display_content}</p>
-                <Badge variant="secondary" className="mt-1">
-                  {(duplicateCheck.similarity * 100).toFixed(0)}% similar to your list
-                </Badge>
+                <p className="text-lg font-semibold">{duplicateMatch.title}</p>
+                <div className="flex gap-2 mt-2">
+                  <Badge variant="secondary">
+                    {(duplicateMatch.similarity_score * 100).toFixed(0)}% similar
+                  </Badge>
+                  <Badge variant="outline">
+                    {duplicateMatch.contributor_count} contributors
+                  </Badge>
+                  <Badge variant="outline">
+                    {duplicateMatch.total_votes} votes
+                  </Badge>
+                </div>
               </div>
               <p className="text-sm text-muted-foreground">
-                To keep the Master Directory clutter-free, we merge similar lists.
-                Your recommendations will be added to the existing list.
+                A similar list already exists. View it to add your recommendations there instead.
               </p>
             </div>
           )}
@@ -289,14 +317,13 @@ const Lists = () => {
               onClick={() => {
                 setShowMergeDialog(false);
                 setPublishingListId(null);
-                setDuplicateCheck(null);
+                setDuplicateMatch(null);
               }}
             >
               Cancel
             </Button>
-            <Button onClick={handleMergeConfirm}>
-              <Merge className="h-4 w-4" />
-              Merge with Existing
+            <Button onClick={handleViewExisting}>
+              View Existing List
             </Button>
           </DialogFooter>
         </DialogContent>

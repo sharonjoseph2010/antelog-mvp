@@ -278,7 +278,7 @@ export default function Directory() {
                     <Card
                       key={list.list_id}
                       className="hover:shadow-md transition-shadow cursor-pointer"
-                      onClick={() => navigate(`/lists/${list.list_id}`)}
+                      onClick={() => navigate(`/directory/${list.list_id}`)}
                     >
                       <CardContent className="p-6">
                         <div className="flex items-start justify-between gap-4">
@@ -348,7 +348,7 @@ export default function Directory() {
                             className="shrink-0"
                             onClick={(e) => {
                               e.stopPropagation();
-                              navigate(`/lists/${list.list_id}`);
+                              navigate(`/directory/${list.list_id}`);
                             }}
                           >
                             View List
