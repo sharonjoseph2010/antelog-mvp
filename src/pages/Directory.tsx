@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
-import { Search, Filter, ChevronDown, ChevronRight, Users, MessageSquare, ShieldCheck } from "lucide-react";
+import { Search, Filter, ChevronDown, ChevronRight, Users, MessageSquare, ShieldCheck, Crown } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,24 +11,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
-interface MasterDirectoryList {
-  list_id: string;
-  list_title: string;
-  list_description: string | null;
+interface DirectoryListResult {
+  id: string;
+  title: string;
   category: string;
-  owner_id: string;
-  creator_handle: string;
-  creator_name: string;
-  primary_creator_handle: string;
   contributor_count: number;
-  contributor_handles: string[];
-  item_count: number;
-  items_preview: string;
-  items_array: string[];
-  searchable_text: string;
-  latest_item_at: string;
+  total_votes: number;
+  original_contributor_id: string | null;
   created_at: string;
   updated_at: string;
+  // Joined data
+  items: { id: string; item_name: string; vote_count: number }[];
+  contributor_handle: string | null;
 }
 
 const CATEGORIES = [
@@ -40,7 +34,7 @@ const CATEGORIES = [
 ];
 
 const SORT_OPTIONS = [
-  { value: 'items', label: 'Most Items' },
+  { value: 'votes', label: 'Most Votes' },
   { value: 'recent', label: 'Most Recent' }
 ];
 
@@ -49,8 +43,8 @@ export default function Directory() {
   const [searchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || "");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  const [sortBy, setSortBy] = useState("items");
-  const [results, setResults] = useState<MasterDirectoryList[]>([]);
+  const [sortBy, setSortBy] = useState("votes");
+  const [results, setResults] = useState<DirectoryListResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [userType, setUserType] = useState<'verified' | 'guest' | null>(null);
@@ -94,42 +88,69 @@ export default function Directory() {
     setHasSearched(true);
 
     try {
+      // Query master_directory_lists (NOT the lists table or master_directory_lists_view)
       let dbQuery = supabase
-        .from('master_directory_lists_view')
+        .from('master_directory_lists')
         .select('*');
 
       if (query.trim()) {
         const searchTerm = query.trim();
-        dbQuery = dbQuery.or(
-          `list_title.ilike.%${searchTerm}%,searchable_text.ilike.%${searchTerm}%,items_preview.ilike.%${searchTerm}%`
-        );
+        dbQuery = dbQuery.ilike('title', `%${searchTerm}%`);
       }
 
       if (selectedCategory && selectedCategory !== "all") {
-        dbQuery = dbQuery.eq('category', selectedCategory as any);
+        dbQuery = dbQuery.eq('category', selectedCategory);
       }
 
       switch (sortBy) {
         case 'recent':
-          dbQuery = dbQuery.order('latest_item_at', { ascending: false });
+          dbQuery = dbQuery.order('updated_at', { ascending: false });
           break;
         default:
-          dbQuery = dbQuery.order('item_count', { ascending: false });
+          dbQuery = dbQuery.order('total_votes', { ascending: false });
       }
 
-      const { data, error } = await dbQuery.limit(20);
+      const { data: lists, error } = await dbQuery.limit(20);
       if (error) throw error;
-      setResults((data as any[]) || []);
 
-      // Track search analytics
-      const { data: { session } } = await supabase.auth.getSession();
-      const categoryValue = selectedCategory !== "all" ? selectedCategory as any : null;
-      await supabase.from('search_analytics').insert({
-        user_id: session?.user.id || null,
-        search_query: query.trim(),
-        category: categoryValue,
-        results_count: data?.length || 0
-      });
+      if (!lists || lists.length === 0) {
+        // Also search items if title search found nothing
+        if (query.trim()) {
+          const { data: itemMatches } = await supabase
+            .from('master_directory_items')
+            .select('list_id')
+            .ilike('item_name', `%${query.trim()}%`)
+            .limit(20);
+
+          if (itemMatches && itemMatches.length > 0) {
+            const listIds = [...new Set(itemMatches.map(i => i.list_id).filter(Boolean))];
+            let itemQuery = supabase
+              .from('master_directory_lists')
+              .select('*')
+              .in('id', listIds as string[]);
+
+            if (selectedCategory !== "all") {
+              itemQuery = itemQuery.eq('category', selectedCategory);
+            }
+
+            const { data: listsFromItems } = await itemQuery.limit(20);
+            if (listsFromItems && listsFromItems.length > 0) {
+              const enriched = await enrichResults(listsFromItems);
+              setResults(enriched);
+              await trackSearch(query, selectedCategory, enriched.length);
+              return;
+            }
+          }
+        }
+
+        setResults([]);
+        await trackSearch(query, selectedCategory, 0);
+        return;
+      }
+
+      const enriched = await enrichResults(lists);
+      setResults(enriched);
+      await trackSearch(query, selectedCategory, enriched.length);
 
     } catch (error: any) {
       console.error('Search error:', error);
@@ -143,13 +164,84 @@ export default function Directory() {
     }
   };
 
+  const enrichResults = async (lists: any[]): Promise<DirectoryListResult[]> => {
+    const listIds = lists.map(l => l.id);
+
+    // Fetch top items for each list (max 6 per list for preview)
+    const { data: allItems } = await supabase
+      .from('master_directory_items')
+      .select('id, list_id, item_name, vote_count')
+      .in('list_id', listIds)
+      .order('vote_count', { ascending: false })
+      .limit(100);
+
+    // Fetch contributor handles
+    const contributorIds = lists
+      .map(l => l.original_contributor_id)
+      .filter(Boolean);
+
+    let handleMap = new Map<string, string>();
+    if (contributorIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, handle')
+        .in('id', contributorIds);
+
+      if (profiles) {
+        for (const p of profiles) {
+          handleMap.set(p.id, p.handle);
+        }
+      }
+    }
+
+    // Group items by list
+    const itemsByList = new Map<string, { id: string; item_name: string; vote_count: number }[]>();
+    for (const item of allItems || []) {
+      const listId = item.list_id as string;
+      if (!itemsByList.has(listId)) itemsByList.set(listId, []);
+      itemsByList.get(listId)!.push({
+        id: item.id,
+        item_name: item.item_name,
+        vote_count: item.vote_count ?? 0,
+      });
+    }
+
+    return lists.map(l => ({
+      id: l.id,
+      title: l.title,
+      category: l.category || 'other',
+      contributor_count: l.contributor_count ?? 1,
+      total_votes: l.total_votes ?? 0,
+      original_contributor_id: l.original_contributor_id,
+      created_at: l.created_at,
+      updated_at: l.updated_at,
+      items: (itemsByList.get(l.id) || []).slice(0, 6),
+      contributor_handle: l.original_contributor_id ? handleMap.get(l.original_contributor_id) || null : null,
+    }));
+  };
+
+  const trackSearch = async (query: string, category: string, count: number) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const categoryValue = category !== "all" ? category as any : null;
+      await supabase.from('search_analytics').insert({
+        user_id: session?.user.id || null,
+        search_query: query.trim(),
+        category: categoryValue,
+        results_count: count
+      });
+    } catch {
+      // non-blocking
+    }
+  };
+
   return (
     <>
       <Helmet>
         <title>Antelog Directory - Discover Curated Lists</title>
         <meta 
           name="description" 
-          content="Search through curated lists from verified users. Find places, films, products and more — discover by list title or items inside." 
+          content="Search through curated lists from verified users. Find places, films, products and more — ranked by community votes." 
         />
       </Helmet>
 
@@ -159,8 +251,8 @@ export default function Directory() {
           <div className="text-center mb-8">
             <h1 className="text-4xl font-bold mb-4">Master Directory</h1>
             <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-              Search through curated lists from our verified community.
-              Find lists by title or search for items inside them.
+              Community-curated lists ranked by verified user votes.
+              Search by list title or browse by category.
             </p>
           </div>
 
@@ -257,7 +349,7 @@ export default function Directory() {
                     <Search className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                     <h3 className="text-lg font-semibold mb-2">No lists found</h3>
                     <p className="text-muted-foreground mb-6">
-                      "{searchQuery}" doesn't match any lists in our directory yet
+                      "{searchQuery}" doesn't match any lists in the Master Directory yet
                     </p>
                     {userType === 'verified' ? (
                       <Button onClick={() => navigate('/requests/new')}>
@@ -276,15 +368,15 @@ export default function Directory() {
                 <div className="space-y-4">
                   {results.map((list) => (
                     <Card
-                      key={list.list_id}
+                      key={list.id}
                       className="hover:shadow-md transition-shadow cursor-pointer"
-                      onClick={() => navigate(`/directory/${list.list_id}`)}
+                      onClick={() => navigate(`/directory/${list.id}`)}
                     >
                       <CardContent className="p-6">
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex-1 min-w-0">
                             {/* List Title */}
-                            <h3 className="font-semibold text-lg mb-1">{list.list_title}</h3>
+                            <h3 className="font-semibold text-lg mb-1">{list.title}</h3>
 
                             {/* Metadata */}
                             <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground mb-3">
@@ -292,50 +384,34 @@ export default function Directory() {
                                 {list.category}
                               </Badge>
                               <span>•</span>
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <span className="flex items-center gap-1 cursor-help">
-                                      <Users className="h-3 w-3" />
-                                      by @{list.primary_creator_handle || list.creator_handle}
-                                      {list.contributor_count > 1 && (
-                                        <span className="text-primary font-medium">
-                                          {" "}(+{list.contributor_count - 1} {list.contributor_count - 1 === 1 ? 'other' : 'others'})
-                                        </span>
-                                      )}
-                                    </span>
-                                  </TooltipTrigger>
-                                  {list.contributor_count > 1 && list.contributor_handles && (
-                                    <TooltipContent>
-                                      <div className="space-y-1">
-                                        <p className="font-medium text-xs">Contributors:</p>
-                                        {list.contributor_handles.map((handle: string) => (
-                                          <p key={handle} className="text-xs">@{handle}</p>
-                                        ))}
-                                      </div>
-                                    </TooltipContent>
-                                  )}
-                                </Tooltip>
-                              </TooltipProvider>
+                              <span className="flex items-center gap-1">
+                                <Users className="h-3 w-3" />
+                                {list.contributor_handle ? `by @${list.contributor_handle}` : 'Community'}
+                                {list.contributor_count > 1 && (
+                                  <span className="text-primary font-medium">
+                                    {" "}(+{list.contributor_count - 1} {list.contributor_count - 1 === 1 ? 'other' : 'others'})
+                                  </span>
+                                )}
+                              </span>
                               <span>•</span>
-                              <span>{list.item_count} {list.item_count === 1 ? 'item' : 'items'}</span>
+                              <span className="flex items-center gap-1">
+                                <Crown className="h-3 w-3" />
+                                {list.total_votes} {list.total_votes === 1 ? 'vote' : 'votes'}
+                              </span>
+                              <span>•</span>
+                              <span>{list.items.length}+ items</span>
                             </div>
 
                             {/* Items Preview */}
-                            {list.items_array && list.items_array.length > 0 && (
+                            {list.items.length > 0 && (
                               <div>
-                                <p className="text-xs text-muted-foreground mb-1.5">Items in this list:</p>
+                                <p className="text-xs text-muted-foreground mb-1.5">Top items:</p>
                                 <div className="flex flex-wrap gap-1.5">
-                                  {list.items_array.slice(0, 6).map((item, idx) => (
-                                    <Badge key={idx} variant="secondary" className="text-xs font-normal">
-                                      {item}
+                                  {list.items.map((item, idx) => (
+                                    <Badge key={item.id} variant="secondary" className="text-xs font-normal">
+                                      {item.item_name}
                                     </Badge>
                                   ))}
-                                  {list.items_array.length > 6 && (
-                                    <Badge variant="secondary" className="text-xs font-normal">
-                                      +{list.items_array.length - 6} more
-                                    </Badge>
-                                  )}
                                 </div>
                               </div>
                             )}
@@ -348,7 +424,7 @@ export default function Directory() {
                             className="shrink-0"
                             onClick={(e) => {
                               e.stopPropagation();
-                              navigate(`/directory/${list.list_id}`);
+                              navigate(`/directory/${list.id}`);
                             }}
                           >
                             View List
@@ -390,7 +466,7 @@ export default function Directory() {
                 <Search className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
                 <h3 className="text-xl font-semibold mb-2">Start Exploring</h3>
                 <p className="text-muted-foreground mb-6">
-                  Search for lists or browse by category to discover curated content from our verified community.
+                  Search for lists or browse by category to discover community-curated content.
                 </p>
                 <div className="flex flex-wrap gap-2 justify-center">
                   {CATEGORIES.map((cat) => (
