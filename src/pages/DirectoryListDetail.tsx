@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
-  ArrowLeft, ChevronDown, ChevronUp, Crown, Plus, ThumbsUp, Check, Users, Vote, ShieldCheck, Loader2,
+  ArrowLeft, ChevronDown, ChevronUp, Plus, ThumbsUp, Check, Users, Vote, ShieldCheck, Loader2,
 } from "lucide-react";
 
 interface DirectoryList {
@@ -287,7 +287,7 @@ export default function DirectoryListDetail() {
               #{rank}
             </span>
           )}
-          {rank === 1 && <Crown className="h-4 w-4 text-yellow-500 shrink-0" />}
+          
           <span className="font-medium truncate">{item.item_name}</span>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -380,8 +380,7 @@ export default function DirectoryListDetail() {
           {/* Top 10 */}
           <Card className="mb-6">
             <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Crown className="h-5 w-5 text-yellow-500" />
+              <CardTitle className="text-lg">
                 Top {Math.min(10, items.length)}
               </CardTitle>
               <p className="text-xs text-muted-foreground">Ranked by votes, updates live</p>
