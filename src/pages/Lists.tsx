@@ -16,7 +16,17 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { CheckCircle, Globe, Loader2 } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type { Database } from "@/integrations/supabase/types";
+
+const CATEGORY_OPTIONS: ListCategory[] = ["films", "places", "products", "services", "other"];
 
 type ListCategory = Database["public"]["Enums"]["list_category"];
 
@@ -85,14 +95,29 @@ const Lists = () => {
     similarity_score: number;
   } | null>(null);
 
+  // Confirmation dialog state
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [confirmListId, setConfirmListId] = useState<string | null>(null);
+  const [confirmCategory, setConfirmCategory] = useState<ListCategory>("other");
+
   if (error) {
     toast({ title: "Failed to load lists", description: (error as Error).message });
   }
 
-  const handlePublish = async (listId: string) => {
-    setPublishingListId(listId);
-
+  const handlePublishClick = (listId: string) => {
     const list = data?.find((l) => l.id === listId);
+    if (!list) return;
+    setConfirmListId(listId);
+    setConfirmCategory(list.category);
+    setShowConfirmDialog(true);
+  };
+
+  const handleConfirmPublish = async () => {
+    if (!confirmListId) return;
+    setShowConfirmDialog(false);
+    setPublishingListId(confirmListId);
+
+    const list = data?.find((l) => l.id === confirmListId);
     if (!list) {
       setPublishingListId(null);
       return;
@@ -126,7 +151,7 @@ const Lists = () => {
         .insert({
           title: list.title,
           title_normalized: normalized,
-          category: list.category,
+          category: confirmCategory,
           original_contributor_id: userRes.user.id,
         })
         .select()
@@ -138,7 +163,7 @@ const Lists = () => {
       const { data: listItems } = await supabase
         .from("list_items")
         .select("content")
-        .eq("list_id", listId)
+        .eq("list_id", confirmListId)
         .order("position");
 
       if (listItems && listItems.length > 0) {
@@ -165,7 +190,7 @@ const Lists = () => {
       }
 
       // Mark the user's list as public
-      await supabase.from("lists").update({ visibility: "public" as const }).eq("id", listId);
+      await supabase.from("lists").update({ visibility: "public" as const }).eq("id", confirmListId);
 
       toast({
         title: "Published!",
@@ -246,7 +271,7 @@ const Lists = () => {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handlePublish(list.id)}
+                          onClick={() => handlePublishClick(list.id)}
                           disabled={publishingListId === list.id}
                         >
                           {publishingListId === list.id ? (
@@ -277,6 +302,55 @@ const Lists = () => {
           )}
         </section>
       </main>
+
+      {/* Confirm Publish Dialog */}
+      <Dialog open={showConfirmDialog} onOpenChange={(open) => {
+        setShowConfirmDialog(open);
+        if (!open) setConfirmListId(null);
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Publish to Directory</DialogTitle>
+            <DialogDescription>
+              Make sure your category is correct — this helps others find your list
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2">
+            <Label htmlFor="publish-category">Category</Label>
+            <Select
+              value={confirmCategory}
+              onValueChange={(val) => setConfirmCategory(val as ListCategory)}
+            >
+              <SelectTrigger id="publish-category">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {CATEGORY_OPTIONS.map((cat) => (
+                  <SelectItem key={cat} value={cat}>
+                    {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowConfirmDialog(false);
+                setConfirmListId(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleConfirmPublish}>
+              Confirm &amp; Publish
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Merge Dialog */}
       <Dialog open={showMergeDialog} onOpenChange={setShowMergeDialog}>
