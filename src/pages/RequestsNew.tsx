@@ -15,7 +15,6 @@ import { checkForDuplicates } from "@/lib/masterDirectory";
 import { MessageSquare, ArrowLeft, Users, User, UserCheck, Globe, X, CircleCheck, ExternalLink, AlertTriangle, Search } from "lucide-react";
 import { z } from "zod";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { ExpiryDurationPicker } from "@/components/ExpiryDurationPicker";
 
 interface Group {
   id: string;
@@ -798,9 +797,6 @@ export default function RequestsNew() {
               </div>
             </div>
 
-            {/* Expiry Duration */}
-            <ExpiryDurationPicker value={expiryDays} onChange={setExpiryDays} />
-
             {/* Reach Summary */}
             {formData.audience_types.length > 0 && (
               <div className="p-4 bg-muted/50 rounded-lg">
@@ -810,6 +806,22 @@ export default function RequestsNew() {
                 </p>
               </div>
             )}
+
+            {/* Expiry Duration */}
+            <div className="space-y-2">
+              <Label htmlFor="expiry-days">Close request after</Label>
+              <Select value={expiryDays} onValueChange={setExpiryDays}>
+                <SelectTrigger id="expiry-days">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="7">7 days</SelectItem>
+                  <SelectItem value="14">14 days</SelectItem>
+                  <SelectItem value="30">30 days</SelectItem>
+                  <SelectItem value="60">60 days</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
             {/* Submit Button */}
             <div className="pt-4">
