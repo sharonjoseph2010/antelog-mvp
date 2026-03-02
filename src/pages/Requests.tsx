@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { MessageSquare, Plus, Clock, CheckCircle, XCircle, MapPin, Users, User, UserCheck, Share2, Edit, Trash2, MoreVertical } from "lucide-react";
-import { ExpiryBadge } from "@/components/ExpiryBadge";
+import { ExpiryBadge, isRequestExpired } from "@/components/ExpiryBadge";
 import { formatDistanceToNow } from "date-fns";
 import { NetworkPath } from "@/components/NetworkPath";
 import { ForwardRequestDialog } from "@/components/ForwardRequestDialog";
@@ -202,10 +202,20 @@ export default function Requests() {
     }
   };
 
+  const getEffectiveStatus = (request: Request) => {
+    const expiresAt = (request as any).expires_at;
+    if (request.status === "open" && expiresAt && isRequestExpired(expiresAt, request.status)) {
+      return "expired";
+    }
+    return request.status;
+  };
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "open":
         return <Clock className="h-4 w-4 text-orange-500" />;
+      case "expired":
+        return <XCircle className="h-4 w-4 text-destructive" />;
       case "responded":
         return <CheckCircle className="h-4 w-4 text-green-500" />;
       case "closed":
@@ -219,6 +229,8 @@ export default function Requests() {
     switch (status) {
       case "open":
         return "bg-orange-100 text-orange-800";
+      case "expired":
+        return "bg-destructive/10 text-destructive";
       case "responded":
         return "bg-green-100 text-green-800";
       case "closed":
@@ -351,9 +363,9 @@ export default function Requests() {
             )}
           </div>
           <div className="flex items-center gap-1">
-            {getStatusIcon(request.status)}
-            <Badge className={getStatusColor(request.status)} variant="secondary">
-              {request.status}
+            {getStatusIcon(getEffectiveStatus(request))}
+            <Badge className={getStatusColor(getEffectiveStatus(request))} variant="secondary">
+              {getEffectiveStatus(request)}
             </Badge>
           </div>
         </div>
