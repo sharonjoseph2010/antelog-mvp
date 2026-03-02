@@ -41,11 +41,7 @@ const Signup = () => {
 const onSubmit = async (values: SignupValues) => {
   setLoading(true);
   try {
-    // Phone is already in E.164 format from PhoneInput component (+919876543210)
     const normalizedPhone = values.phone_number;
-    
-    console.log('Signup - Phone number being submitted:', normalizedPhone);
-
     const redirectUrl = `${window.location.origin}/auth/callback`;
     const { data, error } = await supabase.auth.signUp({
       email: values.email.toLowerCase(),
@@ -59,8 +55,6 @@ const onSubmit = async (values: SignupValues) => {
         }
       },
     });
-    
-    console.log('Signup - Auth response:', { userId: data?.user?.id, hasSession: !!data?.session });
 
     if (error) {
       const msg = error.message?.toLowerCase().includes("already registered")
@@ -70,14 +64,40 @@ const onSubmit = async (values: SignupValues) => {
       return;
     }
 
+    // Convert guest contribution if coming from share link flow
+    const signupRequestId = sessionStorage.getItem("signup_request_id");
+    const signupShareLinkId = sessionStorage.getItem("signup_share_link_id");
+
+    if (data?.user && signupShareLinkId) {
+      try {
+        await supabase
+          .from("guest_contributions")
+          .update({ joined_antelog: true, converted_user_id: data.user.id })
+          .eq("share_link_id", signupShareLinkId);
+      } catch (e) {
+        console.error("Failed to update guest contribution:", e);
+      }
+    }
+
     if (data?.session) {
-      toast.success("Account created. Redirecting to verification…");
-      navigate("/profile-setup", { replace: true });
+      toast.success("Account created. Redirecting…");
+      if (signupRequestId) {
+        sessionStorage.removeItem("signup_request_id");
+        sessionStorage.removeItem("signup_share_link_id");
+        sessionStorage.setItem("show_welcome_banner", signupRequestId);
+        navigate(`/requests/${signupRequestId}/respond`, { replace: true });
+      } else {
+        navigate("/profile-setup", { replace: true });
+      }
       return;
     }
 
+    // Email confirmation required — store context for post-verification redirect
+    if (signupRequestId) {
+      sessionStorage.setItem("pending_signup_request_id", signupRequestId);
+    }
     toast.success("Check your inbox to verify your email.");
-    form.reset({ email: values.email.toLowerCase(), password: "" });
+    form.reset({ email: values.email.toLowerCase(), password: "", full_name: "", phone_number: "" });
   } catch (e) {
     toast.error("Something went wrong. Please try again.");
   } finally {
