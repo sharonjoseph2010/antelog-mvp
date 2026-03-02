@@ -994,6 +994,8 @@ export type Database = {
           category: Database["public"]["Enums"]["request_category"]
           created_at: string
           creator_id: string
+          expires_at: string
+          expiry_notified: boolean | null
           forwarding_chain: Json | null
           group_id: string | null
           id: string
@@ -1010,6 +1012,8 @@ export type Database = {
           category: Database["public"]["Enums"]["request_category"]
           created_at?: string
           creator_id: string
+          expires_at?: string
+          expiry_notified?: boolean | null
           forwarding_chain?: Json | null
           group_id?: string | null
           id?: string
@@ -1026,6 +1030,8 @@ export type Database = {
           category?: Database["public"]["Enums"]["request_category"]
           created_at?: string
           creator_id?: string
+          expires_at?: string
+          expiry_notified?: boolean | null
           forwarding_chain?: Json | null
           group_id?: string | null
           id?: string
