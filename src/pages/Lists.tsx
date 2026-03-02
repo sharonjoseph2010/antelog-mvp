@@ -189,8 +189,11 @@ const Lists = () => {
         }
       }
 
-      // Mark the user's list as public
-      await supabase.from("lists").update({ visibility: "public" as const }).eq("id", confirmListId);
+      // Mark the user's list as public and link to directory entry
+      await supabase.from("lists").update({ 
+        visibility: "public" as const,
+        directory_list_id: newDirList.id,
+      } as any).eq("id", confirmListId);
 
       toast({
         title: "Published!",

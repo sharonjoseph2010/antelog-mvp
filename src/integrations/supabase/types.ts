@@ -463,6 +463,7 @@ export type Database = {
           category: Database["public"]["Enums"]["list_category"]
           created_at: string
           description: string | null
+          directory_list_id: string | null
           id: string
           item_count: number | null
           owner_id: string
@@ -477,6 +478,7 @@ export type Database = {
           category: Database["public"]["Enums"]["list_category"]
           created_at?: string
           description?: string | null
+          directory_list_id?: string | null
           id?: string
           item_count?: number | null
           owner_id: string
@@ -491,6 +493,7 @@ export type Database = {
           category?: Database["public"]["Enums"]["list_category"]
           created_at?: string
           description?: string | null
+          directory_list_id?: string | null
           id?: string
           item_count?: number | null
           owner_id?: string
@@ -507,6 +510,13 @@ export type Database = {
             columns: ["owner_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lists_directory_list_id_fkey"
+            columns: ["directory_list_id"]
+            isOneToOne: false
+            referencedRelation: "master_directory_lists"
             referencedColumns: ["id"]
           },
           {
@@ -1529,6 +1539,10 @@ export type Database = {
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+      sync_directory_list_edits: {
+        Args: { p_list_id: string; p_new_category: string; p_new_title: string }
+        Returns: undefined
+      }
       update_matched_contacts: {
         Args: { user_id_input: string }
         Returns: number
