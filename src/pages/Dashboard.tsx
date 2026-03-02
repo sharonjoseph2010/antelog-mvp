@@ -16,6 +16,7 @@ const Dashboard = () => {
   const [listCount, setListCount] = useState<number>(0);
   const [recentLists, setRecentLists] = useState<Array<{ id: string; title: string; created_at: string }>>([]);
   const [hasImportedContacts, setHasImportedContacts] = useState<boolean>(true);
+  const [isNewUser, setIsNewUser] = useState(false);
 
 useEffect(() => {
   let mounted = true;
@@ -53,6 +54,11 @@ useEffect(() => {
 
     const name = (profile?.full_name as string) || (profile?.handle as string) || (session.user.email ?? "there");
     setUserName(name);
+
+    // Check if user account was created within the last 60 seconds
+    const createdAt = new Date(session.user.created_at);
+    const isRecent = (Date.now() - createdAt.getTime()) < 60_000;
+    setIsNewUser(isRecent);
 
     const { count, error: countError } = await supabase
       .from("lists")
@@ -100,7 +106,7 @@ return (
         ) : (
           <>
             <header className="space-y-1">
-              <h1 className="text-3xl font-bold">Welcome back{userName ? `, ${userName}` : ""}!</h1>
+              <h1 className="text-3xl font-bold">{isNewUser ? "Welcome" : "Welcome back"}{userName ? `, ${userName}` : ""}!</h1>
               <p className="text-muted-foreground">Here’s a quick snapshot of your activity.</p>
             </header>
 

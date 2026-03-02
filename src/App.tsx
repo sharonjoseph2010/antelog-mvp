@@ -231,6 +231,18 @@ function AppContent({
         }
 
         if (profile.verification_status === "verified") {
+          // Check if there's a pending request redirect from share-link signup
+          const pendingRequestId = sessionStorage.getItem("show_welcome_banner") || sessionStorage.getItem("signup_request_id");
+          if (pendingRequestId) {
+            const requestId = pendingRequestId;
+            // Ensure show_welcome_banner is set for the request page
+            sessionStorage.setItem("show_welcome_banner", requestId);
+            sessionStorage.removeItem("signup_request_id");
+            sessionStorage.removeItem("signup_share_link_id");
+            console.log("[Auth] Redirecting to request page after signup:", requestId);
+            navigate(`/requests/${requestId}/respond`, { replace: true });
+            return;
+          }
           if (window.location.pathname !== "/dashboard") {
             console.log("[Auth] Navigating to dashboard - verified user");
             navigate("/dashboard", { replace: true });
