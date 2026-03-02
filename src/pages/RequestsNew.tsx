@@ -15,6 +15,7 @@ import { checkForDuplicates } from "@/lib/masterDirectory";
 import { MessageSquare, ArrowLeft, Users, User, UserCheck, Globe, X, CircleCheck, ExternalLink, AlertTriangle, Search } from "lucide-react";
 import { z } from "zod";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { ExpiryDurationPicker } from "@/components/ExpiryDurationPicker";
 
 interface Group {
   id: string;
@@ -48,6 +49,7 @@ export default function RequestsNew() {
   const [isGeneratingLink, setIsGeneratingLink] = useState(false);
   const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
   const [duplicateResults, setDuplicateResults] = useState<any[]>([]);
+  const [expiryDays, setExpiryDays] = useState("7");
   const [formData, setFormData] = useState({
     title: '',
     category: '' as 'films' | 'places' | 'products' | 'services' | 'other',
@@ -269,19 +271,22 @@ export default function RequestsNew() {
 
       console.log('Creating request with allow_forwarding:', allowForwarding);
 
+      const expiresAt = new Date(Date.now() + parseInt(expiryDays) * 24 * 60 * 60 * 1000).toISOString();
+
       const { data: newRequest, error } = await supabase
         .from('requests')
         .insert({
           title: formData.title.trim(),
           category: formData.category,
           location: formData.location.trim() || null,
-          audience_type: formData.audience_types[0], // Keep for backward compatibility
+          audience_type: formData.audience_types[0],
           audience_types: formData.audience_types,
           group_id: formData.audience_types.includes('group') ? formData.group_id : null,
           selected_users: formData.audience_types.includes('specific_people') ? formData.selected_users : null,
           allow_forwarding: allowForwarding,
           creator_id: user.id,
-          status: 'open'
+          status: 'open',
+          expires_at: expiresAt
         })
         .select()
         .single();
@@ -792,6 +797,9 @@ export default function RequestsNew() {
                 })}
               </div>
             </div>
+
+            {/* Expiry Duration */}
+            <ExpiryDurationPicker value={expiryDays} onChange={setExpiryDays} />
 
             {/* Reach Summary */}
             {formData.audience_types.length > 0 && (

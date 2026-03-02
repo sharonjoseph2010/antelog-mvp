@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { MessageSquare, Plus, Clock, CheckCircle, XCircle, MapPin, Users, User, UserCheck, Share2, Edit, Trash2, MoreVertical } from "lucide-react";
+import { ExpiryBadge } from "@/components/ExpiryBadge";
 import { formatDistanceToNow } from "date-fns";
 import { NetworkPath } from "@/components/NetworkPath";
 import { ForwardRequestDialog } from "@/components/ForwardRequestDialog";
@@ -400,6 +401,9 @@ export default function Requests() {
               <span className="text-muted-foreground">
                 {formatDistanceToNow(new Date(request.created_at), { addSuffix: true })}
               </span>
+              {(request as any).expires_at && (
+                <ExpiryBadge expiresAt={(request as any).expires_at} status={request.status} />
+              )}
             </div>
           </div>
 

@@ -8,7 +8,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Plus, ThumbsUp, MessageSquare, User, Users, UserCheck, MapPin, Clock, Share2, ArrowRight, Edit, Trash2, X, Link as LinkIcon, AlertTriangle, Check, CheckCircle, Save } from "lucide-react";
+import { ArrowLeft, Plus, ThumbsUp, MessageSquare, User, Users, UserCheck, MapPin, Clock, Share2, ArrowRight, Edit, Trash2, X, Link as LinkIcon, AlertTriangle, Check, CheckCircle, Save, Timer } from "lucide-react";
+import { ExpiryBadge, isRequestExpired } from "@/components/ExpiryBadge";
+import { ExpiryDurationPicker } from "@/components/ExpiryDurationPicker";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { formatDistanceToNow } from "date-fns";
 import { ForwardRequestModal } from "@/components/ForwardRequestModal";
 import { DeleteRequestDialog } from "@/components/DeleteRequestDialog";
@@ -126,7 +129,9 @@ export default function RequestRespond() {
   const [myShareLink, setMyShareLink] = useState<string | null>(null);
   const [isGeneratingLink, setIsGeneratingLink] = useState(false);
   const [existingShareLinks, setExistingShareLinks] = useState<any[]>([]);
-  
+  const [showExtendDialog, setShowExtendDialog] = useState(false);
+  const [extendDays, setExtendDays] = useState("7");
+  const [isExtending, setIsExtending] = useState(false);
   // User's existing response state
   const [userResponse, setUserResponse] = useState<RequestResponse | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -962,6 +967,43 @@ export default function RequestRespond() {
     }
   };
 
+  const handleExtendRequest = async () => {
+    if (!request) return;
+    setIsExtending(true);
+    try {
+      const newExpiresAt = new Date(Date.now() + parseInt(extendDays) * 24 * 60 * 60 * 1000).toISOString();
+      const { error } = await supabase
+        .from("requests")
+        .update({ expires_at: newExpiresAt, expiry_notified: false })
+        .eq("id", request.id);
+      if (error) throw error;
+      toast({ title: "Request Extended", description: `Extended by ${extendDays} days` });
+      setShowExtendDialog(false);
+      await loadRequestData();
+    } catch (error) {
+      console.error("Error extending request:", error);
+      toast({ title: "Error", description: "Failed to extend request", variant: "destructive" });
+    } finally {
+      setIsExtending(false);
+    }
+  };
+
+  const handleQuickClose = async () => {
+    if (!request) return;
+    try {
+      const { error } = await supabase
+        .from("requests")
+        .update({ status: "closed" })
+        .eq("id", request.id);
+      if (error) throw error;
+      toast({ title: "Request Closed", description: "Your request has been closed" });
+      await loadRequestData();
+    } catch (error) {
+      console.error("Error closing request:", error);
+      toast({ title: "Error", description: "Failed to close request", variant: "destructive" });
+    }
+  };
+
 
   const generateShareLink = async () => {
     setIsGeneratingLink(true);
@@ -1187,6 +1229,9 @@ export default function RequestRespond() {
               <Clock className="h-3 w-3" />
               <span>{formatDistanceToNow(new Date(request.created_at), { addSuffix: true })}</span>
             </div>
+            {(request as any).expires_at && (
+              <ExpiryBadge expiresAt={(request as any).expires_at} status={request.status} />
+            )}
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -1241,7 +1286,55 @@ export default function RequestRespond() {
         </CardContent>
       </Card>
 
-      {/* Request Closed Status Banner */}
+      {/* Expired Banner - Creator View */}
+      {isOwnRequest && (request as any).expires_at && isRequestExpired((request as any).expires_at, request.status) && (
+        <Card className="mb-8 border-amber-500/30 bg-amber-500/5">
+          <CardContent className="py-6">
+            <div className="flex items-center gap-4 flex-wrap">
+              <div className="flex-shrink-0 w-12 h-12 bg-amber-100 dark:bg-amber-900 rounded-full flex items-center justify-center">
+                <Timer className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-medium text-amber-800 dark:text-amber-200">
+                  This request expired on {new Date((request as any).expires_at).toLocaleDateString()}
+                </h3>
+                <p className="text-sm text-amber-600 dark:text-amber-400">
+                  What would you like to do?
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setShowExtendDialog(true)}>
+                  Extend Request
+                </Button>
+                <Button variant="default" onClick={handleQuickClose}>
+                  Close Request
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Expired Banner - Non-creator View */}
+      {!isOwnRequest && (request as any).expires_at && isRequestExpired((request as any).expires_at, request.status) && (
+        <Card className="mb-8 border-amber-500/30 bg-amber-500/5">
+          <CardContent className="py-6">
+            <div className="flex items-center gap-4">
+              <div className="flex-shrink-0 w-12 h-12 bg-amber-100 dark:bg-amber-900 rounded-full flex items-center justify-center">
+                <Timer className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-medium text-amber-800 dark:text-amber-200">This request has expired</h3>
+                <p className="text-sm text-amber-600 dark:text-amber-400">
+                  No new responses can be submitted. Existing responses are still visible.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+
       {request.status === 'closed' && (
         <Card className="mb-8 border-green-500/30 bg-green-500/5">
           <CardContent className="py-6">
@@ -1578,17 +1671,24 @@ export default function RequestRespond() {
             )}
           </CardContent>
         </Card>
-      ) : request.status === 'closed' ? (
-        /* Request is closed - show message */
+      ) : request.status === 'closed' || ((request as any).expires_at && isRequestExpired((request as any).expires_at, request.status)) ? (
+        /* Request is closed or expired - show message */
         <Card className="mb-8 border-muted">
           <CardContent className="py-8">
             <div className="text-center">
               <div className="mx-auto w-12 h-12 bg-muted rounded-full flex items-center justify-center mb-3">
-                <CheckCircle className="h-6 w-6 text-muted-foreground" />
+                {request.status === 'closed' 
+                  ? <CheckCircle className="h-6 w-6 text-muted-foreground" />
+                  : <Timer className="h-6 w-6 text-muted-foreground" />
+                }
               </div>
-              <h3 className="font-medium mb-1">This request has been closed</h3>
+              <h3 className="font-medium mb-1">
+                {request.status === 'closed' ? 'This request has been closed' : 'This request has expired'}
+              </h3>
               <p className="text-sm text-muted-foreground">
-                The creator is no longer accepting new recommendations
+                {request.status === 'closed' 
+                  ? 'The creator is no longer accepting new recommendations'
+                  : 'No new responses can be submitted'}
               </p>
             </div>
           </CardContent>
@@ -1983,6 +2083,21 @@ export default function RequestRespond() {
           </Card>
         </div>
       )}
+      {/* Extend Request Dialog */}
+      <Dialog open={showExtendDialog} onOpenChange={setShowExtendDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Extend Request</DialogTitle>
+          </DialogHeader>
+          <ExpiryDurationPicker value={extendDays} onChange={setExtendDays} label="Extend by" />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowExtendDialog(false)}>Cancel</Button>
+            <Button onClick={handleExtendRequest} disabled={isExtending}>
+              {isExtending ? "Extending..." : "Confirm Extension"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
