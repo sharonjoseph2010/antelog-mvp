@@ -150,6 +150,40 @@ export default function RequestRespond() {
   const [isSearching, setIsSearching] = useState(false);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Welcome banner for newly converted guest users
+  const [showWelcomeBanner, setShowWelcomeBanner] = useState(false);
+
+  useEffect(() => {
+    const bannerRequestId = sessionStorage.getItem("show_welcome_banner");
+    if (bannerRequestId && bannerRequestId === id) {
+      setShowWelcomeBanner(true);
+      sessionStorage.removeItem("show_welcome_banner");
+      const timer = setTimeout(() => setShowWelcomeBanner(false), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [id]);
+
+  // Real-time subscriptions for live updates
+  useEffect(() => {
+    if (!id) return;
+
+    const responsesChannel = supabase
+      .channel(`request-responses-${id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "request_responses", filter: `request_id=eq.${id}` },
+        () => { loadRequestData(); }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "recommendation_votes" },
+        () => { loadRequestData(); }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(responsesChannel); };
+  }, [id]);
+
   const loadExistingShareLinks = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -1158,7 +1192,18 @@ export default function RequestRespond() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      {/* Header */}
+      {/* Welcome Banner for newly converted guests */}
+      {showWelcomeBanner && (
+        <div className="mb-6 p-4 rounded-lg border border-primary/30 bg-primary/5 flex items-center justify-between">
+          <div>
+            <p className="font-medium text-foreground">Welcome to Antelog! 🎉</p>
+            <p className="text-sm text-muted-foreground">Here's the request you contributed to. See how your recommendation is doing.</p>
+          </div>
+          <Button variant="ghost" size="sm" onClick={() => setShowWelcomeBanner(false)}>
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
       <div className="mb-6">
         <Button variant="ghost" asChild className="mb-4">
           <Link to="/requests" className="flex items-center gap-2">

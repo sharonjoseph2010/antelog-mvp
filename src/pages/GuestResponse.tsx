@@ -369,7 +369,11 @@ export default function GuestResponse() {
                       <Users className="h-4 w-4" /> See who voted for yours
                     </li>
                   </ul>
-                  <Button className="w-full" onClick={() => navigate("/signup")}>
+                  <Button className="w-full" onClick={() => {
+                    sessionStorage.setItem("signup_request_id", requestId!);
+                    if (shareLink?.id) sessionStorage.setItem("signup_share_link_id", shareLink.id);
+                    navigate("/signup");
+                  }}>
                     Join Antelog — Free (5 Requests)
                   </Button>
                   <p className="text-xs text-center text-muted-foreground">
