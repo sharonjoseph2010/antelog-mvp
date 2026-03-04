@@ -199,6 +199,11 @@ function AppContent({
       return;
     }
 
+    if (window.location.pathname === "/auth/callback") {
+      console.log("[Auth] On auth callback route, skipping App-level navigation override");
+      return;
+    }
+
     const handlePostAuthNavigation = async () => {
       const userId = session.user.id;
       console.log("[Auth] Starting post-auth navigation for user:", userId);
@@ -267,8 +272,8 @@ function AppContent({
       }
     };
 
-    // Only navigate if we're on login/signup pages after successful auth
-    if (["/login", "/signup", "/"].includes(window.location.pathname) || window.location.pathname === "/auth/callback") {
+    // Only navigate if we're on login/signup/landing pages after successful auth
+    if (["/login", "/signup", "/"].includes(window.location.pathname)) {
       console.log("[Auth] Current path requires post-auth navigation");
       handlePostAuthNavigation();
     } else {
