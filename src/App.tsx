@@ -59,6 +59,14 @@ function App() {
     
     let mounted = true;
     
+    // Safety timeout - never stay stuck on loading screen
+    const safetyTimeout = setTimeout(() => {
+      if (mounted && initializing) {
+        console.warn('INIT: Safety timeout reached, forcing initialization complete');
+        setInitializing(false);
+      }
+    }, 5000);
+
     const initAuth = async () => {
       try {
         console.log('INIT: Getting current session...');
@@ -122,6 +130,7 @@ function App() {
     return () => {
       console.log('CLEANUP: Unmounting auth setup');
       mounted = false;
+      clearTimeout(safetyTimeout);
       subscription.unsubscribe();
     };
   }, []);
