@@ -26,9 +26,7 @@ interface Notification {
   is_read: boolean;
   created_at: string;
   related_user_id?: string;
-  metadata?: {
-    request_id?: string;
-  };
+  metadata?: Record<string, any> | null;
   related_profile?: {
     full_name: string;
     handle: string;
