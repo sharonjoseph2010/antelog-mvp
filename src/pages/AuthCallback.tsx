@@ -24,36 +24,17 @@ useEffect(() => {
     return;
   }
 
+  const requestId = queryParams.get("request_id");
+  if (requestId) {
+    window.location.replace(`/requests/${encodeURIComponent(requestId)}/respond?welcome=1`);
+    return;
+  }
+
   let redirectHandled = false;
 
-  const handleRedirect = async (userId: string) => {
+  const handleRedirect = () => {
     if (redirectHandled) return;
     redirectHandled = true;
-
-    console.log(`AuthCallback: checking latest guest contribution for user = ${userId}`);
-
-    const { data, error } = await supabase
-      .from("guest_contributions")
-      .select("request_id, created_at")
-      .eq("converted_user_id", userId)
-      .eq("joined_antelog", true)
-      .not("request_id", "is", null)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (error) {
-      console.error("AuthCallback: failed to lookup guest contribution", error);
-    }
-
-    const requestId = data?.request_id;
-    if (requestId) {
-      console.log(`AuthCallback: found request_id = ${requestId}, redirecting`);
-      navigate(`/requests/${requestId}/respond?welcome=1`, { replace: true });
-      return;
-    }
-
-    console.log("AuthCallback: no request_id found, redirecting to dashboard");
     navigate("/dashboard", { replace: true });
   };
 
@@ -64,13 +45,13 @@ useEffect(() => {
     }
 
     if (session?.user?.id) {
-      void handleRedirect(session.user.id);
+      handleRedirect();
     }
   });
 
   supabase.auth.getSession().then(({ data: { session } }) => {
     if (session?.user?.id) {
-      void handleRedirect(session.user.id);
+      handleRedirect();
     }
   });
 
