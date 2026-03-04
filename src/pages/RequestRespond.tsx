@@ -126,6 +126,7 @@ export default function RequestRespond() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [guestContributions, setGuestContributions] = useState<any[]>([]);
+  const [guestVotes, setGuestVotes] = useState<Record<string, boolean>>({});
   const [showShareSection, setShowShareSection] = useState(false);
   const [myShareLink, setMyShareLink] = useState<string | null>(null);
   const [isGeneratingLink, setIsGeneratingLink] = useState(false);
@@ -418,6 +419,25 @@ export default function RequestRespond() {
       );
 
       setGuestContributions(guestWithLinks);
+
+      // Load user's existing votes on guest recommendations
+      if (user) {
+        const allRecIds: string[] = [];
+        (guestWithLinks || []).forEach((c: any) => {
+          const recs = Array.isArray(c.recommendations) ? c.recommendations : [];
+          recs.forEach((r: any) => { if (r.id) allRecIds.push(r.id); });
+        });
+        if (allRecIds.length > 0) {
+          const { data: voteData } = await supabase
+            .from("recommendation_votes")
+            .select("recommendation_id")
+            .eq("user_id", user.id)
+            .in("recommendation_id", allRecIds);
+          const voteMap: Record<string, boolean> = {};
+          (voteData || []).forEach(v => { voteMap[v.recommendation_id] = true; });
+          setGuestVotes(voteMap);
+        }
+      }
 
     } catch (error) {
       console.error("Error loading request data:", error);
@@ -861,6 +881,49 @@ export default function RequestRespond() {
         description: "Failed to submit vote",
         variant: "destructive"
       });
+    }
+  };
+
+  const handleGuestVote = async (contributionId: string, recId: string, recIndex: number, currentlyVoted: boolean) => {
+    if (!currentUserId) return;
+    if (isOwnRequest) {
+      toast({ title: "Cannot vote", description: "Request creators cannot vote on recommendations", variant: "destructive" });
+      return;
+    }
+    try {
+      if (currentlyVoted) {
+        const { error } = await supabase.from("recommendation_votes").delete()
+          .eq("recommendation_id", recId).eq("user_id", currentUserId);
+        if (error) throw error;
+        setGuestVotes(prev => { const n = { ...prev }; delete n[recId]; return n; });
+        // Decrement vote_count in JSONB
+        const contribution = guestContributions.find(c => c.id === contributionId);
+        if (contribution) {
+          const recs = [...contribution.recommendations];
+          recs[recIndex] = { ...recs[recIndex], vote_count: Math.max(0, (recs[recIndex].vote_count || 0) - 1) };
+          await supabase.from("guest_contributions").update({ recommendations: recs }).eq("id", contributionId);
+        }
+        toast({ title: "Vote removed" });
+      } else {
+        const { error } = await supabase.from("recommendation_votes").insert({ recommendation_id: recId, user_id: currentUserId });
+        if (error) {
+          if (error.code === '23505') { toast({ title: "Already voted", variant: "destructive" }); return; }
+          throw error;
+        }
+        setGuestVotes(prev => ({ ...prev, [recId]: true }));
+        // Increment vote_count in JSONB
+        const contribution = guestContributions.find(c => c.id === contributionId);
+        if (contribution) {
+          const recs = [...contribution.recommendations];
+          recs[recIndex] = { ...recs[recIndex], vote_count: (recs[recIndex].vote_count || 0) + 1 };
+          await supabase.from("guest_contributions").update({ recommendations: recs }).eq("id", contributionId);
+        }
+        toast({ title: "Vote recorded" });
+      }
+      await loadRequestData();
+    } catch (error) {
+      console.error("Error voting on guest rec:", error);
+      toast({ title: "Error", description: "Failed to submit vote", variant: "destructive" });
     }
   };
 
@@ -2045,11 +2108,12 @@ export default function RequestRespond() {
 
                   <CardContent className="space-y-3">
                     {recs.map((rec: any, idx: number) => {
-                      const isOwnRecommendation = false; // Guests can't be the current user
-                      const canVote = !isOwnRequest && !isOwnRecommendation;
+                      const canVote = !isOwnRequest && currentUserId;
+                      const recId = rec.id;
+                      const hasVoted = recId && guestVotes[recId];
                       
                       return (
-                        <div key={idx} className="p-3 border rounded-lg">
+                        <div key={recId || idx} className="p-3 border rounded-lg">
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-1">
@@ -2074,9 +2138,24 @@ export default function RequestRespond() {
                               )}
                             </div>
                             <div className="flex flex-col items-end gap-2">
-                              <Badge variant="secondary">
-                                {rec.vote_count || 0} {(rec.vote_count || 0) === 1 ? 'vote' : 'votes'}
-                              </Badge>
+                              {canVote && recId ? (
+                                <Button
+                                  variant={hasVoted ? "default" : "outline"}
+                                  size="sm"
+                                  onClick={() => handleGuestVote(contribution.id, recId, idx, !!hasVoted)}
+                                  className="flex items-center gap-1"
+                                >
+                                  <ThumbsUp className="h-3 w-3" />
+                                  {hasVoted ? "Voted" : "+1"}
+                                  {(rec.vote_count || 0) > 0 && (
+                                    <span className="ml-1">({rec.vote_count})</span>
+                                  )}
+                                </Button>
+                              ) : (
+                                <Badge variant="secondary">
+                                  {rec.vote_count || 0} {(rec.vote_count || 0) === 1 ? 'vote' : 'votes'}
+                                </Badge>
+                              )}
                             </div>
                           </div>
                         </div>
