@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Bell, Users, UserPlus, Check, MessageSquare, MessageCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { isInNetwork, getDisplayNameSync } from "@/hooks/useNetworkAwareName";
 
 interface Notification {
   id: string;
