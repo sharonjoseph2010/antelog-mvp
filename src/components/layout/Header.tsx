@@ -98,7 +98,8 @@ const Header = ({ isAuthenticated, isAdmin, userType, onLogout }: HeaderProps) =
           message,
           is_read,
           created_at,
-          related_user_id
+          related_user_id,
+          metadata
         `)
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
