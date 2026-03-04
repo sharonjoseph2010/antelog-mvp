@@ -357,7 +357,7 @@ export default function Requests() {
                 ) : (
                   <>
                     <p className="text-sm text-muted-foreground">
-                      Requested by {request.creator_profile.full_name} (@{request.creator_profile.handle})
+                      Requested by {request.creator_profile.full_name}
                     </p>
                     <NetworkPath
                       forwardingChain={request.forwarding_chain}
