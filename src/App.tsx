@@ -295,6 +295,10 @@ function AppContent({
     };
 
     // Only navigate if we're on login/signup/landing pages after successful auth
+    if (window.location.pathname.startsWith('/requests/')) {
+      console.log('[Auth] On request page, skipping post-auth navigation');
+      return;
+    }
     if (["/login", "/signup", "/"].includes(window.location.pathname)) {
       console.log("[Auth] Current path requires post-auth navigation");
       handlePostAuthNavigation();
