@@ -18,63 +18,48 @@ useEffect(() => {
   const hashParams = new URLSearchParams(url.hash.replace(/^#/, ""));
   const queryParams = url.searchParams;
   const isRecovery = hashParams.get("type") === "recovery" || queryParams.get("type") === "recovery";
-  const hasSupabaseParams =
-    hashParams.has("access_token") ||
-    hashParams.has("refresh_token") ||
-    !!hashParams.get("type") ||
-    !!queryParams.get("code");
 
-  // If accessed directly without expected auth params, make it invisible to users
-  if (!isRecovery && !hasSupabaseParams) {
-    navigate("/", { replace: true });
+  if (isRecovery) {
+    setMode("reset");
     return;
   }
 
+  console.log("AuthCallback: checking sessionStorage for signup_request_id");
+  const signupRequestId = sessionStorage.getItem("signup_request_id");
+  let redirectHandled = false;
+
+  const handleRedirect = () => {
+    if (redirectHandled) return;
+    redirectHandled = true;
+
+    if (signupRequestId) {
+      console.log(`AuthCallback: found request_id = ${signupRequestId}, redirecting`);
+      sessionStorage.setItem("show_welcome_banner", signupRequestId);
+      navigate(`/requests/${signupRequestId}/respond`, { replace: true });
+      sessionStorage.removeItem("signup_request_id");
+      sessionStorage.removeItem("pending_signup_request_id");
+      sessionStorage.removeItem("signup_share_link_id");
+      return;
+    }
+
+    console.log("AuthCallback: no request_id found, redirecting to dashboard");
+    navigate("/dashboard", { replace: true });
+  };
+
   const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-    if (event === "PASSWORD_RECOVERY" || isRecovery) {
+    if (event === "PASSWORD_RECOVERY") {
       setMode("reset");
       return;
     }
+
     if (session) {
-      // Use a small delay to ensure this runs after App.tsx's auth handler
-      setTimeout(() => {
-        const pendingRequestId = sessionStorage.getItem("pending_signup_request_id") 
-          || sessionStorage.getItem("signup_request_id")
-          || sessionStorage.getItem("show_welcome_banner");
-        if (pendingRequestId) {
-          sessionStorage.removeItem("pending_signup_request_id");
-          sessionStorage.removeItem("signup_request_id");
-          sessionStorage.removeItem("signup_share_link_id");
-          sessionStorage.setItem("show_welcome_banner", pendingRequestId);
-          navigate(`/requests/${pendingRequestId}/respond`, { replace: true });
-        } else {
-          navigate("/profile-setup", { replace: true, state: { internal: true } });
-        }
-      }, 100);
+      handleRedirect();
     }
   });
 
-  // Handle case where session is already set from URL hash
   supabase.auth.getSession().then(({ data: { session } }) => {
-    if (isRecovery) {
-      setMode("reset");
-      return;
-    }
     if (session) {
-      setTimeout(() => {
-        const pendingRequestId = sessionStorage.getItem("pending_signup_request_id")
-          || sessionStorage.getItem("signup_request_id")
-          || sessionStorage.getItem("show_welcome_banner");
-        if (pendingRequestId) {
-          sessionStorage.removeItem("pending_signup_request_id");
-          sessionStorage.removeItem("signup_request_id");
-          sessionStorage.removeItem("signup_share_link_id");
-          sessionStorage.setItem("show_welcome_banner", pendingRequestId);
-          navigate(`/requests/${pendingRequestId}/respond`, { replace: true });
-        } else {
-          navigate("/profile-setup", { replace: true, state: { internal: true } });
-        }
-      }, 100);
+      handleRedirect();
     }
   });
 
