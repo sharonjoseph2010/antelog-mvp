@@ -126,6 +126,7 @@ export default function RequestRespond() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [guestContributions, setGuestContributions] = useState<any[]>([]);
+  const [guestVotes, setGuestVotes] = useState<Record<string, boolean>>({});
   const [showShareSection, setShowShareSection] = useState(false);
   const [myShareLink, setMyShareLink] = useState<string | null>(null);
   const [isGeneratingLink, setIsGeneratingLink] = useState(false);
