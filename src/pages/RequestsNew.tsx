@@ -353,7 +353,8 @@ export default function RequestsNew() {
             type: 'new_request',
             title: 'New Request from Your Network',
             message: `${creatorName} sent you a request: ${formData.title}`,
-            related_user_id: user.id
+            related_user_id: user.id,
+            metadata: { request_id: newRequest.id }
           };
           console.log('Adding notification for friend:', friendId, notification);
           notifications.push(notification);
@@ -394,7 +395,8 @@ export default function RequestsNew() {
               type: 'new_request',
               title: 'New Group Request',
               message: `${creatorName} sent a request to ${group?.name}: ${formData.title}`,
-              related_user_id: user.id
+              related_user_id: user.id,
+              metadata: { request_id: newRequest.id }
             };
             console.log('Adding notification for group member:', member.user_id, notification);
             notifications.push(notification);
@@ -415,7 +417,8 @@ export default function RequestsNew() {
             type: 'new_request',
             title: 'Direct Request from Network',
             message: `${creatorName} sent you a direct request: ${formData.title}`,
-            related_user_id: user.id
+            related_user_id: user.id,
+            metadata: { request_id: newRequest.id }
           };
           console.log('Adding notification for specific person:', selectedUserId, notification);
           notifications.push(notification);

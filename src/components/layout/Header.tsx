@@ -26,6 +26,7 @@ interface Notification {
   is_read: boolean;
   created_at: string;
   related_user_id?: string;
+  metadata?: any;
   related_profile?: {
     full_name: string;
     handle: string;
@@ -95,7 +96,8 @@ const Header = ({ isAuthenticated, isAdmin, userType, onLogout }: HeaderProps) =
           message,
           is_read,
           created_at,
-          related_user_id
+          related_user_id,
+          metadata
         `)
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
@@ -186,13 +188,15 @@ const Header = ({ isAuthenticated, isAdmin, userType, onLogout }: HeaderProps) =
     }
   };
 
-  const getNotificationRoute = (type: string): string => {
-    switch (type) {
+  const getNotificationRoute = (notification: Notification): string => {
+    const requestId = notification.metadata?.request_id;
+    switch (notification.type) {
       case 'request_response':
       case 'recommendation_voted':
       case 'forwarded_request':
+      case 'request_forwarded':
       case 'new_request':
-        return '/requests';
+        return requestId ? `/requests/${requestId}` : '/requests';
       case 'contact_joined':
       case 'network_addition':
       case 'friend_suggestion':
@@ -205,7 +209,7 @@ const Header = ({ isAuthenticated, isAdmin, userType, onLogout }: HeaderProps) =
 
   const handleNotificationClick = (notification: Notification) => {
     markAsRead(notification.id);
-    navigate(getNotificationRoute(notification.type));
+    navigate(getNotificationRoute(notification));
   };
 
   const formatTimeAgo = (dateString: string) => {
