@@ -272,8 +272,8 @@ function AppContent({
       }
     };
 
-    // Only navigate if we're on login/signup pages after successful auth
-    if (["/login", "/signup", "/"].includes(window.location.pathname) || window.location.pathname === "/auth/callback") {
+    // Only navigate if we're on login/signup/landing pages after successful auth
+    if (["/login", "/signup", "/"].includes(window.location.pathname)) {
       console.log("[Auth] Current path requires post-auth navigation");
       handlePostAuthNavigation();
     } else {
