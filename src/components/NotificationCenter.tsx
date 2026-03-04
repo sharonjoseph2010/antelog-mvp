@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Bell, Users, UserPlus, Check, MessageSquare, MessageCircle, ThumbsUp } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { isInNetwork, getDisplayNameSync } from "@/hooks/useNetworkAwareName";
+import { getNotificationRoute } from "@/lib/notification-routing";
 
 interface Notification {
   id: string;
@@ -15,29 +16,15 @@ interface Notification {
   message: string;
   is_read: boolean;
   created_at: string;
-  related_user_id?: string;
+  related_user_id?: string | null;
+  request_id?: string | null;
+  metadata?: Record<string, unknown> | null;
+  data?: Record<string, unknown> | null;
   related_profile?: {
     full_name: string;
     handle: string;
   };
 }
-
-const getNotificationRoute = (type: string): string => {
-  switch (type) {
-    case 'request_response':
-    case 'recommendation_voted':
-    case 'forwarded_request':
-    case 'new_request':
-      return '/requests';
-    case 'contact_joined':
-    case 'network_addition':
-    case 'friend_suggestion':
-    case 'friend_request':
-      return '/friends';
-    default:
-      return '/dashboard';
-  }
-};
 
 const getNotificationIcon = (type: string) => {
   switch (type) {
