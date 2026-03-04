@@ -43,6 +43,13 @@ const onSubmit = async (values: SignupValues) => {
   try {
     const normalizedPhone = values.phone_number;
     const redirectUrl = `${window.location.origin}/auth/callback`;
+
+    const signupRequestId = sessionStorage.getItem("signup_request_id");
+    const pendingSignupRequestId = sessionStorage.getItem("pending_signup_request_id");
+    const signupShareLinkId = sessionStorage.getItem("signup_share_link_id");
+    const trustedShareRequestId = signupRequestId || pendingSignupRequestId;
+    const isShareLinkSignup = Boolean(trustedShareRequestId);
+
     const { data, error } = await supabase.auth.signUp({
       email: values.email.toLowerCase(),
       password: values.password,
@@ -51,7 +58,8 @@ const onSubmit = async (values: SignupValues) => {
         data: {
           user_type: 'verified',
           phone_number: normalizedPhone,
-          full_name: values.full_name.trim()
+          full_name: values.full_name.trim(),
+          is_share_signup: isShareLinkSignup,
         }
       },
     });
@@ -65,9 +73,6 @@ const onSubmit = async (values: SignupValues) => {
     }
 
     // Convert guest contribution if coming from share link flow
-    const signupRequestId = sessionStorage.getItem("signup_request_id");
-    const signupShareLinkId = sessionStorage.getItem("signup_share_link_id");
-
     if (data?.user && signupShareLinkId) {
       try {
         await supabase
@@ -81,11 +86,12 @@ const onSubmit = async (values: SignupValues) => {
 
     if (data?.session) {
       toast.success("Account created. Redirecting…");
-      if (signupRequestId) {
+      if (trustedShareRequestId) {
         sessionStorage.removeItem("signup_request_id");
+        sessionStorage.removeItem("pending_signup_request_id");
         sessionStorage.removeItem("signup_share_link_id");
-        sessionStorage.setItem("show_welcome_banner", signupRequestId);
-        navigate(`/requests/${signupRequestId}/respond`, { replace: true });
+        sessionStorage.setItem("show_welcome_banner", trustedShareRequestId);
+        navigate(`/requests/${trustedShareRequestId}/respond`, { replace: true });
       } else {
         navigate("/profile-setup", { replace: true });
       }
@@ -93,8 +99,8 @@ const onSubmit = async (values: SignupValues) => {
     }
 
     // Email confirmation required — store context for post-verification redirect
-    if (signupRequestId) {
-      sessionStorage.setItem("pending_signup_request_id", signupRequestId);
+    if (trustedShareRequestId) {
+      sessionStorage.setItem("pending_signup_request_id", trustedShareRequestId);
     }
     toast.success("Check your inbox to verify your email.");
     form.reset({ email: values.email.toLowerCase(), password: "", full_name: "", phone_number: "" });
