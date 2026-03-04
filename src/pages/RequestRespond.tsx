@@ -17,6 +17,7 @@ import { ForwardRequestModal } from "@/components/ForwardRequestModal";
 import { DeleteRequestDialog } from "@/components/DeleteRequestDialog";
 import { isInNetwork, getDisplayNameSync } from "@/hooks/useNetworkAwareName";
 import { initiateClusteringReview } from "@/lib/clustering";
+import { ResponseTree } from "@/components/ResponseTree";
 
 interface NetworkPathNode {
   user_id: string;
