@@ -130,6 +130,7 @@ function App() {
     return () => {
       console.log('CLEANUP: Unmounting auth setup');
       mounted = false;
+      clearTimeout(safetyTimeout);
       subscription.unsubscribe();
     };
   }, []);
