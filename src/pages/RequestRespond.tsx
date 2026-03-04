@@ -2045,11 +2045,12 @@ export default function RequestRespond() {
 
                   <CardContent className="space-y-3">
                     {recs.map((rec: any, idx: number) => {
-                      const isOwnRecommendation = false; // Guests can't be the current user
-                      const canVote = !isOwnRequest && !isOwnRecommendation;
+                      const canVote = !isOwnRequest && currentUserId;
+                      const recId = rec.id;
+                      const hasVoted = recId && guestVotes[recId];
                       
                       return (
-                        <div key={idx} className="p-3 border rounded-lg">
+                        <div key={recId || idx} className="p-3 border rounded-lg">
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-1">
@@ -2074,9 +2075,24 @@ export default function RequestRespond() {
                               )}
                             </div>
                             <div className="flex flex-col items-end gap-2">
-                              <Badge variant="secondary">
-                                {rec.vote_count || 0} {(rec.vote_count || 0) === 1 ? 'vote' : 'votes'}
-                              </Badge>
+                              {canVote && recId ? (
+                                <Button
+                                  variant={hasVoted ? "default" : "outline"}
+                                  size="sm"
+                                  onClick={() => handleGuestVote(contribution.id, recId, idx, !!hasVoted)}
+                                  className="flex items-center gap-1"
+                                >
+                                  <ThumbsUp className="h-3 w-3" />
+                                  {hasVoted ? "Voted" : "+1"}
+                                  {(rec.vote_count || 0) > 0 && (
+                                    <span className="ml-1">({rec.vote_count})</span>
+                                  )}
+                                </Button>
+                              ) : (
+                                <Badge variant="secondary">
+                                  {rec.vote_count || 0} {(rec.vote_count || 0) === 1 ? 'vote' : 'votes'}
+                                </Badge>
+                              )}
                             </div>
                           </div>
                         </div>

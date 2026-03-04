@@ -188,6 +188,7 @@ export default function GuestResponse() {
 
     try {
       const formattedRecs = validRecs.map((rec, idx) => ({
+        id: crypto.randomUUID(),
         text: rec.text.trim(),
         reason: rec.reason.trim(),
         link: rec.link.trim() || null,
