@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,29 +22,62 @@ interface Notification {
   };
 }
 
+const getNotificationRoute = (type: string): string => {
+  switch (type) {
+    case 'request_response':
+    case 'recommendation_voted':
+    case 'forwarded_request':
+    case 'new_request':
+      return '/requests';
+    case 'contact_joined':
+    case 'network_addition':
+    case 'friend_suggestion':
+    case 'friend_request':
+      return '/friends';
+    default:
+      return '/dashboard';
+  }
+};
+
+const getNotificationIcon = (type: string) => {
+  switch (type) {
+    case 'friend_suggestion':
+      return <Users className="h-4 w-4" />;
+    case 'friend_request':
+      return <UserPlus className="h-4 w-4" />;
+    case 'contact_joined':
+    case 'network_addition':
+      return <Bell className="h-4 w-4" />;
+    case 'new_request':
+      return <MessageCircle className="h-4 w-4" />;
+    case 'request_response':
+      return <MessageSquare className="h-4 w-4" />;
+    case 'forwarded_request':
+      return <MessageCircle className="h-4 w-4" />;
+    case 'recommendation_voted':
+      return <ThumbsUp className="h-4 w-4" />;
+    default:
+      return <Bell className="h-4 w-4" />;
+  }
+};
+
 export const NotificationCenter = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   useEffect(() => {
     loadNotifications();
     
-    // Set up real-time notifications
     const channel = supabase
       .channel('notifications')
       .on(
         'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'notifications'
-        },
+        { event: 'INSERT', schema: 'public', table: 'notifications' },
         (payload) => {
           const newNotification = payload.new as Notification;
           setNotifications(prev => [newNotification, ...prev]);
-          
-          // Show toast for new notifications
           toast({
             title: newNotification.title,
             description: newNotification.message,
@@ -52,53 +86,27 @@ export const NotificationCenter = () => {
       )
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, [toast]);
 
   const loadNotifications = async () => {
     try {
-      console.log('=== NOTIFICATION CENTER: LOADING NOTIFICATIONS ===');
       const { data: { user } } = await supabase.auth.getUser();
-      console.log('Current user:', user?.id);
-      
-      if (!user) {
-        console.log('No user found, skipping notification load');
-        return;
-      }
+      if (!user) return;
 
-      console.log('Querying notifications table for user:', user.id);
       const { data, error } = await supabase
         .from('notifications')
-        .select(`
-          id,
-          type,
-          title,
-          message,
-          is_read,
-          created_at,
-          related_user_id
-        `)
+        .select('id, type, title, message, is_read, created_at, related_user_id')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(10);
 
-      console.log('Notifications query completed');
-      console.log('Query result:', data);
-      console.log('Query error:', error);
-      console.log('Number of notifications found:', data?.length || 0);
-
       if (error) throw error;
       
-      // Get profile info for related users with network-aware names
       if (data && data.length > 0) {
-        console.log('Processing notification profile data...');
         const relatedUserIds = data
           .filter(n => n.related_user_id)
           .map(n => n.related_user_id!);
-        
-        console.log('Related user IDs to fetch:', relatedUserIds);
         
         if (relatedUserIds.length > 0) {
           const { data: profiles } = await supabase
@@ -106,9 +114,6 @@ export const NotificationCenter = () => {
             .select('id, full_name, handle')
             .in('id', relatedUserIds);
           
-          console.log('Profile data fetched:', profiles);
-          
-          // Resolve network-aware names for each related user
           const networkResolvedProfiles = await Promise.all(
             (profiles || []).map(async (p) => {
               const inNetwork = await isInNetwork(user.id, p.id);
@@ -119,28 +124,22 @@ export const NotificationCenter = () => {
             })
           );
           
-          const enrichedNotifications = data.map(notification => ({
+          setNotifications(data.map(notification => ({
             ...notification,
             related_profile: notification.related_user_id 
               ? networkResolvedProfiles.find(p => p.id === notification.related_user_id)
               : undefined
-          }));
-          
-          console.log('Setting enriched notifications:', enrichedNotifications);
-          setNotifications(enrichedNotifications);
+          })));
         } else {
-          console.log('No related profiles to fetch, setting notifications directly');
           setNotifications(data);
         }
       } else {
-        console.log('No notifications found, setting empty array');
         setNotifications([]);
       }
     } catch (error) {
-      console.error('❌ ERROR loading notifications:', error);
+      console.error('Error loading notifications:', error);
     } finally {
       setIsLoading(false);
-      console.log('=== NOTIFICATION CENTER: LOAD COMPLETE ===');
     }
   };
 
@@ -150,9 +149,7 @@ export const NotificationCenter = () => {
         .from('notifications')
         .update({ is_read: true })
         .eq('id', notificationId);
-
       if (error) throw error;
-
       setNotifications(prev =>
         prev.map(n => n.id === notificationId ? { ...n, is_read: true } : n)
       );
@@ -165,46 +162,25 @@ export const NotificationCenter = () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-
       const { error } = await supabase
         .from('notifications')
         .update({ is_read: true })
         .eq('user_id', user.id)
         .eq('is_read', false);
-
       if (error) throw error;
-
-      setNotifications(prev =>
-        prev.map(n => ({ ...n, is_read: true }))
-      );
-
-      toast({
-        title: "All notifications marked as read",
-      });
+      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+      toast({ title: "All notifications marked as read" });
     } catch (error) {
       console.error('Error marking all as read:', error);
     }
   };
 
-  const getNotificationIcon = (type: string) => {
-    switch (type) {
-      case 'friend_suggestion':
-        return <Users className="h-4 w-4" />;
-      case 'friend_request':
-        return <UserPlus className="h-4 w-4" />;
-      case 'contact_joined':
-        return <Bell className="h-4 w-4" />;
-      case 'new_request':
-        return <MessageCircle className="h-4 w-4" />;
-      case 'request_response':
-        return <MessageSquare className="h-4 w-4" />;
-      case 'forwarded_request':
-        return <MessageCircle className="h-4 w-4" />;
-      case 'recommendation_voted':
-        return <ThumbsUp className="h-4 w-4" />;
-      default:
-        return <Bell className="h-4 w-4" />;
+  const handleNotificationClick = (notification: Notification) => {
+    if (!notification.is_read) {
+      markAsRead(notification.id);
     }
+    const route = getNotificationRoute(notification.type);
+    navigate(route);
   };
 
   const unreadCount = notifications.filter(n => !n.is_read).length;
@@ -264,12 +240,12 @@ export const NotificationCenter = () => {
             {notifications.map((notification) => (
               <div
                 key={notification.id}
-                className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                className={`p-3 border rounded-lg cursor-pointer transition-colors hover:bg-muted/50 ${
                   notification.is_read 
                     ? 'bg-background' 
                     : 'bg-primary/5 border-primary/20'
                 }`}
-                onClick={() => !notification.is_read && markAsRead(notification.id)}
+                onClick={() => handleNotificationClick(notification)}
               >
                 <div className="flex items-start gap-3">
                   <div className="mt-1">
