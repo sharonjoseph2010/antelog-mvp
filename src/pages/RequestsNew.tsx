@@ -353,7 +353,8 @@ export default function RequestsNew() {
             type: 'new_request',
             title: 'New Request from Your Network',
             message: `${creatorName} sent you a request: ${formData.title}`,
-            related_user_id: user.id
+            related_user_id: user.id,
+            metadata: { request_id: newRequest.id }
           };
           console.log('Adding notification for friend:', friendId, notification);
           notifications.push(notification);
