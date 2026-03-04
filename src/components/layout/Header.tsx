@@ -10,7 +10,6 @@ import {
 } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { getNotificationRoute } from "@/lib/notification-routing";
 
 interface HeaderProps {
   isAuthenticated: boolean;
@@ -26,10 +25,7 @@ interface Notification {
   message: string;
   is_read: boolean;
   created_at: string;
-  related_user_id?: string | null;
-  request_id?: string | null;
-  metadata?: Record<string, unknown> | null;
-  data?: Record<string, unknown> | null;
+  related_user_id?: string;
   related_profile?: {
     full_name: string;
     handle: string;
@@ -190,10 +186,26 @@ const Header = ({ isAuthenticated, isAdmin, userType, onLogout }: HeaderProps) =
     }
   };
 
-  const handleNotificationClick = async (notification: Notification) => {
+  const getNotificationRoute = (type: string): string => {
+    switch (type) {
+      case 'request_response':
+      case 'recommendation_voted':
+      case 'forwarded_request':
+      case 'new_request':
+        return '/requests';
+      case 'contact_joined':
+      case 'network_addition':
+      case 'friend_suggestion':
+      case 'friend_request':
+        return '/friends';
+      default:
+        return '/dashboard';
+    }
+  };
+
+  const handleNotificationClick = (notification: Notification) => {
     markAsRead(notification.id);
-    const route = await getNotificationRoute(notification);
-    navigate(route);
+    navigate(getNotificationRoute(notification.type));
   };
 
   const formatTimeAgo = (dateString: string) => {
