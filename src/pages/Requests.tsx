@@ -104,9 +104,23 @@ export default function Requests() {
 
       if (sentError) throw sentError;
 
+      // Get guest contribution counts for sent requests
+      const sentRequestIds = (sentData || []).map(r => r.id);
+      let sentGuestCounts: Record<string, number> = {};
+      if (sentRequestIds.length > 0) {
+        const { data: guestCounts } = await supabase
+          .from("guest_contributions")
+          .select("request_id")
+          .in("request_id", sentRequestIds);
+        
+        (guestCounts || []).forEach(gc => {
+          sentGuestCounts[gc.request_id!] = (sentGuestCounts[gc.request_id!] || 0) + 1;
+        });
+      }
+
       const formattedSentRequests = sentData?.map(request => ({
         ...request,
-        response_count: request.request_responses?.length || 0,
+        response_count: (request.request_responses?.length || 0) + (sentGuestCounts[request.id] || 0),
         group_name: request.groups?.name,
         forwarding_chain: Array.isArray(request.forwarding_chain) 
           ? request.forwarding_chain as Array<{ user_id: string; user_name: string; user_handle: string; }>
