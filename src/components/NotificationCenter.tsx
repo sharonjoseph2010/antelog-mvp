@@ -40,6 +40,7 @@ const getNotificationIcon = (type: string) => {
     case 'request_response':
       return <MessageSquare className="h-4 w-4" />;
     case 'forwarded_request':
+    case 'request_forwarded':
       return <MessageCircle className="h-4 w-4" />;
     case 'recommendation_voted':
       return <ThumbsUp className="h-4 w-4" />;
