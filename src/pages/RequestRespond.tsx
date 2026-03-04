@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { formatDistanceToNow } from "date-fns";
 import { ForwardRequestModal } from "@/components/ForwardRequestModal";
 import { DeleteRequestDialog } from "@/components/DeleteRequestDialog";
-import { areUsersConnected, getDisplayNameSync } from "@/hooks/useNetworkAwareName";
+import { isInNetwork, getDisplayNameSync } from "@/hooks/useNetworkAwareName";
 import { initiateClusteringReview } from "@/lib/clustering";
 
 interface NetworkPathNode {
