@@ -1930,7 +1930,6 @@ export default function RequestRespond() {
                   <div className="flex items-center gap-3">
                     <div>
                       <p className="font-medium">{response.responder_profile.full_name}</p>
-                      <p className="text-sm text-muted-foreground">@{response.responder_profile.handle}</p>
                     </div>
                   </div>
                   <span className="text-sm text-muted-foreground">
