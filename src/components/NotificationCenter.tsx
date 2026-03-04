@@ -280,7 +280,7 @@ export const NotificationCenter = () => {
                     </p>
                     {notification.related_profile && (
                       <p className="text-xs text-muted-foreground mt-1">
-                        {notification.related_profile.full_name} (@{notification.related_profile.handle})
+                        {notification.related_profile.full_name}
                       </p>
                     )}
                     <p className="text-xs text-muted-foreground mt-1">
