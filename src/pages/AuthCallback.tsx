@@ -24,12 +24,6 @@ useEffect(() => {
     return;
   }
 
-  const requestId = queryParams.get("request_id");
-  if (requestId) {
-    window.location.replace(`/requests/${encodeURIComponent(requestId)}/respond?welcome=1`);
-    return;
-  }
-
   let redirectHandled = false;
 
   const handleRedirect = () => {
@@ -43,7 +37,6 @@ useEffect(() => {
       setMode("reset");
       return;
     }
-
     if (session?.user?.id) {
       handleRedirect();
     }

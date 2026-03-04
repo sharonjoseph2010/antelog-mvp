@@ -90,7 +90,7 @@ const onSubmit = async (values: SignupValues) => {
     if (data?.session) {
       toast.success("Account created. Redirecting…");
       if (requestId) {
-        navigate(`/requests/${requestId}/respond?welcome=1`, { replace: true });
+        window.location.replace(`/requests/${requestId}/respond?welcome=1`);
       } else {
         navigate("/profile-setup", { replace: true });
       }
