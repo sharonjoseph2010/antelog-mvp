@@ -61,16 +61,20 @@ useEffect(() => {
       return;
     }
     if (session) {
-      const pendingRequestId = sessionStorage.getItem("pending_signup_request_id");
-      if (pendingRequestId) {
-        sessionStorage.removeItem("pending_signup_request_id");
-        sessionStorage.removeItem("signup_request_id");
-        sessionStorage.removeItem("signup_share_link_id");
-        sessionStorage.setItem("show_welcome_banner", pendingRequestId);
-        navigate(`/requests/${pendingRequestId}/respond`, { replace: true });
-      } else {
-        navigate("/profile-setup", { replace: true, state: { internal: true } });
-      }
+      setTimeout(() => {
+        const pendingRequestId = sessionStorage.getItem("pending_signup_request_id")
+          || sessionStorage.getItem("signup_request_id")
+          || sessionStorage.getItem("show_welcome_banner");
+        if (pendingRequestId) {
+          sessionStorage.removeItem("pending_signup_request_id");
+          sessionStorage.removeItem("signup_request_id");
+          sessionStorage.removeItem("signup_share_link_id");
+          sessionStorage.setItem("show_welcome_banner", pendingRequestId);
+          navigate(`/requests/${pendingRequestId}/respond`, { replace: true });
+        } else {
+          navigate("/profile-setup", { replace: true, state: { internal: true } });
+        }
+      }, 100);
     }
   });
 

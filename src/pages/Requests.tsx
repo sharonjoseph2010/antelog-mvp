@@ -194,10 +194,16 @@ export default function Requests() {
             connectionPath = pathData || [];
           }
 
+          // Get guest contribution count for this request
+          const { data: guestCount } = await supabase
+            .from("guest_contributions")
+            .select("id", { count: 'exact', head: true })
+            .eq("request_id", request.id);
+
           return {
             ...request,
             creator_profile: creatorProfile,
-            response_count: request.request_responses?.length || 0,
+            response_count: (request.request_responses?.length || 0) + (guestCount?.length || 0),
             group_name: request.groups?.name,
             degree_of_separation: degreeOfSeparation,
             connection_path: connectionPath,
