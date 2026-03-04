@@ -2044,32 +2044,44 @@ export default function RequestRespond() {
                   </CardHeader>
 
                   <CardContent className="space-y-3">
-                    {recs.map((rec: any, idx: number) => (
-                      <div key={idx} className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
-                        <div className="flex-1">
-                          <p className="font-medium">{rec.text}</p>
-                          {rec.reason && (
-                            <p className="text-sm text-muted-foreground mt-1">
-                              {rec.reason}
-                            </p>
-                          )}
-                          {rec.link && (
-                            <a
-                              href={rec.link}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-sm text-primary hover:underline mt-1 inline-block"
-                            >
-                              View link →
-                            </a>
-                          )}
+                    {recs.map((rec: any, idx: number) => {
+                      const isOwnRecommendation = false; // Guests can't be the current user
+                      const canVote = !isOwnRequest && !isOwnRecommendation;
+                      
+                      return (
+                        <div key={idx} className="p-3 border rounded-lg">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="text-sm font-bold text-primary">#{idx + 1}</span>
+                                <span className="font-medium">{rec.text}</span>
+                              </div>
+                              {rec.reason && (
+                                <p className="text-sm text-muted-foreground mt-1">
+                                  {rec.reason}
+                                </p>
+                              )}
+                              {rec.link && (
+                                <a
+                                  href={rec.link}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-sm text-primary hover:underline mt-1 inline-flex items-center gap-1"
+                                >
+                                  <LinkIcon className="h-3 w-3" />
+                                  View link
+                                </a>
+                              )}
+                            </div>
+                            <div className="flex flex-col items-end gap-2">
+                              <Badge variant="secondary">
+                                {rec.vote_count || 0} {(rec.vote_count || 0) === 1 ? 'vote' : 'votes'}
+                              </Badge>
+                            </div>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                          <ThumbsUp className="h-4 w-4" />
-                          <span>{rec.vote_count || 0}</span>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
 
                     <p className="text-xs text-muted-foreground mt-2">
                       Responded {formatDistanceToNow(new Date(contribution.created_at), { addSuffix: true })}
