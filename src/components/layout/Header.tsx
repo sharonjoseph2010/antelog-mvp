@@ -190,26 +190,10 @@ const Header = ({ isAuthenticated, isAdmin, userType, onLogout }: HeaderProps) =
     }
   };
 
-  const getNotificationRoute = (type: string): string => {
-    switch (type) {
-      case 'request_response':
-      case 'recommendation_voted':
-      case 'forwarded_request':
-      case 'new_request':
-        return '/requests';
-      case 'contact_joined':
-      case 'network_addition':
-      case 'friend_suggestion':
-      case 'friend_request':
-        return '/friends';
-      default:
-        return '/dashboard';
-    }
-  };
-
-  const handleNotificationClick = (notification: Notification) => {
+  const handleNotificationClick = async (notification: Notification) => {
     markAsRead(notification.id);
-    navigate(getNotificationRoute(notification.type));
+    const route = await getNotificationRoute(notification);
+    navigate(route);
   };
 
   const formatTimeAgo = (dateString: string) => {
