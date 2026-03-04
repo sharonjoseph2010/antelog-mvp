@@ -24,21 +24,32 @@ useEffect(() => {
     return;
   }
 
-  console.log("AuthCallback: checking sessionStorage for signup_request_id");
-  const signupRequestId = sessionStorage.getItem("signup_request_id");
   let redirectHandled = false;
 
-  const handleRedirect = () => {
+  const handleRedirect = async (userId: string) => {
     if (redirectHandled) return;
     redirectHandled = true;
 
-    if (signupRequestId) {
-      console.log(`AuthCallback: found request_id = ${signupRequestId}, redirecting`);
-      sessionStorage.setItem("show_welcome_banner", signupRequestId);
-      navigate(`/requests/${signupRequestId}/respond`, { replace: true });
-      sessionStorage.removeItem("signup_request_id");
-      sessionStorage.removeItem("pending_signup_request_id");
-      sessionStorage.removeItem("signup_share_link_id");
+    console.log(`AuthCallback: checking latest guest contribution for user = ${userId}`);
+
+    const { data, error } = await supabase
+      .from("guest_contributions")
+      .select("request_id, created_at")
+      .eq("converted_user_id", userId)
+      .eq("joined_antelog", true)
+      .not("request_id", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      console.error("AuthCallback: failed to lookup guest contribution", error);
+    }
+
+    const requestId = data?.request_id;
+    if (requestId) {
+      console.log(`AuthCallback: found request_id = ${requestId}, redirecting`);
+      navigate(`/requests/${requestId}/respond?welcome=1`, { replace: true });
       return;
     }
 
@@ -52,14 +63,14 @@ useEffect(() => {
       return;
     }
 
-    if (session) {
-      handleRedirect();
+    if (session?.user?.id) {
+      void handleRedirect(session.user.id);
     }
   });
 
   supabase.auth.getSession().then(({ data: { session } }) => {
-    if (session) {
-      handleRedirect();
+    if (session?.user?.id) {
+      void handleRedirect(session.user.id);
     }
   });
 

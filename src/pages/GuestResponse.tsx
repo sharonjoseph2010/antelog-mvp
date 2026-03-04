@@ -369,9 +369,12 @@ export default function GuestResponse() {
                     </li>
                   </ul>
                   <Button className="w-full" onClick={() => {
-                    sessionStorage.setItem("signup_request_id", requestId!);
-                    if (shareLink?.id) sessionStorage.setItem("signup_share_link_id", shareLink.id);
-                    navigate("/signup");
+                    const params = new URLSearchParams({
+                      from_share: "1",
+                      request_id: requestId!,
+                    });
+                    if (shareLink?.id) params.set("share_link_id", shareLink.id);
+                    navigate(`/signup?${params.toString()}`);
                   }}>
                     Join Antelog — Free (5 Requests)
                   </Button>

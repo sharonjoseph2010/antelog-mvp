@@ -156,14 +156,17 @@ export default function RequestRespond() {
   const [showWelcomeBanner, setShowWelcomeBanner] = useState(false);
 
   useEffect(() => {
-    const bannerRequestId = sessionStorage.getItem("show_welcome_banner");
-    if (bannerRequestId && bannerRequestId === id) {
-      setShowWelcomeBanner(true);
-      sessionStorage.removeItem("show_welcome_banner");
-      const timer = setTimeout(() => setShowWelcomeBanner(false), 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [id]);
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("welcome") !== "1") return;
+
+    setShowWelcomeBanner(true);
+    params.delete("welcome");
+    const query = params.toString();
+    window.history.replaceState(null, "", `${window.location.pathname}${query ? `?${query}` : ""}`);
+
+    const timer = setTimeout(() => setShowWelcomeBanner(false), 5000);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Real-time subscriptions for live updates
   useEffect(() => {
