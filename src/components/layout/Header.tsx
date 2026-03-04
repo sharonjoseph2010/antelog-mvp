@@ -211,7 +211,7 @@ const Header = ({ isAuthenticated, isAdmin, userType, onLogout }: HeaderProps) =
 
   const handleNotificationClick = (notification: Notification) => {
     markAsRead(notification.id);
-    navigate(getNotificationRoute(notification.type));
+    navigate(getNotificationRoute(notification));
   };
 
   const formatTimeAgo = (dateString: string) => {
