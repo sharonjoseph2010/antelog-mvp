@@ -420,6 +420,25 @@ export default function RequestRespond() {
 
       setGuestContributions(guestWithLinks);
 
+      // Load user's existing votes on guest recommendations
+      if (user) {
+        const allRecIds: string[] = [];
+        (guestWithLinks || []).forEach((c: any) => {
+          const recs = Array.isArray(c.recommendations) ? c.recommendations : [];
+          recs.forEach((r: any) => { if (r.id) allRecIds.push(r.id); });
+        });
+        if (allRecIds.length > 0) {
+          const { data: voteData } = await supabase
+            .from("recommendation_votes")
+            .select("recommendation_id")
+            .eq("user_id", user.id)
+            .in("recommendation_id", allRecIds);
+          const voteMap: Record<string, boolean> = {};
+          (voteData || []).forEach(v => { voteMap[v.recommendation_id] = true; });
+          setGuestVotes(voteMap);
+        }
+      }
+
     } catch (error) {
       console.error("Error loading request data:", error);
       toast({
