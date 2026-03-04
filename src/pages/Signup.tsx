@@ -42,12 +42,14 @@ const onSubmit = async (values: SignupValues) => {
   setLoading(true);
   try {
     const normalizedPhone = values.phone_number;
-    const redirectUrl = `${window.location.origin}/auth/callback`;
 
     const urlParams = new URLSearchParams(window.location.search);
     const requestId = urlParams.get("request_id");
     const shareLinkId = urlParams.get("share_link_id");
-    const isShareLinkSignup = urlParams.get("from_share") === "1" || Boolean(requestId || shareLinkId);
+    const redirectUrl = requestId
+      ? `${window.location.origin}/auth/callback?request_id=${encodeURIComponent(requestId)}`
+      : `${window.location.origin}/auth/callback`;
+    const isShareLinkSignup = Boolean(requestId || shareLinkId);
 
     const { data, error } = await supabase.auth.signUp({
       email: values.email.toLowerCase(),
