@@ -927,6 +927,7 @@ export default function RequestRespond() {
     }
   };
 
+  const handleDeleteRequest = async () => {
     if (!request) return;
     
     setIsDeleting(true);
