@@ -99,7 +99,7 @@ export const NotificationCenter = () => {
 
       const { data, error } = await supabase
         .from('notifications')
-        .select('id, type, title, message, is_read, created_at, related_user_id')
+        .select('id, type, title, message, is_read, created_at, related_user_id, metadata')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(10);
