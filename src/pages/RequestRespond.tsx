@@ -17,6 +17,7 @@ import { ForwardRequestModal } from "@/components/ForwardRequestModal";
 import { DeleteRequestDialog } from "@/components/DeleteRequestDialog";
 import { isInNetwork, getDisplayNameSync } from "@/hooks/useNetworkAwareName";
 import { initiateClusteringReview } from "@/lib/clustering";
+import { ResponseTree } from "@/components/ResponseTree";
 
 interface NetworkPathNode {
   user_id: string;
@@ -1246,36 +1247,22 @@ export default function RequestRespond() {
             <div className="flex-1">
               <CardTitle className="text-xl mb-2">{request.title}</CardTitle>
               
-              {/* Network Path Display */}
-              {request.network_path && request.network_path.length > 0 ? (
-                <div className="mb-3 p-3 bg-muted/50 rounded-lg">
-                  <p className="text-xs text-muted-foreground mb-1">Request Path:</p>
-                  <div className="flex items-center gap-2 flex-wrap text-sm">
-                    <span className="font-medium">
-                      {request.isCreatorConnected 
-                        ? (request.creator_profile?.full_name || request.creator_profile?.handle || 'Someone')
-                        : (request.creator_profile?.handle ? `@${request.creator_profile.handle}` : 'Someone')
-                      }
-                    </span>
-                    {request.network_path.map((node, index) => (
-                      <span key={index} className="flex items-center gap-2">
-                        <ArrowRight className="h-3 w-3 text-muted-foreground" />
-                        <span className="text-muted-foreground">via</span>
-                        <span className={`font-medium ${node.isConnectedToViewer ? '' : 'text-muted-foreground'}`}>
-                          {node.user_name}
-                        </span>
-                      </span>
-                    ))}
-                    <ArrowRight className="h-3 w-3 text-muted-foreground" />
-                    <Badge variant="secondary">endorsed to you</Badge>
-                  </div>
-                </div>
-              ) : request.creator_profile && (
-                <p className="text-sm text-muted-foreground mb-3">
+              {/* Requested by + Share Chain */}
+              {request.creator_profile && (
+                <p className="text-sm text-muted-foreground mb-1">
                   Requested by {request.isCreatorConnected 
                     ? (request.creator_profile.full_name || request.creator_profile.handle)
                     : (request.creator_profile.handle ? `@${request.creator_profile.handle}` : 'Someone')
                   }
+                </p>
+              )}
+              {/* Tier 1: Subtle share chain for forwarded requests */}
+              {request.network_path && request.network_path.length > 0 && (
+                <p className="text-xs text-muted-foreground mb-3">
+                  Shared by {request.network_path[request.network_path.length - 1].user_name}
+                  {request.network_path.length > 1 && (
+                    <> via {request.network_path.slice(0, -1).map(n => n.user_name).join(" → ")}</>
+                  )}
                 </p>
               )}
             </div>
@@ -1314,7 +1301,7 @@ export default function RequestRespond() {
             ))}
           </div>
 
-          <div className="flex gap-2 pt-2 border-t">
+          <div className="flex flex-wrap gap-2 pt-2 border-t">
             {isOwnRequest ? (
               <>
                 <Button asChild variant="outline" className="flex items-center gap-2">
@@ -1331,6 +1318,14 @@ export default function RequestRespond() {
                   <Trash2 className="h-4 w-4" />
                   Delete Request
                 </Button>
+                {/* Tier 2: Response Tree - only for request creator */}
+                {currentUserId && (
+                  <ResponseTree
+                    requestId={request.id}
+                    creatorId={request.creator_id}
+                    viewerId={currentUserId}
+                  />
+                )}
               </>
             ) : (
               <>

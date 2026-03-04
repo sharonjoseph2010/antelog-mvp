@@ -319,14 +319,12 @@ export default function GuestResponse() {
             {shareLink.generated_by_name && (
               <span className="flex items-center gap-1">
                 <Users className="h-4 w-4" />
-                <span>
-                  {shareLink.generated_by_name} shared this with you
-                  {shareLink.fullChain && shareLink.fullChain.length > 1 && (
-                    <span className="text-muted-foreground text-xs">
-                      {" "}(via {shareLink.fullChain.slice(0, -1).reverse().join(" → ")})
-                    </span>
-                  )}
-                </span>
+                Shared by {shareLink.generated_by_name}
+                {shareLink.fullChain && shareLink.fullChain.length > 1 && (
+                  <span className="text-muted-foreground text-xs">
+                    {" "}(via {shareLink.fullChain.slice(0, -1).reverse().join(" → ")})
+                  </span>
+                )}
               </span>
             )}
             {request.creator_profile?.full_name && (
