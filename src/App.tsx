@@ -199,6 +199,11 @@ function AppContent({
       return;
     }
 
+    if (window.location.pathname === "/auth/callback") {
+      console.log("[Auth] On auth callback route, skipping App-level navigation override");
+      return;
+    }
+
     const handlePostAuthNavigation = async () => {
       const userId = session.user.id;
       console.log("[Auth] Starting post-auth navigation for user:", userId);
