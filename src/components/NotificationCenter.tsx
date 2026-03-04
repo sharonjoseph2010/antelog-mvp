@@ -182,7 +182,7 @@ export const NotificationCenter = () => {
     if (!notification.is_read) {
       markAsRead(notification.id);
     }
-    const route = getNotificationRoute(notification.type);
+    const route = getNotificationRoute(notification);
     navigate(route);
   };
 
