@@ -163,11 +163,11 @@ export const NotificationCenter = () => {
     }
   };
 
-  const handleNotificationClick = (notification: Notification) => {
+  const handleNotificationClick = async (notification: Notification) => {
     if (!notification.is_read) {
       markAsRead(notification.id);
     }
-    const route = getNotificationRoute(notification.type);
+    const route = await getNotificationRoute(notification);
     navigate(route);
   };
 
