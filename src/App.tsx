@@ -235,44 +235,7 @@ function AppContent({
           return;
         }
 
-        const trustedRequestId =
-          sessionStorage.getItem("signup_request_id") ||
-          sessionStorage.getItem("pending_signup_request_id") ||
-          sessionStorage.getItem("show_welcome_banner");
-        const isRequestPath = window.location.pathname.includes("/requests/");
-        const skipVerifyRedirect = Boolean(trustedRequestId || isRequestPath);
-
-        if (skipVerifyRedirect && profile.verification_status !== "verified") {
-          console.log("[Auth] Trusted share-link context detected; skipping /verify redirect", {
-            trustedRequestId,
-            pathname: window.location.pathname,
-            verification_status: profile.verification_status,
-          });
-
-          if (trustedRequestId && !isRequestPath) {
-            sessionStorage.setItem("show_welcome_banner", trustedRequestId);
-            console.log("[Auth] Redirecting trusted signup to request page:", trustedRequestId);
-            navigate(`/requests/${trustedRequestId}/respond`, { replace: true });
-          }
-          return;
-        }
-
         if (profile.verification_status === "verified") {
-          // Check if there's a pending request redirect from share-link signup
-          const pendingRequestId = sessionStorage.getItem("show_welcome_banner") 
-            || sessionStorage.getItem("signup_request_id")
-            || sessionStorage.getItem("pending_signup_request_id");
-          if (pendingRequestId) {
-            const requestId = pendingRequestId;
-            // Ensure show_welcome_banner is set for the request page
-            sessionStorage.setItem("show_welcome_banner", requestId);
-            sessionStorage.removeItem("signup_request_id");
-            sessionStorage.removeItem("signup_share_link_id");
-            sessionStorage.removeItem("pending_signup_request_id");
-            console.log("[Auth] Redirecting to request page after signup:", requestId);
-            navigate(`/requests/${requestId}/respond`, { replace: true });
-            return;
-          }
           if (window.location.pathname !== "/dashboard") {
             console.log("[Auth] Navigating to dashboard - verified user");
             navigate("/dashboard", { replace: true });

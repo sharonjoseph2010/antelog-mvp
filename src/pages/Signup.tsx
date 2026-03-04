@@ -44,11 +44,10 @@ const onSubmit = async (values: SignupValues) => {
     const normalizedPhone = values.phone_number;
     const redirectUrl = `${window.location.origin}/auth/callback`;
 
-    const signupRequestId = sessionStorage.getItem("signup_request_id");
-    const pendingSignupRequestId = sessionStorage.getItem("pending_signup_request_id");
-    const signupShareLinkId = sessionStorage.getItem("signup_share_link_id");
-    const trustedShareRequestId = signupRequestId || pendingSignupRequestId;
-    const isShareLinkSignup = Boolean(trustedShareRequestId);
+    const urlParams = new URLSearchParams(window.location.search);
+    const requestId = urlParams.get("request_id");
+    const shareLinkId = urlParams.get("share_link_id");
+    const isShareLinkSignup = urlParams.get("from_share") === "1" || Boolean(requestId || shareLinkId);
 
     const { data, error } = await supabase.auth.signUp({
       email: values.email.toLowerCase(),
@@ -56,10 +55,12 @@ const onSubmit = async (values: SignupValues) => {
       options: {
         emailRedirectTo: redirectUrl,
         data: {
-          user_type: 'verified',
+          user_type: "verified",
           phone_number: normalizedPhone,
           full_name: values.full_name.trim(),
           is_share_signup: isShareLinkSignup,
+          share_request_id: requestId,
+          share_link_id: shareLinkId,
         }
       },
     });
@@ -73,12 +74,12 @@ const onSubmit = async (values: SignupValues) => {
     }
 
     // Convert guest contribution if coming from share link flow
-    if (data?.user && signupShareLinkId) {
+    if (data?.user && shareLinkId) {
       try {
         await supabase
           .from("guest_contributions")
           .update({ joined_antelog: true, converted_user_id: data.user.id })
-          .eq("share_link_id", signupShareLinkId);
+          .eq("share_link_id", shareLinkId);
       } catch (e) {
         console.error("Failed to update guest contribution:", e);
       }
@@ -86,22 +87,14 @@ const onSubmit = async (values: SignupValues) => {
 
     if (data?.session) {
       toast.success("Account created. Redirecting…");
-      if (trustedShareRequestId) {
-        sessionStorage.removeItem("signup_request_id");
-        sessionStorage.removeItem("pending_signup_request_id");
-        sessionStorage.removeItem("signup_share_link_id");
-        sessionStorage.setItem("show_welcome_banner", trustedShareRequestId);
-        navigate(`/requests/${trustedShareRequestId}/respond`, { replace: true });
+      if (requestId) {
+        navigate(`/requests/${requestId}/respond?welcome=1`, { replace: true });
       } else {
         navigate("/profile-setup", { replace: true });
       }
       return;
     }
 
-    // Email confirmation required — store context for post-verification redirect
-    if (trustedShareRequestId) {
-      sessionStorage.setItem("pending_signup_request_id", trustedShareRequestId);
-    }
     toast.success("Check your inbox to verify your email.");
     form.reset({ email: values.email.toLowerCase(), password: "", full_name: "", phone_number: "" });
   } catch (e) {
