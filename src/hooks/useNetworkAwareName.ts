@@ -23,14 +23,29 @@ export async function isInNetwork(viewerId: string, profileId: string): Promise<
     return cached.result;
   }
 
-  const { data, error } = await supabase.rpc('is_in_network', {
-    viewer_id: viewerId,
-    profile_id: profileId,
-  });
+  // Try up to 2 times on error
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const { data, error } = await supabase.rpc('is_in_network', {
+      viewer_id: viewerId,
+      profile_id: profileId,
+    });
 
-  const result = error ? false : !!data;
-  networkCache.set(cacheKey, { result, timestamp: Date.now() });
-  return result;
+    if (!error) {
+      const result = !!data;
+      networkCache.set(cacheKey, { result, timestamp: Date.now() });
+      return result;
+    }
+
+    console.warn(`isInNetwork attempt ${attempt + 1} failed:`, error.message);
+    if (attempt === 0) {
+      // Brief delay before retry
+      await new Promise(r => setTimeout(r, 500));
+    }
+  }
+
+  // On persistent failure, don't cache and default to false (show handle only)
+  console.error('isInNetwork failed after retries, defaulting to false');
+  return false;
 }
 
 /**
