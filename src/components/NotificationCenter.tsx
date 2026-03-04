@@ -31,7 +31,7 @@ const getNotificationRoute = (notification: Notification): string => {
     case 'forwarded_request':
     case 'request_forwarded':
     case 'new_request':
-      return requestId ? `/requests/${requestId}` : '/requests';
+      return requestId ? `/requests/${requestId}/respond` : '/requests';
     case 'contact_joined':
     case 'network_addition':
     case 'friend_suggestion':
