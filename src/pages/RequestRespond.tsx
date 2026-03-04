@@ -1301,7 +1301,7 @@ export default function RequestRespond() {
             ))}
           </div>
 
-          <div className="flex gap-2 pt-2 border-t">
+          <div className="flex flex-wrap gap-2 pt-2 border-t">
             {isOwnRequest ? (
               <>
                 <Button asChild variant="outline" className="flex items-center gap-2">
@@ -1318,6 +1318,14 @@ export default function RequestRespond() {
                   <Trash2 className="h-4 w-4" />
                   Delete Request
                 </Button>
+                {/* Tier 2: Response Tree - only for request creator */}
+                {currentUserId && (
+                  <ResponseTree
+                    requestId={request.id}
+                    creatorId={request.creator_id}
+                    viewerId={currentUserId}
+                  />
+                )}
               </>
             ) : (
               <>
