@@ -235,6 +235,28 @@ function AppContent({
           return;
         }
 
+        const trustedRequestId =
+          sessionStorage.getItem("signup_request_id") ||
+          sessionStorage.getItem("pending_signup_request_id") ||
+          sessionStorage.getItem("show_welcome_banner");
+        const isRequestPath = window.location.pathname.includes("/requests/");
+        const skipVerifyRedirect = Boolean(trustedRequestId || isRequestPath);
+
+        if (skipVerifyRedirect && profile.verification_status !== "verified") {
+          console.log("[Auth] Trusted share-link context detected; skipping /verify redirect", {
+            trustedRequestId,
+            pathname: window.location.pathname,
+            verification_status: profile.verification_status,
+          });
+
+          if (trustedRequestId && !isRequestPath) {
+            sessionStorage.setItem("show_welcome_banner", trustedRequestId);
+            console.log("[Auth] Redirecting trusted signup to request page:", trustedRequestId);
+            navigate(`/requests/${trustedRequestId}/respond`, { replace: true });
+          }
+          return;
+        }
+
         if (profile.verification_status === "verified") {
           // Check if there's a pending request redirect from share-link signup
           const pendingRequestId = sessionStorage.getItem("show_welcome_banner") 
