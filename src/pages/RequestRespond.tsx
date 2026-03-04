@@ -272,12 +272,12 @@ export default function RequestRespond() {
         networkPath = await Promise.all(
           forwardPath.network_path.map(async (userId: string) => {
             const profile = pathProfiles?.find(p => p.id === userId);
-            const isConnected = await areUsersConnected(userId, user.id);
+            const inNetwork = await isInNetwork(user.id, userId);
             return {
               user_id: userId,
-              user_name: getDisplayNameSync(profile, isConnected),
+              user_name: getDisplayNameSync(profile, inNetwork),
               user_handle: profile?.handle || 'unknown',
-              isConnectedToViewer: isConnected
+              isConnectedToViewer: inNetwork
             };
           })
         );
