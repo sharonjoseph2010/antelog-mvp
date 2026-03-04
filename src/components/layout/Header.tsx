@@ -26,7 +26,10 @@ interface Notification {
   message: string;
   is_read: boolean;
   created_at: string;
-  related_user_id?: string;
+  related_user_id?: string | null;
+  request_id?: string | null;
+  metadata?: Record<string, unknown> | null;
+  data?: Record<string, unknown> | null;
   related_profile?: {
     full_name: string;
     handle: string;
