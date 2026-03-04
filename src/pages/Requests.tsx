@@ -151,13 +151,19 @@ export default function Requests() {
               };
             }
           } else {
-            // For network requests, get real profile
+            // For network requests, get real profile with network-aware name
             const { data: profileData } = await supabase
               .from("profiles")
               .select("full_name, handle")
               .eq("id", request.creator_id)
               .single();
-            creatorProfile = profileData;
+            
+            // Resolve display name based on network relationship
+            const inNetwork = await isInNetwork(user.id, request.creator_id);
+            creatorProfile = profileData ? {
+              full_name: getDisplayNameSync(profileData, inNetwork),
+              handle: profileData.handle
+            } : null;
 
             // Get degree of separation
             const { data: degreeData } = await supabase.rpc(
