@@ -417,7 +417,8 @@ export default function RequestsNew() {
             type: 'new_request',
             title: 'Direct Request from Network',
             message: `${creatorName} sent you a direct request: ${formData.title}`,
-            related_user_id: user.id
+            related_user_id: user.id,
+            metadata: { request_id: newRequest.id }
           };
           console.log('Adding notification for specific person:', selectedUserId, notification);
           notifications.push(notification);

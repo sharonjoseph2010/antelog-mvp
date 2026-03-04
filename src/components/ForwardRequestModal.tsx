@@ -239,7 +239,8 @@ export function ForwardRequestModal({
         type: 'request_forwarded',
         title: `${forwarderName} endorsed a request`,
         message: `"${requestTitle}" - from ${requestCreatorName}`,
-        related_user_id: user.id
+        related_user_id: user.id,
+        metadata: { request_id: requestId }
       }));
       
       console.log('Notifications to insert:', notifications);

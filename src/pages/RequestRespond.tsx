@@ -729,7 +729,8 @@ export default function RequestRespond() {
             title: `${responderName} responded to your request`,
             message: request.title,
             related_user_id: user.id,
-            is_read: false
+            is_read: false,
+            metadata: { request_id: request.id }
           });
       }
 
