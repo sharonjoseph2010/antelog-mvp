@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { formatDistanceToNow } from "date-fns";
 import { ForwardRequestModal } from "@/components/ForwardRequestModal";
 import { DeleteRequestDialog } from "@/components/DeleteRequestDialog";
-import { areUsersConnected, getDisplayNameSync } from "@/hooks/useNetworkAwareName";
+import { isInNetwork, getDisplayNameSync } from "@/hooks/useNetworkAwareName";
 import { initiateClusteringReview } from "@/lib/clustering";
 
 interface NetworkPathNode {
@@ -272,18 +272,18 @@ export default function RequestRespond() {
         networkPath = await Promise.all(
           forwardPath.network_path.map(async (userId: string) => {
             const profile = pathProfiles?.find(p => p.id === userId);
-            const isConnected = await areUsersConnected(userId, user.id);
+            const inNetwork = await isInNetwork(user.id, userId);
             return {
               user_id: userId,
-              user_name: getDisplayNameSync(profile, isConnected),
+              user_name: getDisplayNameSync(profile, inNetwork),
               user_handle: profile?.handle || 'unknown',
-              isConnectedToViewer: isConnected
+              isConnectedToViewer: inNetwork
             };
           })
         );
       }
 
-      const isCreatorConnected = await areUsersConnected(requestData.creator_id, user.id);
+      const isCreatorConnected = await isInNetwork(user.id, requestData.creator_id);
       
       setRequest({
         ...requestData,
@@ -311,6 +311,13 @@ export default function RequestRespond() {
             .eq("id", response.responder_id)
             .single();
 
+          // Resolve network-aware name for responder
+          const responderInNetwork = await isInNetwork(user.id, response.responder_id);
+          const responderDisplayName = getDisplayNameSync(responderData, responderInNetwork || response.responder_id === user.id);
+          const responderDisplayHandle = responderInNetwork || response.responder_id === user.id
+            ? (responderData?.handle || 'unknown')
+            : (responderData?.handle || 'unknown');
+
           // Get recommendations for this response
           const { data: recsData } = await supabase
             .from("response_recommendations")
@@ -329,14 +336,25 @@ export default function RequestRespond() {
               const voters = votesData || [];
               const userVoted = voters.some(v => v.user_id === user.id);
 
-              // Get voter profiles
+              // Get voter profiles with network-aware names
               let voterProfiles: { id: string; full_name: string; handle: string }[] = [];
               if (voters.length > 0) {
                 const { data: profiles } = await supabase
                   .from("profiles")
                   .select("id, full_name, handle")
                   .in("id", voters.map(v => v.user_id));
-                voterProfiles = profiles || [];
+                
+                // Resolve each voter's display name based on network
+                voterProfiles = await Promise.all(
+                  (profiles || []).map(async (p) => {
+                    const voterInNetwork = await isInNetwork(user.id, p.id);
+                    return {
+                      id: p.id,
+                      full_name: getDisplayNameSync(p, voterInNetwork || p.id === user.id),
+                      handle: p.handle
+                    };
+                  })
+                );
               }
 
               return {
@@ -349,7 +367,10 @@ export default function RequestRespond() {
 
           return {
             ...response,
-            responder_profile: responderData || { full_name: 'Unknown', handle: 'unknown' },
+            responder_profile: {
+              full_name: responderDisplayName,
+              handle: responderDisplayHandle
+            },
             recommendations: recommendationsWithVotes
           };
         })
@@ -1909,7 +1930,6 @@ export default function RequestRespond() {
                   <div className="flex items-center gap-3">
                     <div>
                       <p className="font-medium">{response.responder_profile.full_name}</p>
-                      <p className="text-sm text-muted-foreground">@{response.responder_profile.handle}</p>
                     </div>
                   </div>
                   <span className="text-sm text-muted-foreground">

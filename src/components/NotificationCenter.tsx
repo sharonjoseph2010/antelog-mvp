@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Bell, Users, UserPlus, Check, MessageSquare, MessageCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { isInNetwork, getDisplayNameSync } from "@/hooks/useNetworkAwareName";
 
 interface Notification {
   id: string;
@@ -90,7 +91,7 @@ export const NotificationCenter = () => {
 
       if (error) throw error;
       
-      // Get profile info for related users
+      // Get profile info for related users with network-aware names
       if (data && data.length > 0) {
         console.log('Processing notification profile data...');
         const relatedUserIds = data
@@ -107,10 +108,21 @@ export const NotificationCenter = () => {
           
           console.log('Profile data fetched:', profiles);
           
+          // Resolve network-aware names for each related user
+          const networkResolvedProfiles = await Promise.all(
+            (profiles || []).map(async (p) => {
+              const inNetwork = await isInNetwork(user.id, p.id);
+              return {
+                ...p,
+                full_name: getDisplayNameSync(p, inNetwork || p.id === user.id),
+              };
+            })
+          );
+          
           const enrichedNotifications = data.map(notification => ({
             ...notification,
             related_profile: notification.related_user_id 
-              ? profiles?.find(p => p.id === notification.related_user_id)
+              ? networkResolvedProfiles.find(p => p.id === notification.related_user_id)
               : undefined
           }));
           
@@ -268,7 +280,7 @@ export const NotificationCenter = () => {
                     </p>
                     {notification.related_profile && (
                       <p className="text-xs text-muted-foreground mt-1">
-                        {notification.related_profile.full_name} (@{notification.related_profile.handle})
+                        {notification.related_profile.full_name}
                       </p>
                     )}
                     <p className="text-xs text-muted-foreground mt-1">

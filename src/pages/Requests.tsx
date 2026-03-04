@@ -14,6 +14,7 @@ import { NetworkPath } from "@/components/NetworkPath";
 import { ForwardRequestDialog } from "@/components/ForwardRequestDialog";
 import { DeleteRequestDialog } from "@/components/DeleteRequestDialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { isInNetwork, getDisplayNameSync } from "@/hooks/useNetworkAwareName";
 
 interface Request {
   id: string;
@@ -150,13 +151,19 @@ export default function Requests() {
               };
             }
           } else {
-            // For network requests, get real profile
+            // For network requests, get real profile with network-aware name
             const { data: profileData } = await supabase
               .from("profiles")
               .select("full_name, handle")
               .eq("id", request.creator_id)
               .single();
-            creatorProfile = profileData;
+            
+            // Resolve display name based on network relationship
+            const inNetwork = await isInNetwork(user.id, request.creator_id);
+            creatorProfile = profileData ? {
+              full_name: getDisplayNameSync(profileData, inNetwork),
+              handle: profileData.handle
+            } : null;
 
             // Get degree of separation
             const { data: degreeData } = await supabase.rpc(
@@ -350,7 +357,7 @@ export default function Requests() {
                 ) : (
                   <>
                     <p className="text-sm text-muted-foreground">
-                      Requested by {request.creator_profile.full_name} (@{request.creator_profile.handle})
+                      Requested by {request.creator_profile.full_name}
                     </p>
                     <NetworkPath
                       forwardingChain={request.forwarding_chain}

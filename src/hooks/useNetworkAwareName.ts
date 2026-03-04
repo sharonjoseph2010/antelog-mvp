@@ -1,3 +1,4 @@
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Profile {
@@ -5,82 +6,144 @@ interface Profile {
   handle: string | null;
 }
 
+// Cache for network check results to avoid redundant RPC calls
+const networkCache = new Map<string, { result: boolean; timestamp: number }>();
+const CACHE_TTL = 60_000; // 1 minute
+
 /**
- * Check if two users are directly connected (1st network)
+ * Check if two users are in the same network (1st or 2nd degree)
+ * Uses the Supabase is_in_network RPC function
  */
-export async function areUsersConnected(userId1: string, userId2: string): Promise<boolean> {
-  const { data: connection } = await supabase
-    .from('friendships')
-    .select('id')
-    .or(`and(user1_id.eq.${userId1},user2_id.eq.${userId2}),and(user1_id.eq.${userId2},user2_id.eq.${userId1})`)
-    .maybeSingle();
-  
-  return !!connection;
+export async function isInNetwork(viewerId: string, profileId: string): Promise<boolean> {
+  if (viewerId === profileId) return true;
+
+  const cacheKey = `${viewerId}:${profileId}`;
+  const cached = networkCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.result;
+  }
+
+  const { data, error } = await supabase.rpc('is_in_network', {
+    viewer_id: viewerId,
+    profile_id: profileId,
+  });
+
+  const result = error ? false : !!data;
+  networkCache.set(cacheKey, { result, timestamp: Date.now() });
+  return result;
 }
 
 /**
- * Get display name based on network relationship
- * - If viewer is connected to user: show full_name (or handle as fallback)
- * - If viewer is NOT connected: show @handle (for privacy)
+ * Get the display name for a user based on network relationship.
+ * - Same user or in-network → full_name (or handle fallback)
+ * - Out of network → @handle (randomized anonymous handle)
  */
 export async function getNetworkAwareDisplayName(
-  userId: string,
   viewerId: string,
+  profileId: string,
   profile?: Profile | null
 ): Promise<{ displayName: string; isAnonymous: boolean }> {
-  // Same user always sees their own name
-  if (userId === viewerId) {
-    const name = profile?.full_name || profile?.handle || 'You';
-    return { displayName: name, isAnonymous: false };
+  if (viewerId === profileId) {
+    return { displayName: profile?.full_name || profile?.handle || 'You', isAnonymous: false };
   }
 
-  // Check if connected
-  const isConnected = await areUsersConnected(userId, viewerId);
-  
-  if (isConnected) {
-    // Connected: show full name (or handle as fallback)
-    const displayName = profile?.full_name || profile?.handle || 'Someone';
-    return { displayName, isAnonymous: false };
+  const inNetwork = await isInNetwork(viewerId, profileId);
+
+  if (inNetwork) {
+    return {
+      displayName: profile?.full_name || profile?.handle || 'Someone',
+      isAnonymous: false,
+    };
   } else {
-    // Not connected: show handle with @ prefix for privacy
-    const displayName = profile?.handle ? `@${profile.handle}` : 'Someone';
-    return { displayName, isAnonymous: true };
+    return {
+      displayName: profile?.handle ? `@${profile.handle}` : 'Someone',
+      isAnonymous: true,
+    };
   }
 }
 
 /**
- * Get display names for multiple users in a network path
- */
-export async function getNetworkPathDisplayNames(
-  pathUserIds: string[],
-  viewerId: string,
-  profiles: Map<string, Profile>
-): Promise<Array<{ userId: string; displayName: string; isAnonymous: boolean }>> {
-  const results = await Promise.all(
-    pathUserIds.map(async (userId) => {
-      const profile = profiles.get(userId) || null;
-      const { displayName, isAnonymous } = await getNetworkAwareDisplayName(
-        userId,
-        viewerId,
-        profile
-      );
-      return { userId, displayName, isAnonymous };
-    })
-  );
-  
-  return results;
-}
-
-/**
- * Synchronous version when connection status is already known
+ * Synchronous version when network status is already known
  */
 export function getDisplayNameSync(
   profile: Profile | null | undefined,
-  isConnected: boolean
+  isInNetwork: boolean
 ): string {
-  if (isConnected) {
+  if (isInNetwork) {
     return profile?.full_name || profile?.handle || 'Someone';
   } else {
     return profile?.handle ? `@${profile.handle}` : 'Someone';
   }
+}
+
+/**
+ * React hook that resolves display names for a set of user IDs
+ * based on the viewer's network relationship.
+ * 
+ * Returns a Map<userId, { displayName, isAnonymous }>
+ */
+export function useNetworkAwareNames(
+  viewerId: string | null,
+  profiles: Map<string, Profile> | Array<{ id: string; full_name: string | null; handle: string | null }>
+) {
+  const [names, setNames] = useState<Map<string, { displayName: string; isAnonymous: boolean }>>(new Map());
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Normalize to Map
+  const profileMap = Array.isArray(profiles)
+    ? new Map(profiles.map(p => [p.id, { full_name: p.full_name, handle: p.handle }]))
+    : profiles;
+
+  const profileKeys = Array.from(profileMap.keys()).sort().join(',');
+
+  useEffect(() => {
+    if (!viewerId || profileMap.size === 0) return;
+
+    let cancelled = false;
+    setIsLoading(true);
+
+    const resolve = async () => {
+      const result = new Map<string, { displayName: string; isAnonymous: boolean }>();
+
+      await Promise.all(
+        Array.from(profileMap.entries()).map(async ([userId, profile]) => {
+          const { displayName, isAnonymous } = await getNetworkAwareDisplayName(
+            viewerId,
+            userId,
+            profile
+          );
+          result.set(userId, { displayName, isAnonymous });
+        })
+      );
+
+      if (!cancelled) {
+        setNames(result);
+        setIsLoading(false);
+      }
+    };
+
+    resolve();
+    return () => { cancelled = true; };
+  }, [viewerId, profileKeys]);
+
+  const getDisplayName = useCallback(
+    (userId: string): string => {
+      return names.get(userId)?.displayName || 'Someone';
+    },
+    [names]
+  );
+
+  const isAnonymous = useCallback(
+    (userId: string): boolean => {
+      return names.get(userId)?.isAnonymous ?? true;
+    },
+    [names]
+  );
+
+  return { names, getDisplayName, isAnonymous, isLoading };
+}
+
+// Keep backward compatibility
+export async function areUsersConnected(userId1: string, userId2: string): Promise<boolean> {
+  return isInNetwork(userId1, userId2);
 }
