@@ -14,6 +14,7 @@ import { NetworkPath } from "@/components/NetworkPath";
 import { ForwardRequestDialog } from "@/components/ForwardRequestDialog";
 import { DeleteRequestDialog } from "@/components/DeleteRequestDialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { isInNetwork, getDisplayNameSync } from "@/hooks/useNetworkAwareName";
 
 interface Request {
   id: string;
