@@ -884,7 +884,49 @@ export default function RequestRespond() {
     }
   };
 
-  const handleDeleteRequest = async () => {
+  const handleGuestVote = async (contributionId: string, recId: string, recIndex: number, currentlyVoted: boolean) => {
+    if (!currentUserId) return;
+    if (isOwnRequest) {
+      toast({ title: "Cannot vote", description: "Request creators cannot vote on recommendations", variant: "destructive" });
+      return;
+    }
+    try {
+      if (currentlyVoted) {
+        const { error } = await supabase.from("recommendation_votes").delete()
+          .eq("recommendation_id", recId).eq("user_id", currentUserId);
+        if (error) throw error;
+        setGuestVotes(prev => { const n = { ...prev }; delete n[recId]; return n; });
+        // Decrement vote_count in JSONB
+        const contribution = guestContributions.find(c => c.id === contributionId);
+        if (contribution) {
+          const recs = [...contribution.recommendations];
+          recs[recIndex] = { ...recs[recIndex], vote_count: Math.max(0, (recs[recIndex].vote_count || 0) - 1) };
+          await supabase.from("guest_contributions").update({ recommendations: recs }).eq("id", contributionId);
+        }
+        toast({ title: "Vote removed" });
+      } else {
+        const { error } = await supabase.from("recommendation_votes").insert({ recommendation_id: recId, user_id: currentUserId });
+        if (error) {
+          if (error.code === '23505') { toast({ title: "Already voted", variant: "destructive" }); return; }
+          throw error;
+        }
+        setGuestVotes(prev => ({ ...prev, [recId]: true }));
+        // Increment vote_count in JSONB
+        const contribution = guestContributions.find(c => c.id === contributionId);
+        if (contribution) {
+          const recs = [...contribution.recommendations];
+          recs[recIndex] = { ...recs[recIndex], vote_count: (recs[recIndex].vote_count || 0) + 1 };
+          await supabase.from("guest_contributions").update({ recommendations: recs }).eq("id", contributionId);
+        }
+        toast({ title: "Vote recorded" });
+      }
+      await loadRequestData();
+    } catch (error) {
+      console.error("Error voting on guest rec:", error);
+      toast({ title: "Error", description: "Failed to submit vote", variant: "destructive" });
+    }
+  };
+
     if (!request) return;
     
     setIsDeleting(true);
