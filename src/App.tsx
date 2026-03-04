@@ -476,6 +476,15 @@ function AppContent({
         />
 
         <Route
+          path="/requests/:id"
+          element={
+            <VerifiedRoute isAuthenticated={isAuthenticated} userType={userType}>
+              <RequestRespond />
+            </VerifiedRoute>
+          }
+        />
+
+        <Route
           path="/requests/:id/respond"
           element={
             <VerifiedRoute isAuthenticated={isAuthenticated} userType={userType}>
