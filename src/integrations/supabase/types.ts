@@ -871,15 +871,7 @@ export type Database = {
           recommendation_id?: string
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "recommendation_votes_recommendation_id_fkey"
-            columns: ["recommendation_id"]
-            isOneToOne: false
-            referencedRelation: "response_recommendations"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       request_forwards: {
         Row: {
