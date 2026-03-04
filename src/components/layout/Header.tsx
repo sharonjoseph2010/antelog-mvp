@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { getNotificationRoute } from "@/lib/notification-routing";
 
 interface HeaderProps {
   isAuthenticated: boolean;
