@@ -395,7 +395,8 @@ export default function RequestsNew() {
               type: 'new_request',
               title: 'New Group Request',
               message: `${creatorName} sent a request to ${group?.name}: ${formData.title}`,
-              related_user_id: user.id
+              related_user_id: user.id,
+              metadata: { request_id: newRequest.id }
             };
             console.log('Adding notification for group member:', member.user_id, notification);
             notifications.push(notification);
