@@ -200,6 +200,8 @@ export const NotificationCenter = () => {
         return <MessageSquare className="h-4 w-4" />;
       case 'forwarded_request':
         return <MessageCircle className="h-4 w-4" />;
+      case 'recommendation_voted':
+        return <ThumbsUp className="h-4 w-4" />;
       default:
         return <Bell className="h-4 w-4" />;
     }
