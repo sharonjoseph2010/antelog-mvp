@@ -283,7 +283,7 @@ export default function RequestRespond() {
         );
       }
 
-      const isCreatorConnected = await areUsersConnected(requestData.creator_id, user.id);
+      const isCreatorConnected = await isInNetwork(user.id, requestData.creator_id);
       
       setRequest({
         ...requestData,
