@@ -23,13 +23,15 @@ interface Notification {
   };
 }
 
-const getNotificationRoute = (type: string): string => {
-  switch (type) {
+const getNotificationRoute = (notification: Notification): string => {
+  const requestId = notification.metadata?.request_id;
+  switch (notification.type) {
     case 'request_response':
     case 'recommendation_voted':
     case 'forwarded_request':
+    case 'request_forwarded':
     case 'new_request':
-      return '/requests';
+      return requestId ? `/requests/${requestId}` : '/requests';
     case 'contact_joined':
     case 'network_addition':
     case 'friend_suggestion':
