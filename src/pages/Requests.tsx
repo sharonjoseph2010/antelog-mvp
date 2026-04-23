@@ -217,10 +217,9 @@ export default function Requests() {
               .eq("id", request.creator_id)
               .single();
             
-            // Resolve display name based on network relationship
-            const inNetwork = await isInNetwork(user.id, request.creator_id);
+            // Always show real full_name on request pages
             creatorProfile = profileData ? {
-              full_name: getDisplayNameSync(profileData, inNetwork),
+              full_name: profileData.full_name || profileData.handle || 'Someone',
               handle: profileData.handle
             } : null;
 
