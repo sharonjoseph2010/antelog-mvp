@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { isInNetwork, getDisplayNameSync } from "@/hooks/useNetworkAwareName";
+// Note: Request pages always show real names. Network-aware anonymization
+// is only applied in the Master Directory context.
 import { GitBranch, ChevronDown, ChevronRight } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
@@ -77,19 +78,16 @@ export function ResponseTree({ requestId, creatorId, viewerId }: ResponseTreePro
 
       const profileMap = new Map((profiles || []).map(p => [p.id, p]));
 
-      // Resolve names with network awareness
+      // Always show real names on request pages
       const nameMap = new Map<string, string>();
-      await Promise.all(
-        Array.from(allUserIds).map(async (uid) => {
-          if (uid === viewerId) {
-            nameMap.set(uid, "You");
-            return;
-          }
-          const profile = profileMap.get(uid);
-          const inNet = await isInNetwork(viewerId, uid);
-          nameMap.set(uid, getDisplayNameSync(profile || null, inNet));
-        })
-      );
+      Array.from(allUserIds).forEach((uid) => {
+        if (uid === viewerId) {
+          nameMap.set(uid, "You");
+          return;
+        }
+        const profile = profileMap.get(uid);
+        nameMap.set(uid, profile?.full_name || profile?.handle || "Someone");
+      });
 
       // Build tree: creator is root
       const root: TreeNode = {
