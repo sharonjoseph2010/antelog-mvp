@@ -15,7 +15,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { formatDistanceToNow } from "date-fns";
 import { ForwardRequestModal } from "@/components/ForwardRequestModal";
 import { DeleteRequestDialog } from "@/components/DeleteRequestDialog";
-import { isInNetwork, getDisplayNameSync } from "@/hooks/useNetworkAwareName";
+// Note: Request pages always show real names. Network-aware anonymization
+// is only applied in the Master Directory context.
 import { initiateClusteringReview } from "@/lib/clustering";
 import { ResponseTree } from "@/components/ResponseTree";
 
@@ -274,21 +275,19 @@ export default function RequestRespond() {
           .select('id, full_name, handle')
           .in('id', forwardPath.network_path);
 
-        networkPath = await Promise.all(
-          forwardPath.network_path.map(async (userId: string) => {
-            const profile = pathProfiles?.find(p => p.id === userId);
-            const inNetwork = await isInNetwork(user.id, userId);
-            return {
-              user_id: userId,
-              user_name: getDisplayNameSync(profile, inNetwork),
-              user_handle: profile?.handle || 'unknown',
-              isConnectedToViewer: inNetwork
-            };
-          })
-        );
+        networkPath = forwardPath.network_path.map((userId: string) => {
+          const profile = pathProfiles?.find(p => p.id === userId);
+          return {
+            user_id: userId,
+            user_name: profile?.full_name || profile?.handle || 'Someone',
+            user_handle: profile?.handle || 'unknown',
+            isConnectedToViewer: true,
+          };
+        });
       }
 
-      const isCreatorConnected = await isInNetwork(user.id, requestData.creator_id);
+      // On request pages we always reveal the creator's real identity.
+      const isCreatorConnected = true;
       
       setRequest({
         ...requestData,
@@ -316,12 +315,9 @@ export default function RequestRespond() {
             .eq("id", response.responder_id)
             .single();
 
-          // Resolve network-aware name for responder
-          const responderInNetwork = await isInNetwork(user.id, response.responder_id);
-          const responderDisplayName = getDisplayNameSync(responderData, responderInNetwork || response.responder_id === user.id);
-          const responderDisplayHandle = responderInNetwork || response.responder_id === user.id
-            ? (responderData?.handle || 'unknown')
-            : (responderData?.handle || 'unknown');
+          // Always show responder's real name on request pages
+          const responderDisplayName = responderData?.full_name || responderData?.handle || 'Someone';
+          const responderDisplayHandle = responderData?.handle || 'unknown';
 
           // Get recommendations for this response
           const { data: recsData } = await supabase
@@ -349,17 +345,12 @@ export default function RequestRespond() {
                   .select("id, full_name, handle")
                   .in("id", voters.map(v => v.user_id));
                 
-                // Resolve each voter's display name based on network
-                voterProfiles = await Promise.all(
-                  (profiles || []).map(async (p) => {
-                    const voterInNetwork = await isInNetwork(user.id, p.id);
-                    return {
-                      id: p.id,
-                      full_name: getDisplayNameSync(p, voterInNetwork || p.id === user.id),
-                      handle: p.handle
-                    };
-                  })
-                );
+                // Always show voters' real names on request pages
+                voterProfiles = (profiles || []).map(p => ({
+                  id: p.id,
+                  full_name: p.full_name || p.handle || 'Someone',
+                  handle: p.handle,
+                }));
               }
 
               return {

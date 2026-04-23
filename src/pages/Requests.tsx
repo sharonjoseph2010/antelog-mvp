@@ -14,7 +14,8 @@ import { NetworkPath } from "@/components/NetworkPath";
 import { ForwardRequestDialog } from "@/components/ForwardRequestDialog";
 import { DeleteRequestDialog } from "@/components/DeleteRequestDialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { isInNetwork, getDisplayNameSync } from "@/hooks/useNetworkAwareName";
+// Note: Request pages always show real names. Network-aware anonymization
+// is only applied in the Master Directory context.
 
 interface Request {
   id: string;
@@ -130,8 +131,46 @@ export default function Requests() {
       setSentRequests(formattedSentRequests);
       setSentCount(formattedSentRequests.length);
 
-      // Load received requests (requests sent to current user)
-      const { data: receivedData, error: receivedError } = await supabase
+      // Load received requests — only those actually sent to this user.
+      // Eligibility:
+      //  1. Creator is in viewer's 1st network (friendship), OR
+      //  2. Request was forwarded to viewer (request_forwards.forwarded_to contains user.id), OR
+      //  3. Request audience_types contains 'public'
+      // Always exclude: expired (expires_at < now) and status = 'closed'.
+
+      // 1. Friend creator IDs
+      const { data: friendships } = await supabase
+        .from("friendships")
+        .select("user1_id, user2_id")
+        .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`);
+      const friendIds = (friendships || [])
+        .map(f => (f.user1_id === user.id ? f.user2_id : f.user1_id))
+        .filter(Boolean);
+
+      // 2. Request IDs forwarded to this user
+      const { data: forwardsToMe } = await supabase
+        .from("request_forwards")
+        .select("request_id")
+        .contains("forwarded_to", [user.id]);
+      const forwardedRequestIds = Array.from(
+        new Set((forwardsToMe || []).map(f => f.request_id))
+      );
+
+      // Build OR filter for the requests query
+      const orClauses: string[] = [];
+      if (friendIds.length > 0) {
+        orClauses.push(`creator_id.in.(${friendIds.join(",")})`);
+      }
+      if (forwardedRequestIds.length > 0) {
+        orClauses.push(`id.in.(${forwardedRequestIds.join(",")})`);
+      }
+      orClauses.push(`audience_types.cs.{public}`);
+
+      let receivedData: any[] = [];
+      let receivedError: any = null;
+      // If user has no friends and no forwards, only public requests apply.
+      const nowIso = new Date().toISOString();
+      const baseQuery = supabase
         .from("requests")
         .select(`
           *,
@@ -139,7 +178,13 @@ export default function Requests() {
           groups(name)
         `)
         .neq("creator_id", user.id)
+        .neq("status", "closed")
+        .gte("expires_at", nowIso)
         .order("created_at", { ascending: false });
+
+      const { data, error } = await baseQuery.or(orClauses.join(","));
+      receivedData = data || [];
+      receivedError = error;
 
       if (receivedError) throw receivedError;
 
@@ -172,10 +217,9 @@ export default function Requests() {
               .eq("id", request.creator_id)
               .single();
             
-            // Resolve display name based on network relationship
-            const inNetwork = await isInNetwork(user.id, request.creator_id);
+            // Always show real full_name on request pages
             creatorProfile = profileData ? {
-              full_name: getDisplayNameSync(profileData, inNetwork),
+              full_name: profileData.full_name || profileData.handle || 'Someone',
               handle: profileData.handle
             } : null;
 
