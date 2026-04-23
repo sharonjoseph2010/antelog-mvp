@@ -15,7 +15,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { formatDistanceToNow } from "date-fns";
 import { ForwardRequestModal } from "@/components/ForwardRequestModal";
 import { DeleteRequestDialog } from "@/components/DeleteRequestDialog";
-import { isInNetwork, getDisplayNameSync } from "@/hooks/useNetworkAwareName";
+// Note: Request pages always show real names. Network-aware anonymization
+// is only applied in the Master Directory context.
 import { initiateClusteringReview } from "@/lib/clustering";
 import { ResponseTree } from "@/components/ResponseTree";
 
@@ -274,21 +275,19 @@ export default function RequestRespond() {
           .select('id, full_name, handle')
           .in('id', forwardPath.network_path);
 
-        networkPath = await Promise.all(
-          forwardPath.network_path.map(async (userId: string) => {
-            const profile = pathProfiles?.find(p => p.id === userId);
-            const inNetwork = await isInNetwork(user.id, userId);
-            return {
-              user_id: userId,
-              user_name: getDisplayNameSync(profile, inNetwork),
-              user_handle: profile?.handle || 'unknown',
-              isConnectedToViewer: inNetwork
-            };
-          })
-        );
+        networkPath = forwardPath.network_path.map((userId: string) => {
+          const profile = pathProfiles?.find(p => p.id === userId);
+          return {
+            user_id: userId,
+            user_name: profile?.full_name || profile?.handle || 'Someone',
+            user_handle: profile?.handle || 'unknown',
+            isConnectedToViewer: true,
+          };
+        });
       }
 
-      const isCreatorConnected = await isInNetwork(user.id, requestData.creator_id);
+      // On request pages we always reveal the creator's real identity.
+      const isCreatorConnected = true;
       
       setRequest({
         ...requestData,
