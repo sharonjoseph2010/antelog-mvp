@@ -315,12 +315,9 @@ export default function RequestRespond() {
             .eq("id", response.responder_id)
             .single();
 
-          // Resolve network-aware name for responder
-          const responderInNetwork = await isInNetwork(user.id, response.responder_id);
-          const responderDisplayName = getDisplayNameSync(responderData, responderInNetwork || response.responder_id === user.id);
-          const responderDisplayHandle = responderInNetwork || response.responder_id === user.id
-            ? (responderData?.handle || 'unknown')
-            : (responderData?.handle || 'unknown');
+          // Always show responder's real name on request pages
+          const responderDisplayName = responderData?.full_name || responderData?.handle || 'Someone';
+          const responderDisplayHandle = responderData?.handle || 'unknown';
 
           // Get recommendations for this response
           const { data: recsData } = await supabase
@@ -348,17 +345,12 @@ export default function RequestRespond() {
                   .select("id, full_name, handle")
                   .in("id", voters.map(v => v.user_id));
                 
-                // Resolve each voter's display name based on network
-                voterProfiles = await Promise.all(
-                  (profiles || []).map(async (p) => {
-                    const voterInNetwork = await isInNetwork(user.id, p.id);
-                    return {
-                      id: p.id,
-                      full_name: getDisplayNameSync(p, voterInNetwork || p.id === user.id),
-                      handle: p.handle
-                    };
-                  })
-                );
+                // Always show voters' real names on request pages
+                voterProfiles = (profiles || []).map(p => ({
+                  id: p.id,
+                  full_name: p.full_name || p.handle || 'Someone',
+                  handle: p.handle,
+                }));
               }
 
               return {
