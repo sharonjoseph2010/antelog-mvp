@@ -132,11 +132,18 @@ export default function Requests() {
       setSentCount(formattedSentRequests.length);
 
       // Load received requests — only those actually sent to this user.
-      // Eligibility:
-      //  1. Creator is in viewer's 1st network (friendship), OR
-      //  2. Request was forwarded to viewer (request_forwards.forwarded_to contains user.id), OR
-      //  3. Request audience_types contains 'public'
-      // Always exclude: expired (expires_at < now) and status = 'closed'.
+      // A request is shown when ANY of the following is true:
+      //   1. Viewer is friends with the creator (friendships table)
+      //   2. Request was explicitly forwarded to viewer (request_forwards)
+      //   3. audience_types contains 'public'
+      //   4. Viewer has a converted guest_contributions record for this request
+      // Always exclude: status='closed' or expires_at < now()
+      //
+      // We collect candidate IDs/criteria via separate small queries, then
+      // fetch & merge — this avoids brittle PostgREST .or() syntax with
+      // array-contains clauses.
+
+      const nowIso = new Date().toISOString();
 
       // 1. Friend creator IDs
       const { data: friendships } = await supabase
@@ -153,40 +160,78 @@ export default function Requests() {
         .select("request_id")
         .contains("forwarded_to", [user.id]);
       const forwardedRequestIds = Array.from(
-        new Set((forwardsToMe || []).map(f => f.request_id))
+        new Set((forwardsToMe || []).map(f => f.request_id).filter(Boolean) as string[])
       );
 
-      // Build OR filter for the requests query
-      const orClauses: string[] = [];
+      // 4. Request IDs from converted guest contributions
+      const { data: convertedGuestRows } = await supabase
+        .from("guest_contributions")
+        .select("request_id")
+        .eq("converted_user_id", user.id);
+      const guestRequestIds = Array.from(
+        new Set((convertedGuestRows || []).map(g => g.request_id).filter(Boolean) as string[])
+      );
+
+      // Run the eligible queries in parallel and merge results
+      const baseSelect = `
+        *,
+        request_responses(count),
+        groups(name)
+      `;
+
+      const queries: Promise<{ data: any[] | null; error: any }>[] = [];
+
+      // (1) Friend-created requests
       if (friendIds.length > 0) {
-        orClauses.push(`creator_id.in.(${friendIds.join(",")})`);
+        queries.push(
+          supabase
+            .from("requests")
+            .select(baseSelect)
+            .in("creator_id", friendIds)
+            .neq("status", "closed")
+            .gte("expires_at", nowIso)
+            .then(r => ({ data: r.data, error: r.error }))
+        );
       }
-      if (forwardedRequestIds.length > 0) {
-        orClauses.push(`id.in.(${forwardedRequestIds.join(",")})`);
+
+      // (2) + (4) Specific request IDs (forwarded or converted-guest)
+      const explicitIds = Array.from(new Set([...forwardedRequestIds, ...guestRequestIds]));
+      if (explicitIds.length > 0) {
+        queries.push(
+          supabase
+            .from("requests")
+            .select(baseSelect)
+            .in("id", explicitIds)
+            .neq("status", "closed")
+            .gte("expires_at", nowIso)
+            .then(r => ({ data: r.data, error: r.error }))
+        );
       }
-      orClauses.push(`audience_types.cs.{public}`);
 
-      let receivedData: any[] = [];
-      let receivedError: any = null;
-      // If user has no friends and no forwards, only public requests apply.
-      const nowIso = new Date().toISOString();
-      const baseQuery = supabase
-        .from("requests")
-        .select(`
-          *,
-          request_responses(count),
-          groups(name)
-        `)
-        .neq("creator_id", user.id)
-        .neq("status", "closed")
-        .gte("expires_at", nowIso)
-        .order("created_at", { ascending: false });
+      // (3) Public open requests
+      queries.push(
+        supabase
+          .from("requests")
+          .select(baseSelect)
+          .contains("audience_types", ["public"])
+          .eq("status", "open")
+          .gte("expires_at", nowIso)
+          .neq("creator_id", user.id)
+          .then(r => ({ data: r.data, error: r.error }))
+      );
 
-      const { data, error } = await baseQuery.or(orClauses.join(","));
-      receivedData = data || [];
-      receivedError = error;
-
-      if (receivedError) throw receivedError;
+      const results = await Promise.all(queries);
+      const mergedById = new Map<string, any>();
+      for (const { data, error } of results) {
+        if (error) throw error;
+        for (const row of data || []) {
+          if (row.creator_id === user.id) continue; // never show own
+          mergedById.set(row.id, row);
+        }
+      }
+      const receivedData = Array.from(mergedById.values()).sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
 
       // Process received requests with network info
       const processedReceivedRequests = await Promise.all(
