@@ -14,7 +14,8 @@ import { NetworkPath } from "@/components/NetworkPath";
 import { ForwardRequestDialog } from "@/components/ForwardRequestDialog";
 import { DeleteRequestDialog } from "@/components/DeleteRequestDialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { isInNetwork, getDisplayNameSync } from "@/hooks/useNetworkAwareName";
+// Note: Request pages always show real names. Network-aware anonymization
+// is only applied in the Master Directory context.
 
 interface Request {
   id: string;
