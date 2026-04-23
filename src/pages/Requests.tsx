@@ -179,7 +179,7 @@ export default function Requests() {
         groups(name)
       `;
 
-      const queries: Promise<{ data: any[] | null; error: any }>[] = [];
+      const queries: PromiseLike<{ data: any[] | null; error: any }>[] = [];
 
       // (1) Friend-created requests
       if (friendIds.length > 0) {
@@ -190,7 +190,6 @@ export default function Requests() {
             .in("creator_id", friendIds)
             .neq("status", "closed")
             .gte("expires_at", nowIso)
-            .then(r => ({ data: r.data, error: r.error }))
         );
       }
 
@@ -204,7 +203,6 @@ export default function Requests() {
             .in("id", explicitIds)
             .neq("status", "closed")
             .gte("expires_at", nowIso)
-            .then(r => ({ data: r.data, error: r.error }))
         );
       }
 
@@ -217,10 +215,9 @@ export default function Requests() {
           .eq("status", "open")
           .gte("expires_at", nowIso)
           .neq("creator_id", user.id)
-          .then(r => ({ data: r.data, error: r.error }))
       );
 
-      const results = await Promise.all(queries);
+      const results = await Promise.all(queries.map(q => Promise.resolve(q)));
       const mergedById = new Map<string, any>();
       for (const { data, error } of results) {
         if (error) throw error;
