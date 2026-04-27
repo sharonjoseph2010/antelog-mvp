@@ -186,6 +186,16 @@ export default function RequestRespond() {
         { event: "*", schema: "public", table: "recommendation_votes" },
         () => { loadRequestData(); }
       )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "response_recommendations" },
+        () => { loadRequestData(); }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "guest_contributions", filter: `request_id=eq.${id}` },
+        () => { loadRequestData(); }
+      )
       .subscribe();
 
     return () => { supabase.removeChannel(responsesChannel); };
