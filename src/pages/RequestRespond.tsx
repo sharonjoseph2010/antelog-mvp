@@ -19,6 +19,7 @@ import { DeleteRequestDialog } from "@/components/DeleteRequestDialog";
 // is only applied in the Master Directory context.
 import { initiateClusteringReview } from "@/lib/clustering";
 import { ResponseTree } from "@/components/ResponseTree";
+import { LiveLeaderboard, LeaderboardEntry } from "@/components/LiveLeaderboard";
 
 interface NetworkPathNode {
   user_id: string;
