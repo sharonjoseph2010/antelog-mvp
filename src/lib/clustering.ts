@@ -83,8 +83,9 @@ export async function clusterRecommendations(requestId: string): Promise<Cluster
 
     // Add guest recommendations (flatten JSONB array)
     (guestContributions ?? []).forEach(guest => {
-      const recs = guest.recommendations as any[];
-      recs?.forEach((rec, idx) => {
+      const recs = Array.isArray(guest.recommendations) ? (guest.recommendations as any[]) : [];
+      recs.forEach((rec, idx) => {
+        if (!rec) return;
         allRecommendations.push({
           id: `${guest.id}_${idx}`,
           text: rec.text || rec.recommendation_text || '',
