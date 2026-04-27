@@ -132,26 +132,6 @@ export function LiveLeaderboard({
     setShowConfirm(false);
   };
 
-  const updateGuestRecommendationById = async (
-    entry: LeaderboardEntry,
-    voteCount: number,
-    mergedInto: LeaderboardEntry | null
-  ) => {
-    if (!entry.guestContributionId) {
-      throw new Error("Guest entry is missing contribution context");
-    }
-
-    const { error } = await (supabase as any).rpc("update_guest_recommendation_merge", {
-      _guest_contribution_id: entry.guestContributionId,
-      _recommendation_id: entry.recommendationId,
-      _vote_count: voteCount,
-      _merged_into_id: mergedInto?.recommendationId ?? null,
-      _merged_into_text: mergedInto?.text ?? null,
-    });
-
-    if (error) throw error;
-  };
-
   const performMerge = async () => {
     if (!mergeCandidate?.entry1 || !mergeCandidate?.entry2) {
       toast({
