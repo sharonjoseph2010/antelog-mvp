@@ -1096,6 +1096,7 @@ export type Database = {
           created_at: string | null
           id: string
           link: string | null
+          merged_away: boolean | null
           merged_into_id: string | null
           position: number
           quick_details: string | null
@@ -1109,6 +1110,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           link?: string | null
+          merged_away?: boolean | null
           merged_into_id?: string | null
           position: number
           quick_details?: string | null
@@ -1122,6 +1124,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           link?: string | null
+          merged_away?: boolean | null
           merged_into_id?: string | null
           position?: number
           quick_details?: string | null
