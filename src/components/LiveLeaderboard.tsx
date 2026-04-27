@@ -99,7 +99,7 @@ export function LiveLeaderboard({
     try {
       const { data, error } = await (supabase as any).rpc(
         "find_similar_recommendations_unified",
-        { req_id: requestId, threshold: 0.65 }
+        { req_id: requestId, threshold: 0.4 }
       );
       if (error) throw error;
       setSimilarPairs((data as SimilarPair[]) || []);
