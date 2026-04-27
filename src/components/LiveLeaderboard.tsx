@@ -153,70 +153,63 @@ export function LiveLeaderboard({
   };
 
   const performMerge = async () => {
+    if (!mergeCandidate?.entry1 || !mergeCandidate?.entry2) {
+      toast({
+        title: "Cannot merge",
+        description: "Could not find recommendations. Please refresh.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const chosen = mergeChoice === "entry1" ? mergeCandidate.entry1 : mergeCandidate.entry2;
+    const other = mergeChoice === "entry1" ? mergeCandidate.entry2 : mergeCandidate.entry1;
+
     setIsMerging(true);
     try {
-      console.log("Merge candidate:", mergeCandidate);
-      console.log("Entry1:", mergeCandidate?.entry1);
-      console.log("Entry2:", mergeCandidate?.entry2);
+      const { data: { session } } = await supabase.auth.getSession();
 
-      if (!mergeCandidate?.entry1 || !mergeCandidate?.entry2) {
-        throw new Error("Could not find one of the recommendations to merge. Please refresh and try again.");
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/merge-recommendations`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${session?.access_token}`,
+            "apikey": import.meta.env.VITE_SUPABASE_ANON_KEY,
+          },
+          body: JSON.stringify({
+            request_id: requestId,
+            chosen_source: chosen.source,
+            chosen_rec_id: chosen.recommendationId,
+            chosen_contribution_id: chosen.guestContributionId ?? null,
+            chosen_text: chosen.text,
+            chosen_vote_count: chosen.voteCount,
+            other_source: other.source,
+            other_rec_id: other.recommendationId,
+            other_contribution_id: other.guestContributionId ?? null,
+            other_vote_count: other.voteCount,
+          }),
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok || result.error) {
+        throw new Error(result.error || "Merge failed");
       }
 
-      const chosen = mergeChoice === "entry1" ? mergeCandidate.entry1 : mergeCandidate.entry2;
-      const other = mergeChoice === "entry1" ? mergeCandidate.entry2 : mergeCandidate.entry1;
-      const totalVotes = chosen.voteCount + other.voteCount;
-
-      console.log("chosen:", chosen);
-      console.log("other:", other);
-      console.log("chosen.guestContributionId:", chosen.guestContributionId);
-      console.log("other.guestContributionId:", other.guestContributionId);
-
-      // Update chosen entry vote_count = total
-      if (chosen.source === "network") {
-        const { error } = await supabase
-          .from("response_recommendations")
-          .update({ vote_count: totalVotes })
-          .eq("id", chosen.recommendationId);
-        if (error) throw error;
-      } else if (chosen.source === "guest") {
-        await updateGuestRecommendationById(chosen, totalVotes, null);
-      }
-
-      // Zero out other + set merged_into_id (network only — schema only has it on response_recommendations)
-      if (other.source === "network") {
-        const { error } = await supabase
-          .from("response_recommendations")
-          .update({
-            vote_count: 0,
-            merged_into_id: chosen.source === "network" ? chosen.recommendationId : null,
-          })
-          .eq("id", other.recommendationId);
-        if (error) throw error;
-      } else if (other.source === "guest") {
-        await updateGuestRecommendationById(other, 0, chosen);
-      }
-
-      // Notify the submitter of the merged-away entry (network only — guest entries have no user)
-      if (other.source === "network" && other.responderId && other.responderId !== currentUserId) {
-        await supabase.from("notifications").insert({
-          user_id: other.responderId,
-          type: "recommendation_merged",
-          title: "Your recommendation was combined",
-          message: `Your recommendation "${other.text}" was combined with "${chosen.text}" by the requester. Combined votes: ${totalVotes}`,
-          related_user_id: currentUserId,
-          metadata: { request_id: requestId },
-        });
-      }
-
-      toast({ title: "Merged successfully", description: `Combined into "${chosen.text}"` });
+      toast({ title: "Merged!", description: `Combined into "${chosen.text}"` });
       setMergeCandidate(null);
       setShowConfirm(false);
       await fetchSimilar();
       if (onAfterMerge) await onAfterMerge();
     } catch (e: any) {
-      console.error("Merge failed", e);
-      toast({ title: "Merge failed", description: e?.message || "Try again", variant: "destructive" });
+      toast({
+        title: "Merge failed",
+        description: e?.message || "Please try again",
+        variant: "destructive",
+      });
     } finally {
       setIsMerging(false);
     }
