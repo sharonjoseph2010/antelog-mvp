@@ -401,6 +401,41 @@ export type Database = {
           },
         ]
       }
+      guest_recommendation_merges: {
+        Row: {
+          created_at: string | null
+          guest_contribution_id: string | null
+          id: string
+          merged_into_rec_id: string | null
+          merged_into_text: string | null
+          recommendation_position: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          guest_contribution_id?: string | null
+          id?: string
+          merged_into_rec_id?: string | null
+          merged_into_text?: string | null
+          recommendation_position?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          guest_contribution_id?: string | null
+          id?: string
+          merged_into_rec_id?: string | null
+          merged_into_text?: string | null
+          recommendation_position?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guest_recommendation_merges_guest_contribution_id_fkey"
+            columns: ["guest_contribution_id"]
+            isOneToOne: false
+            referencedRelation: "guest_contributions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       list_items: {
         Row: {
           content: string
@@ -1061,6 +1096,7 @@ export type Database = {
           created_at: string | null
           id: string
           link: string | null
+          merged_into_id: string | null
           position: number
           quick_details: string | null
           reason: string
@@ -1073,6 +1109,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           link?: string | null
+          merged_into_id?: string | null
           position: number
           quick_details?: string | null
           reason: string
@@ -1085,6 +1122,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           link?: string | null
+          merged_into_id?: string | null
           position?: number
           quick_details?: string | null
           reason?: string
@@ -1094,6 +1132,13 @@ export type Database = {
           vote_count?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "response_recommendations_merged_into_id_fkey"
+            columns: ["merged_into_id"]
+            isOneToOne: false
+            referencedRelation: "response_recommendations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "response_recommendations_response_id_fkey"
             columns: ["response_id"]
@@ -1391,6 +1436,16 @@ export type Database = {
           similarity_score: number
           title: string
           total_votes: number
+        }[]
+      }
+      find_similar_recommendations_unified: {
+        Args: { req_id: string; threshold?: number }
+        Returns: {
+          rec1_source: string
+          rec1_text: string
+          rec2_source: string
+          rec2_text: string
+          similarity_score: number
         }[]
       }
       generate_anonymous_handle: { Args: never; Returns: string }
