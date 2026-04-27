@@ -430,7 +430,10 @@ export default function RequestRespond() {
         const allRecIds: string[] = [];
         (guestWithLinks || []).forEach((c: any) => {
           const recs = Array.isArray(c.recommendations) ? c.recommendations : [];
-          recs.forEach((r: any) => { if (r.id) allRecIds.push(r.id); });
+          recs.forEach((r: any) => {
+            if (!r) return;
+            if (r.id) allRecIds.push(r.id);
+          });
         });
         if (allRecIds.length > 0) {
           const { data: voteData } = await supabase
@@ -905,9 +908,11 @@ export default function RequestRespond() {
         // Decrement vote_count in JSONB
         const contribution = guestContributions.find(c => c.id === contributionId);
         if (contribution) {
-          const recs = [...contribution.recommendations];
-          recs[recIndex] = { ...recs[recIndex], vote_count: Math.max(0, (recs[recIndex].vote_count || 0) - 1) };
-          await supabase.from("guest_contributions").update({ recommendations: recs }).eq("id", contributionId);
+          const recs = [...(contribution.recommendations || [])];
+          if (recs[recIndex]) {
+            recs[recIndex] = { ...recs[recIndex], vote_count: Math.max(0, (recs[recIndex].vote_count || 0) - 1) };
+            await supabase.from("guest_contributions").update({ recommendations: recs }).eq("id", contributionId);
+          }
         }
         toast({ title: "Vote removed" });
       } else {
@@ -920,9 +925,11 @@ export default function RequestRespond() {
         // Increment vote_count in JSONB
         const contribution = guestContributions.find(c => c.id === contributionId);
         if (contribution) {
-          const recs = [...contribution.recommendations];
-          recs[recIndex] = { ...recs[recIndex], vote_count: (recs[recIndex].vote_count || 0) + 1 };
-          await supabase.from("guest_contributions").update({ recommendations: recs }).eq("id", contributionId);
+          const recs = [...(contribution.recommendations || [])];
+          if (recs[recIndex]) {
+            recs[recIndex] = { ...recs[recIndex], vote_count: (recs[recIndex].vote_count || 0) + 1 };
+            await supabase.from("guest_contributions").update({ recommendations: recs }).eq("id", contributionId);
+          }
         }
         toast({ title: "Vote recorded" });
       }
@@ -2173,6 +2180,7 @@ export default function RequestRespond() {
 
                   <CardContent className="space-y-3">
                     {recs.map((rec: any, idx: number) => {
+                      if (!rec) return null;
                       const canVote = !isOwnRequest && currentUserId;
                       const recId = rec.id;
                       const hasVoted = recId && guestVotes[recId];
