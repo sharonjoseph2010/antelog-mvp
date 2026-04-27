@@ -209,7 +209,7 @@ export function LiveLeaderboard({
         });
       }
 
-      toast({ title: "Merged", description: `Combined into "${chosen.text}"` });
+      toast({ title: "Merged successfully", description: `Combined into "${chosen.text}"` });
       setMergeCandidate(null);
       setShowConfirm(false);
       await fetchSimilar();
