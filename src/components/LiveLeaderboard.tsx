@@ -132,30 +132,46 @@ export function LiveLeaderboard({
     setShowConfirm(false);
   };
 
-  const performMerge = async () => {
-    console.log("Merge candidate:", mergeCandidate);
-    console.log("Entry1:", mergeCandidate?.entry1);
-    console.log("Entry2:", mergeCandidate?.entry2);
-    if (!mergeCandidate?.entry1 || !mergeCandidate?.entry2) {
-      toast({
-        title: "Cannot merge",
-        description:
-          "Could not find one of the recommendations to merge. Please refresh and try again.",
-        variant: "destructive",
-      });
-      return;
+  const updateGuestRecommendationById = async (
+    entry: LeaderboardEntry,
+    voteCount: number,
+    mergedInto: LeaderboardEntry | null
+  ) => {
+    if (!entry.guestContributionId) {
+      throw new Error("Guest entry is missing contribution context");
     }
-    const chosen = mergeChoice === "entry1" ? mergeCandidate.entry1 : mergeCandidate.entry2;
-    const other = mergeChoice === "entry1" ? mergeCandidate.entry2 : mergeCandidate.entry1;
-    const totalVotes = chosen.voteCount + other.voteCount;
 
-    console.log("chosen:", chosen);
-    console.log("other:", other);
-    console.log("chosen.guestContributionId:", chosen.guestContributionId);
-    console.log("other.guestContributionId:", other.guestContributionId);
+    const { error } = await (supabase as any).rpc("update_guest_recommendation_merge", {
+      _guest_contribution_id: entry.guestContributionId,
+      _recommendation_id: entry.recommendationId,
+      _vote_count: voteCount,
+      _merged_into_id: mergedInto?.recommendationId ?? null,
+      _merged_into_text: mergedInto?.text ?? null,
+    });
 
+    if (error) throw error;
+  };
+
+  const performMerge = async () => {
     setIsMerging(true);
     try {
+      console.log("Merge candidate:", mergeCandidate);
+      console.log("Entry1:", mergeCandidate?.entry1);
+      console.log("Entry2:", mergeCandidate?.entry2);
+
+      if (!mergeCandidate?.entry1 || !mergeCandidate?.entry2) {
+        throw new Error("Could not find one of the recommendations to merge. Please refresh and try again.");
+      }
+
+      const chosen = mergeChoice === "entry1" ? mergeCandidate.entry1 : mergeCandidate.entry2;
+      const other = mergeChoice === "entry1" ? mergeCandidate.entry2 : mergeCandidate.entry1;
+      const totalVotes = chosen.voteCount + other.voteCount;
+
+      console.log("chosen:", chosen);
+      console.log("other:", other);
+      console.log("chosen.guestContributionId:", chosen.guestContributionId);
+      console.log("other.guestContributionId:", other.guestContributionId);
+
       // Update chosen entry vote_count = total
       if (chosen.source === "network") {
         const { error } = await supabase
@@ -164,25 +180,7 @@ export function LiveLeaderboard({
           .eq("id", chosen.recommendationId);
         if (error) throw error;
       } else if (chosen.source === "guest") {
-        if (chosen.guestContributionId === undefined || chosen.guestRecIndex === undefined) {
-          throw new Error("Guest entry is missing contribution context");
-        }
-        // Update JSONB array element vote_count
-        const { data: contrib, error: fErr } = await supabase
-          .from("guest_contributions")
-          .select("recommendations")
-          .eq("id", chosen.guestContributionId)
-          .single();
-        if (fErr) throw fErr;
-        const recs = Array.isArray(contrib?.recommendations) ? [...(contrib!.recommendations as any[])] : [];
-        if (recs[chosen.guestRecIndex]) {
-          recs[chosen.guestRecIndex] = { ...recs[chosen.guestRecIndex], vote_count: totalVotes };
-          const { error: uErr } = await supabase
-            .from("guest_contributions")
-            .update({ recommendations: recs })
-            .eq("id", chosen.guestContributionId);
-          if (uErr) throw uErr;
-        }
+        await updateGuestRecommendationById(chosen, totalVotes, null);
       }
 
       // Zero out other + set merged_into_id (network only — schema only has it on response_recommendations)
@@ -196,28 +194,7 @@ export function LiveLeaderboard({
           .eq("id", other.recommendationId);
         if (error) throw error;
       } else if (other.source === "guest") {
-        if (other.guestContributionId === undefined || other.guestRecIndex === undefined) {
-          throw new Error("Guest entry is missing contribution context");
-        }
-        const { data: contrib, error: fErr } = await supabase
-          .from("guest_contributions")
-          .select("recommendations")
-          .eq("id", other.guestContributionId)
-          .single();
-        if (fErr) throw fErr;
-        const recs = Array.isArray(contrib?.recommendations) ? [...(contrib!.recommendations as any[])] : [];
-        if (recs[other.guestRecIndex]) {
-          recs[other.guestRecIndex] = {
-            ...recs[other.guestRecIndex],
-            vote_count: 0,
-            merged_into_id: chosen.source === "network" ? chosen.recommendationId : null,
-          };
-          const { error: uErr } = await supabase
-            .from("guest_contributions")
-            .update({ recommendations: recs })
-            .eq("id", other.guestContributionId);
-          if (uErr) throw uErr;
-        }
+        await updateGuestRecommendationById(other, 0, chosen);
       }
 
       // Notify the submitter of the merged-away entry (network only — guest entries have no user)
