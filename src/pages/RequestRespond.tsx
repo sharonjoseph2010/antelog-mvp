@@ -1288,6 +1288,7 @@ export default function RequestRespond() {
           userVoted: !!guestVotes[recId],
           guestContributionId: contribution.id,
           guestRecIndex: idx,
+          responderId: undefined,
         });
       });
     });

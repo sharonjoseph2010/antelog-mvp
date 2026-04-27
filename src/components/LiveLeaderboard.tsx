@@ -149,6 +149,11 @@ export function LiveLeaderboard({
     const other = mergeChoice === "entry1" ? mergeCandidate.entry2 : mergeCandidate.entry1;
     const totalVotes = chosen.voteCount + other.voteCount;
 
+    console.log("chosen:", chosen);
+    console.log("other:", other);
+    console.log("chosen.guestContributionId:", chosen.guestContributionId);
+    console.log("other.guestContributionId:", other.guestContributionId);
+
     setIsMerging(true);
     try {
       // Update chosen entry vote_count = total
