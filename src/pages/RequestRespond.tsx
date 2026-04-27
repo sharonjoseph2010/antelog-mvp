@@ -1463,6 +1463,17 @@ export default function RequestRespond() {
         </CardContent>
       </Card>
 
+      {/* Live Leaderboard — visible to everyone who can see the request */}
+      <LiveLeaderboard
+        requestId={request.id}
+        isCreator={isOwnRequest}
+        currentUserId={currentUserId}
+        entries={buildLeaderboardEntries()}
+        onVoteNetwork={(recId, voted) => handleVoteRecommendation(recId, voted)}
+        onVoteGuest={(cId, recId, idx, voted) => handleGuestVote(cId, recId, idx, voted)}
+        onAfterMerge={loadRequestData}
+      />
+
       {/* Expired Banner - Creator View */}
       {isOwnRequest && (request as any).expires_at && isRequestExpired((request as any).expires_at, request.status) && (
         <Card className="mb-8 border-amber-500/30 bg-amber-500/5">
