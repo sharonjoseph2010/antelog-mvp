@@ -163,7 +163,10 @@ export function LiveLeaderboard({
           .update({ vote_count: totalVotes })
           .eq("id", chosen.recommendationId);
         if (error) throw error;
-      } else if (chosen.guestContributionId !== undefined && chosen.guestRecIndex !== undefined) {
+      } else if (chosen.source === "guest") {
+        if (chosen.guestContributionId === undefined || chosen.guestRecIndex === undefined) {
+          throw new Error("Guest entry is missing contribution context");
+        }
         // Update JSONB array element vote_count
         const { data: contrib, error: fErr } = await supabase
           .from("guest_contributions")
@@ -192,7 +195,10 @@ export function LiveLeaderboard({
           })
           .eq("id", other.recommendationId);
         if (error) throw error;
-      } else if (other.guestContributionId !== undefined && other.guestRecIndex !== undefined) {
+      } else if (other.source === "guest") {
+        if (other.guestContributionId === undefined || other.guestRecIndex === undefined) {
+          throw new Error("Guest entry is missing contribution context");
+        }
         const { data: contrib, error: fErr } = await supabase
           .from("guest_contributions")
           .select("recommendations")
