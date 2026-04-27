@@ -182,8 +182,8 @@ export function LiveLeaderboard({
       toast({ title: "Merged!", description: `Combined into "${chosen.text}"` });
       setMergeCandidate(null);
       setShowConfirm(false);
-      await fetchSimilar();
       if (onAfterMerge) await onAfterMerge();
+      setTimeout(() => fetchSimilar(), 500);
     } catch (e: any) {
       toast({
         title: "Merge failed",
