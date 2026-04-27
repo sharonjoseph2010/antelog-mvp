@@ -1593,6 +1593,16 @@ export type Database = {
         Args: { p_list_id: string; p_new_category: string; p_new_title: string }
         Returns: undefined
       }
+      update_guest_recommendation_merge: {
+        Args: {
+          _guest_contribution_id: string
+          _merged_into_id?: string
+          _merged_into_text?: string
+          _recommendation_id: string
+          _vote_count: number
+        }
+        Returns: undefined
+      }
       update_matched_contacts: {
         Args: { user_id_input: string }
         Returns: number
