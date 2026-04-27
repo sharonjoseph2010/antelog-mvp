@@ -180,10 +180,11 @@ export function LiveLeaderboard({
       }
 
       toast({ title: "Merged!", description: `Combined into "${chosen.text}"` });
+      setSimilarPairs([]);
       setMergeCandidate(null);
       setShowConfirm(false);
       if (onAfterMerge) await onAfterMerge();
-      setTimeout(() => fetchSimilar(), 500);
+      setTimeout(() => fetchSimilar(), 800);
     } catch (e: any) {
       toast({
         title: "Merge failed",
