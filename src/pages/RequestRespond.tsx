@@ -1262,7 +1262,7 @@ export default function RequestRespond() {
     // Network recommendations from response_recommendations
     responses.forEach((response) => {
       response.recommendations.forEach((rec: any) => {
-        if (rec.merged_into_id) return; // Hide merged-away network entries
+        if (rec.merged_into_id || rec.merged_away) return; // Hide merged-away network entries
         items.push({
           key: `n:${rec.id}`,
           recommendationId: rec.id,
