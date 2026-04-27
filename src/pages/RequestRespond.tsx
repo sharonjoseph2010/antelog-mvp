@@ -1248,6 +1248,53 @@ export default function RequestRespond() {
       .slice(0, 5);
   };
 
+  // Build unified leaderboard entries (network + guest), excluding merged-away items
+  const buildLeaderboardEntries = (): LeaderboardEntry[] => {
+    const items: LeaderboardEntry[] = [];
+
+    // Network recommendations from response_recommendations
+    responses.forEach((response) => {
+      response.recommendations.forEach((rec: any) => {
+        if (rec.merged_into_id) return; // Hide merged-away network entries
+        items.push({
+          key: `n:${rec.id}`,
+          recommendationId: rec.id,
+          source: "network",
+          text: rec.recommendation_text,
+          link: rec.link ?? null,
+          voteCount: rec.vote_count ?? 0,
+          userVoted: !!rec.user_voted,
+          responderId: response.responder_id,
+        });
+      });
+    });
+
+    // Guest recommendations from guest_contributions JSONB
+    guestContributions.forEach((contribution: any) => {
+      const recs: any[] = Array.isArray(contribution.recommendations) ? contribution.recommendations : [];
+      recs.forEach((rec, idx) => {
+        if (!rec) return;
+        if (rec.merged_into_id) return; // Hide merged-away guest entries
+        const recId: string | undefined = rec.id;
+        const text: string = rec.name || rec.recommendation_text || "";
+        if (!recId || !text) return;
+        items.push({
+          key: `g:${contribution.id}:${idx}`,
+          recommendationId: recId,
+          source: "guest",
+          text,
+          link: rec.link ?? null,
+          voteCount: rec.vote_count ?? 0,
+          userVoted: !!guestVotes[recId],
+          guestContributionId: contribution.id,
+          guestRecIndex: idx,
+        });
+      });
+    });
+
+    return items;
+  };
+
   if (isLoading) {
     return (
       <div className="container mx-auto px-4 py-8">
