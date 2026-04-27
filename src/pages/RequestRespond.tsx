@@ -1621,7 +1621,7 @@ export default function RequestRespond() {
       )}
 
       {/* Share Externally Section - Only show to request creator */}
-      {currentUserId === request?.creator_id && request.status === 'open' && (
+      {currentUserId === request?.creator_id && (
         <Card className="mb-8 border-primary/20 bg-primary/5">
           <CardHeader>
             <div className="flex items-center justify-between">
