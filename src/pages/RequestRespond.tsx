@@ -1276,7 +1276,7 @@ export default function RequestRespond() {
         if (!rec) return;
         if (rec.merged_into_id) return; // Hide merged-away guest entries
         const recId: string | undefined = rec.id;
-        const text: string = rec.name || rec.recommendation_text || "";
+        const text: string = rec.text || rec.name || rec.recommendation_text || "";
         if (!recId || !text) return;
         items.push({
           key: `g:${contribution.id}:${idx}`,
