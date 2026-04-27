@@ -117,7 +117,10 @@ export function LiveLeaderboard({
   const findEntryByText = (text: string): LeaderboardEntry | null => {
     const norm = text.trim().toLowerCase();
     return (
-      entries.find((e) => e.text.trim().toLowerCase() === norm) || null
+      entries.find((e) => {
+        const t = e.text.trim().toLowerCase();
+        return t === norm || t.includes(norm) || norm.includes(t);
+      }) || null
     );
   };
 
@@ -130,8 +133,16 @@ export function LiveLeaderboard({
   };
 
   const performMerge = async () => {
+    console.log("Merge candidate:", mergeCandidate);
+    console.log("Entry1:", mergeCandidate?.entry1);
+    console.log("Entry2:", mergeCandidate?.entry2);
     if (!mergeCandidate?.entry1 || !mergeCandidate?.entry2) {
-      toast({ title: "Cannot merge", description: "One of the entries is no longer available", variant: "destructive" });
+      toast({
+        title: "Cannot merge",
+        description:
+          "Could not find one of the recommendations to merge. Please refresh and try again.",
+        variant: "destructive",
+      });
       return;
     }
     const chosen = mergeChoice === "entry1" ? mergeCandidate.entry1 : mergeCandidate.entry2;
