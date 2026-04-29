@@ -12,7 +12,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { checkForDuplicates } from "@/lib/masterDirectory";
-import { MessageSquare, ArrowLeft, Users, User, UserCheck, Globe, X, CircleCheck, ExternalLink, AlertTriangle, Search } from "lucide-react";
+import { MessageSquare, ArrowLeft, Users, User, UserCheck, Globe, X, CircleCheck, ExternalLink, AlertTriangle, Search, ClipboardList, Brain } from "lucide-react";
 import { z } from "zod";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
@@ -49,6 +49,12 @@ export default function RequestsNew() {
   const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
   const [duplicateResults, setDuplicateResults] = useState<any[]>([]);
   const [expiryDays, setExpiryDays] = useState("7");
+  // Nudge 1: similar directory lists
+  const [similarDirectoryList, setSimilarDirectoryList] = useState<{ id: string; title: string; total_votes: number } | null>(null);
+  const [directoryNudgeDismissed, setDirectoryNudgeDismissed] = useState(false);
+  // Nudge 2: network experts
+  const [networkExperts, setNetworkExperts] = useState<Array<{ profile_id: string; full_name: string | null; handle: string | null; matching_domains: string[]; degree: number }>>([]);
+  const [expertNudgeDismissed, setExpertNudgeDismissed] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     category: '' as 'films' | 'places' | 'products' | 'services' | 'other',
@@ -63,6 +69,74 @@ export default function RequestsNew() {
     loadUserGroups();
     loadNetworkCounts();
   }, []);
+
+  // Nudge 1: debounced check for similar lists in Master Directory
+  useEffect(() => {
+    if (directoryNudgeDismissed) return;
+    const title = formData.title.trim();
+    if (title.length < 6) {
+      setSimilarDirectoryList(null);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      try {
+        const { data, error } = await supabase.rpc("find_similar_directory_lists", {
+          p_title: title,
+          p_threshold: 0.5,
+        });
+        if (error) throw error;
+        if (data && data.length > 0) {
+          setSimilarDirectoryList({
+            id: data[0].id,
+            title: data[0].title,
+            total_votes: data[0].total_votes ?? 0,
+          });
+        } else {
+          setSimilarDirectoryList(null);
+        }
+      } catch (err) {
+        console.error("find_similar_directory_lists error", err);
+      }
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [formData.title, directoryNudgeDismissed]);
+
+  // Nudge 2: check network experts when category changes
+  useEffect(() => {
+    if (expertNudgeDismissed) return;
+    if (!formData.category) {
+      setNetworkExperts([]);
+      return;
+    }
+    const categoryToDomains: Record<string, string[]> = {
+      places: ["Food & Cafes"],
+      products: ["Electronics & Gadgets", "Home & Appliances"],
+      films: ["Books & Media"],
+      travel: ["Travel & Hotels"],
+    };
+    const domains = categoryToDomains[formData.category];
+    if (!domains) {
+      setNetworkExperts([]);
+      return;
+    }
+    (async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        const { data, error } = await supabase.rpc("find_network_experts", {
+          viewer_id: user.id,
+          query_domains: domains,
+        });
+        if (error) throw error;
+        setNetworkExperts((data || []).slice(0, 3));
+      } catch (err) {
+        console.error("find_network_experts error", err);
+      }
+    })();
+  }, [formData.category, expertNudgeDismissed]);
+
+  const frostedAmber = "relative rounded-lg border border-[rgba(245,158,11,0.4)] bg-[rgba(245,158,11,0.10)] backdrop-blur-sm p-4";
+  const frostedSky = "relative rounded-lg border border-[rgba(56,189,248,0.4)] bg-[rgba(56,189,248,0.10)] backdrop-blur-sm p-4";
 
   const loadUserGroups = async () => {
     try {
@@ -592,6 +666,49 @@ export default function RequestsNew() {
                 {formData.title.length}/500 characters
               </p>
 
+              {/* Nudge 1: Master Directory similar list */}
+              {similarDirectoryList && !directoryNudgeDismissed && (
+                <div className={frostedAmber}>
+                  <button
+                    type="button"
+                    onClick={() => setDirectoryNudgeDismissed(true)}
+                    className="absolute top-2 right-2 text-amber-300/70 hover:text-amber-200"
+                    aria-label="Dismiss"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                  <div className="flex items-start gap-2 pr-6">
+                    <ClipboardList className="h-4 w-4 mt-0.5 text-amber-300 shrink-0" />
+                    <div className="space-y-2 flex-1">
+                      <p className="text-sm font-medium text-amber-200">
+                        This might already exist in the Master Directory
+                      </p>
+                      <p className="text-sm text-amber-100/90">
+                        "{similarDirectoryList.title}" — {similarDirectoryList.total_votes} {similarDirectoryList.total_votes === 1 ? "vote" : "votes"}
+                      </p>
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => navigate(`/directory/${similarDirectoryList.id}`)}
+                        >
+                          View existing list
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setDirectoryNudgeDismissed(true)}
+                        >
+                          Continue creating request
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Duplicate Warning */}
               {showDuplicateWarning && duplicateResults.length > 0 && (
                 <Alert variant="default" className="border-yellow-500/50 bg-yellow-50 dark:bg-yellow-950/20">
@@ -807,6 +924,42 @@ export default function RequestsNew() {
                 <p className="text-xs text-muted-foreground">
                   This request will reach approximately <span className="font-semibold">{formatReachCount(estimateReach())}</span> across {formData.audience_types.length} {formData.audience_types.length === 1 ? 'audience' : 'audiences'}
                 </p>
+              </div>
+            )}
+
+            {/* Nudge 2: Network experts */}
+            {networkExperts.length > 0 && !expertNudgeDismissed && (
+              <div className={frostedSky}>
+                <button
+                  type="button"
+                  onClick={() => setExpertNudgeDismissed(true)}
+                  className="absolute top-2 right-2 text-sky-300/70 hover:text-sky-200"
+                  aria-label="Dismiss"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+                <div className="flex items-start gap-2 pr-6">
+                  <Brain className="h-4 w-4 mt-0.5 text-sky-300 shrink-0" />
+                  <div className="space-y-2 flex-1">
+                    <p className="text-sm font-medium text-sky-200">
+                      People in your network know about this
+                    </p>
+                    <ul className="space-y-1">
+                      {networkExperts.map((expert) => {
+                        const label = expert.degree === 1 ? "friend" : "friend of a friend";
+                        const name = expert.full_name || (expert.handle ? `@${expert.handle}` : "Someone");
+                        return (
+                          <li key={expert.profile_id} className="text-sm text-sky-100/90">
+                            {name} <span className="text-sky-200/70">({label})</span> · knows: {expert.matching_domains.join(", ")}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                    <p className="text-xs text-sky-100/70 italic">
+                      They'll be able to answer this well.
+                    </p>
+                  </div>
+                </div>
               </div>
             )}
 
