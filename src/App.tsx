@@ -44,6 +44,7 @@ import ForYou from "./pages/ForYou";
 import Profile from "./pages/Profile";
 import Waitlist from "./pages/Waitlist";
 import GuestResponse from "./pages/GuestResponse";
+import Welcome from "./pages/Welcome";
 
 const queryClient = new QueryClient();
 
@@ -549,6 +550,14 @@ function AppContent({
 
         <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/r/:requestId/:token" element={<GuestResponse />} />
+        <Route
+          path="/welcome"
+          element={
+            <ProtectedRoute isAuthenticated={isAuthenticated}>
+              <Welcome />
+            </ProtectedRoute>
+          }
+        />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
         <Route path="*" element={<NotFound />} />
       </Routes>
