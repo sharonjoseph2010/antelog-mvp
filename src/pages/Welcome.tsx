@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
-import { X } from "lucide-react";
+import { X, Award, Compass } from "lucide-react";
 
 const TOPIC_OPTIONS = [
   "Food & Cafes",
@@ -190,10 +190,23 @@ const Welcome = () => {
     customInput: string,
     setCustomInput: (v: string) => void,
     inputId: string,
-  ) => (
-    <div className="space-y-3">
-      <div>
-        <h3 className="font-semibold">{title}</h3>
+    variant: "expertise" | "interest",
+  ) => {
+    const Icon = variant === "expertise" ? Award : Compass;
+    const microLabel = variant === "expertise" ? "You know this well" : "You want to explore this";
+    const activeChip =
+      variant === "expertise"
+        ? "bg-amber-500 text-white border-amber-500 hover:bg-amber-500/90 dark:bg-amber-400 dark:text-amber-950 dark:border-amber-400"
+        : "bg-sky-600 text-white border-sky-600 hover:bg-sky-600/90 dark:bg-sky-400 dark:text-sky-950 dark:border-sky-400";
+    const accentText = variant === "expertise" ? "text-amber-600 dark:text-amber-400" : "text-sky-600 dark:text-sky-400";
+    return (
+    <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+      <div className="space-y-1">
+        <div className="flex items-center gap-2">
+          <Icon className={`h-4 w-4 ${accentText}`} />
+          <h3 className="font-semibold">{title}</h3>
+        </div>
+        <p className={`text-xs font-medium ${accentText}`}>{microLabel}</p>
         <p className="text-xs text-muted-foreground">{subtitle}</p>
       </div>
       <div className="flex flex-wrap gap-2">
@@ -204,14 +217,14 @@ const Welcome = () => {
               key={t}
               type="button"
               onClick={() => toggle(selected, setSelected, t)}
-              className={`px-3 py-1.5 rounded-full border text-sm transition-colors ${active ? "bg-primary text-primary-foreground border-primary" : "bg-background border-input hover:bg-accent"}`}
+              className={`px-3 py-1.5 rounded-full border text-sm transition-colors ${active ? activeChip : "bg-background border-input text-foreground hover:bg-accent"}`}
             >
               {t}
             </button>
           );
         })}
       </div>
-      <div className="space-y-2">
+      <div className="space-y-2 pt-1">
         <Label htmlFor={inputId}>Other</Label>
         <div className="flex gap-2">
           <Input
@@ -231,7 +244,10 @@ const Welcome = () => {
         {customs.length > 0 && (
           <div className="flex flex-wrap gap-2 pt-1">
             {customs.map((c) => (
-              <Badge key={c} variant="secondary" className="gap-1">
+              <Badge
+                key={c}
+                className={`gap-1 ${variant === "expertise" ? "bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 hover:bg-amber-500/20" : "bg-sky-500/15 text-sky-700 dark:text-sky-300 border border-sky-500/30 hover:bg-sky-500/20"}`}
+              >
                 {c}
                 <button onClick={() => setCustoms(customs.filter((x) => x !== c))} aria-label={`Remove ${c}`}>
                   <X className="h-3 w-3" />
@@ -242,7 +258,8 @@ const Welcome = () => {
         )}
       </div>
     </div>
-  );
+    );
+  };
 
   return (
     <>
@@ -284,6 +301,7 @@ const Welcome = () => {
                       onChange={(e) => setCity(e.target.value)}
                       placeholder="e.g. Bengaluru"
                       list="city-suggestions"
+                      style={{ colorScheme: "light" }}
                     />
                     <datalist id="city-suggestions">
                       {CITY_SUGGESTIONS.map((c) => <option key={c} value={c} />)}
@@ -303,6 +321,7 @@ const Welcome = () => {
                         }}
                         placeholder="Type a city and press Enter"
                         list="city-suggestions"
+                        style={{ colorScheme: "light" }}
                       />
                       <Button type="button" variant="outline" onClick={() => addExpertiseCity(cityInput)}>Add</Button>
                     </div>
@@ -343,7 +362,8 @@ const Welcome = () => {
               )}
 
               {step === 3 && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="relative grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+                  <div className="md:pr-4 md:border-r md:border-border">
                   {renderTopicColumn(
                     "What are you an expert in?",
                     "What topics can you give great recommendations on?",
@@ -354,7 +374,13 @@ const Welcome = () => {
                     expertiseOtherInput,
                     setExpertiseOtherInput,
                     "expOther",
+                    "expertise",
                   )}
+                  </div>
+                  <div className="hidden md:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 items-center justify-center">
+                    <span className="bg-background px-2 text-xs font-semibold tracking-wider text-muted-foreground uppercase">vs</span>
+                  </div>
+                  <div className="md:pl-4">
                   {renderTopicColumn(
                     "What are you interested in?",
                     "What are you always looking for recommendations on?",
@@ -365,7 +391,9 @@ const Welcome = () => {
                     interestsOtherInput,
                     setInterestsOtherInput,
                     "intOther",
+                    "interest",
                   )}
+                  </div>
                 </div>
               )}
 
