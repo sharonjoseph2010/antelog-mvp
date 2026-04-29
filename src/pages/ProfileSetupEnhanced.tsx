@@ -20,7 +20,6 @@ const profileSchema = z.object({
     .min(3, "Handle must be at least 3 characters")
     .max(30, "Handle must be at most 30 characters")
     .regex(/^[a-zA-Z0-9_]+$/, "Use letters, numbers, or underscores"),
-  student_id_number: z.string().min(1, "Student registration number is required").max(80, "Too long"),
   phone_number: z
     .string()
     .min(1, "Phone number is required")
@@ -34,14 +33,12 @@ const ProfileSetupEnhanced = () => {
   const location = useLocation();
   const [loading, setLoading] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const form = useForm<ProfileValues>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
       full_name: "",
       handle: "",
-      student_id_number: "",
       phone_number: "",
     },
     mode: "onSubmit",
@@ -74,7 +71,7 @@ const ProfileSetupEnhanced = () => {
         // Prefill if profile exists
         supabase
           .from("profiles")
-          .select("full_name, handle, student_id_number, phone_number, id_card_image_url")
+          .select("full_name, handle, phone_number")
           .eq("id", uid)
           .maybeSingle()
           .then(({ data, error }) => {
@@ -82,7 +79,6 @@ const ProfileSetupEnhanced = () => {
               form.reset({
                 full_name: data.full_name ?? "",
                 handle: data.handle ?? "",
-                student_id_number: data.student_id_number ?? "",
                 phone_number: data.phone_number ?? "",
               });
             }
@@ -103,25 +99,6 @@ const ProfileSetupEnhanced = () => {
     setLoading(true);
 
     try {
-      let imagePath: string | undefined = undefined;
-
-      if (selectedFile) {
-        const filePath = `${userId}/${Date.now()}-${selectedFile.name}`;
-        const { data: uploadData, error: uploadError } = await supabase
-          .storage
-          .from("id-cards")
-          .upload(filePath, selectedFile, { upsert: true });
-
-        if (uploadError) {
-          console.error(uploadError);
-          toast.error("Failed to upload ID card. Please try again.");
-          setLoading(false);
-          return;
-        }
-
-        imagePath = uploadData?.path;
-      }
-
       // Phone is already in E.164 format from PhoneInput component
       const normalizedPhone = values.phone_number;
       
@@ -129,12 +106,9 @@ const ProfileSetupEnhanced = () => {
         id: userId,
         full_name: values.full_name.trim(),
         handle: values.handle.trim().toLowerCase(),
-        student_id_number: values.student_id_number.trim(),
         phone_number: normalizedPhone,
         verification_status: "pending",
       };
-
-      if (imagePath) payload.id_card_image_url = imagePath;
 
       const { error: upsertError } = await supabase.from("profiles").upsert(payload, {
         onConflict: "id",
@@ -212,20 +186,6 @@ const ProfileSetupEnhanced = () => {
 
                   <FormField
                     control={form.control}
-                    name="student_id_number"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Student registration number</FormLabel>
-                        <FormControl>
-                          <Input type="text" placeholder="e.g. SRFTI-23-XXXX" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
                     name="phone_number"
                     render={({ field }) => (
                       <FormItem>
@@ -248,16 +208,6 @@ const ProfileSetupEnhanced = () => {
                       </FormItem>
                     )}
                   />
-
-                  <div className="space-y-2">
-                    <FormLabel>Student ID photo</FormLabel>
-                    <Input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
-                    />
-                    <p className="text-sm text-muted-foreground">Upload a clear photo of your SRFTI ID card.</p>
-                  </div>
 
                   <Button type="submit" className="w-full" disabled={loading}>
                     <Users className="h-4 w-4 mr-2" />
