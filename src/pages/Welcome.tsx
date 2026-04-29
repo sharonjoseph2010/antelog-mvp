@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
-import { X } from "lucide-react";
+import { X, Award, Compass } from "lucide-react";
 
 const TOPIC_OPTIONS = [
   "Food & Cafes",
