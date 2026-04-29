@@ -655,37 +655,58 @@ export type Database = {
       }
       master_directory_lists: {
         Row: {
+          canonical_query: string | null
+          canonical_signature: string | null
           category: string
           contributor_count: number | null
           created_at: string | null
+          domain: string | null
+          facets: Json | null
+          geography: string | null
+          hard_filter: string | null
           id: string
           original_contributor_id: string | null
           title: string
           title_normalized: string
           total_votes: number | null
           updated_at: string | null
+          use_case: string | null
         }
         Insert: {
+          canonical_query?: string | null
+          canonical_signature?: string | null
           category?: string
           contributor_count?: number | null
           created_at?: string | null
+          domain?: string | null
+          facets?: Json | null
+          geography?: string | null
+          hard_filter?: string | null
           id?: string
           original_contributor_id?: string | null
           title: string
           title_normalized: string
           total_votes?: number | null
           updated_at?: string | null
+          use_case?: string | null
         }
         Update: {
+          canonical_query?: string | null
+          canonical_signature?: string | null
           category?: string
           contributor_count?: number | null
           created_at?: string | null
+          domain?: string | null
+          facets?: Json | null
+          geography?: string | null
+          hard_filter?: string | null
           id?: string
           original_contributor_id?: string | null
           title?: string
           title_normalized?: string
           total_votes?: number | null
           updated_at?: string | null
+          use_case?: string | null
         }
         Relationships: [
           {
@@ -1415,6 +1436,16 @@ export type Database = {
           matches: boolean
           profile_normalized: string
           profile_original: string
+        }[]
+      }
+      find_network_experts: {
+        Args: { query_domains: string[]; viewer_id: string }
+        Returns: {
+          degree: number
+          full_name: string
+          handle: string
+          matching_domains: string[]
+          profile_id: string
         }[]
       }
       find_profile_by_normalized_phone: {
