@@ -796,102 +796,161 @@ export default function RequestsNew() {
                 {formData.title.length}/500 characters
               </p>
 
-              {/* Nudge 1: Master Directory similar list */}
-              {similarDirectoryList && !directoryNudgeDismissed && (
-                <div className={frostedAmber}>
-                  <button
-                    type="button"
-                    onClick={() => setDirectoryNudgeDismissed(true)}
-                    className="absolute top-2 right-2 text-amber-300/70 hover:text-amber-200"
-                    aria-label="Dismiss"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                  <div className="flex items-start gap-2 pr-6">
-                    <ClipboardList className="h-4 w-4 mt-0.5 text-amber-300 shrink-0" />
-                    <div className="space-y-2 flex-1">
-                      {similarDirectoryList.contributor_name ? (
-                        <>
-                          <p className="text-sm font-medium text-amber-200">
-                            Someone in your network already made this list
-                          </p>
-                          <p className="text-sm text-amber-100/90">
-                            {similarDirectoryList.contributor_name} made "{similarDirectoryList.title}" — {similarDirectoryList.total_votes} {similarDirectoryList.total_votes === 1 ? "vote" : "votes"}
-                          </p>
-                          <div className="flex flex-wrap gap-2 pt-1">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => navigate(`/directory/${similarDirectoryList.id}`)}
-                            >
-                              View their list
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                const cid = similarDirectoryList.contributor_id;
-                                if (cid) {
-                                  setFormData(prev => ({
-                                    ...prev,
-                                    audience_types: prev.audience_types.includes('specific_people')
-                                      ? prev.audience_types
-                                      : [...prev.audience_types, 'specific_people'],
-                                    selected_users: prev.selected_users.includes(cid)
-                                      ? prev.selected_users
-                                      : [...prev.selected_users, cid],
-                                  }));
-                                  loadNetworkContacts();
-                                }
-                                setDirectoryNudgeDismissed(true);
-                              }}
-                            >
-                              Send request to them
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setDirectoryNudgeDismissed(true)}
-                            >
-                              Continue
-                            </Button>
+              {/* Pre-submit nudges (Master Directory + Network experts) */}
+              {(() => {
+                const showDirectory = similarDirectoryList && !directoryNudgeDismissed;
+                const showExperts = networkExperts.length > 0 && !expertNudgeDismissed;
+                const matchedExpert = showDirectory && similarDirectoryList?.contributor_id
+                  ? networkExperts.find(e => e.profile_id === similarDirectoryList.contributor_id)
+                  : null;
+                const unified = !!matchedExpert;
+
+                return (
+                  <div className="space-y-3">
+                    {/* Unified panel: contributor IS also a matching expert */}
+                    {showDirectory && unified && similarDirectoryList && matchedExpert && (
+                      <div className={frostedAmber}>
+                        <button
+                          type="button"
+                          onClick={() => { setDirectoryNudgeDismissed(true); setExpertNudgeDismissed(true); }}
+                          className="absolute top-2 right-2 text-amber-300/70 hover:text-amber-200"
+                          aria-label="Dismiss"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                        <div className="flex items-start gap-2 pr-6">
+                          <Brain className="h-4 w-4 mt-0.5 text-amber-300 shrink-0" />
+                          <div className="space-y-2 flex-1">
+                            <p className="text-sm font-medium text-amber-200">
+                              {similarDirectoryList.contributor_name || (matchedExpert.full_name ?? "Someone")} in your network already made this list
+                            </p>
+                            <p className="text-sm text-amber-100/90">
+                              "{similarDirectoryList.title}" — {similarDirectoryList.total_votes} {similarDirectoryList.total_votes === 1 ? "vote" : "votes"}
+                            </p>
+                            <p className="text-sm text-amber-100/90">
+                              {(similarDirectoryList.contributor_name || matchedExpert.full_name || "They").split(" ")[0]} knows: {matchedExpert.matching_domains.join(", ")}
+                            </p>
+                            {directoryForwardMessage && (
+                              <p className="text-sm text-amber-100 bg-amber-500/10 border border-amber-400/30 rounded p-2">
+                                {directoryForwardMessage}
+                              </p>
+                            )}
+                            <div className="flex flex-wrap gap-2 pt-1">
+                              <Button type="button" variant="outline" size="sm" onClick={() => navigate(`/directory/${similarDirectoryList.id}`)}>
+                                View their list
+                              </Button>
+                              <Button type="button" variant="outline" size="sm" onClick={handleSendRequestToContributor}>
+                                Send request to them
+                              </Button>
+                              <Button type="button" variant="ghost" size="sm" onClick={() => { setDirectoryNudgeDismissed(true); setExpertNudgeDismissed(true); }}>
+                                Continue
+                              </Button>
+                            </div>
                           </div>
-                        </>
-                      ) : (
-                        <>
-                          <p className="text-sm font-medium text-amber-200">
-                            This might already exist in the Master Directory
-                          </p>
-                          <p className="text-sm text-amber-100/90">
-                            "{similarDirectoryList.title}" — {similarDirectoryList.total_votes} {similarDirectoryList.total_votes === 1 ? "vote" : "votes"}
-                          </p>
-                          <div className="flex flex-wrap gap-2 pt-1">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => navigate(`/directory/${similarDirectoryList.id}`)}
-                            >
-                              View existing list
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setDirectoryNudgeDismissed(true)}
-                            >
-                              Continue creating request
-                            </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Directory nudge (when not unified) */}
+                    {showDirectory && !unified && similarDirectoryList && (
+                      <div className={frostedAmber}>
+                        <button
+                          type="button"
+                          onClick={() => setDirectoryNudgeDismissed(true)}
+                          className="absolute top-2 right-2 text-amber-300/70 hover:text-amber-200"
+                          aria-label="Dismiss"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                        <div className="flex items-start gap-2 pr-6">
+                          <ClipboardList className="h-4 w-4 mt-0.5 text-amber-300 shrink-0" />
+                          <div className="space-y-2 flex-1">
+                            {similarDirectoryList.contributor_name ? (
+                              <>
+                                <p className="text-sm font-medium text-amber-200">
+                                  {similarDirectoryList.contributor_name} in your network already made this list
+                                </p>
+                                <p className="text-sm text-amber-100/90">
+                                  "{similarDirectoryList.title}" — {similarDirectoryList.total_votes} {similarDirectoryList.total_votes === 1 ? "vote" : "votes"}
+                                </p>
+                                {directoryForwardMessage && (
+                                  <p className="text-sm text-amber-100 bg-amber-500/10 border border-amber-400/30 rounded p-2">
+                                    {directoryForwardMessage}
+                                  </p>
+                                )}
+                                <div className="flex flex-wrap gap-2 pt-1">
+                                  <Button type="button" variant="outline" size="sm" onClick={() => navigate(`/directory/${similarDirectoryList.id}`)}>
+                                    View their list
+                                  </Button>
+                                  <Button type="button" variant="outline" size="sm" onClick={handleSendRequestToContributor}>
+                                    Send request to them
+                                  </Button>
+                                  <Button type="button" variant="ghost" size="sm" onClick={() => setDirectoryNudgeDismissed(true)}>
+                                    Continue
+                                  </Button>
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                <p className="text-sm font-medium text-amber-200">
+                                  This might already exist in the Master Directory
+                                </p>
+                                <p className="text-sm text-amber-100/90">
+                                  "{similarDirectoryList.title}" — {similarDirectoryList.total_votes} {similarDirectoryList.total_votes === 1 ? "vote" : "votes"}
+                                </p>
+                                <div className="flex flex-wrap gap-2 pt-1">
+                                  <Button type="button" variant="outline" size="sm" onClick={() => navigate(`/directory/${similarDirectoryList.id}`)}>
+                                    View existing list
+                                  </Button>
+                                  <Button type="button" variant="ghost" size="sm" onClick={() => setDirectoryNudgeDismissed(true)}>
+                                    Continue creating request
+                                  </Button>
+                                </div>
+                              </>
+                            )}
                           </div>
-                        </>
-                      )}
-                    </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Expert nudge (suppressed when unified to avoid duplication) */}
+                    {showExperts && !unified && (
+                      <div className={frostedSky}>
+                        <button
+                          type="button"
+                          onClick={() => setExpertNudgeDismissed(true)}
+                          className="absolute top-2 right-2 text-sky-300/70 hover:text-sky-200"
+                          aria-label="Dismiss"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                        <div className="flex items-start gap-2 pr-6">
+                          <Brain className="h-4 w-4 mt-0.5 text-sky-300 shrink-0" />
+                          <div className="space-y-2 flex-1">
+                            <p className="text-sm font-medium text-sky-200">
+                              People in your network know about this
+                            </p>
+                            <ul className="space-y-1">
+                              {networkExperts.map((expert) => {
+                                const label = expert.degree === 1 ? "friend" : "friend of a friend";
+                                const name = expert.full_name || (expert.handle ? `@${expert.handle}` : "Someone");
+                                return (
+                                  <li key={expert.profile_id} className="text-sm text-sky-100/90">
+                                    {name} <span className="text-sky-200/70">({label})</span> · knows: {expert.matching_domains.join(", ")}
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                            <p className="text-xs text-sky-100/70 italic">
+                              They'll be able to answer this well.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               {/* Duplicate Warning */}
               {showDuplicateWarning && duplicateResults.length > 0 && (
