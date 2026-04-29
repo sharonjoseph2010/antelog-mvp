@@ -42,6 +42,7 @@ import DirectoryListDetail from "./pages/DirectoryListDetail";
 import GuestSignup from "./pages/GuestSignup";
 import ForYou from "./pages/ForYou";
 import Profile from "./pages/Profile";
+import PublicProfile from "./pages/PublicProfile";
 import Waitlist from "./pages/Waitlist";
 import GuestResponse from "./pages/GuestResponse";
 import Welcome from "./pages/Welcome";
@@ -544,6 +545,15 @@ function AppContent({
           element={
             <ProtectedRoute isAuthenticated={isAuthenticated}>
               <Profile />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/profile/:userId"
+          element={
+            <ProtectedRoute isAuthenticated={isAuthenticated}>
+              <PublicProfile />
             </ProtectedRoute>
           }
         />
