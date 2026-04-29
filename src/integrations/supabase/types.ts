@@ -775,6 +775,8 @@ export type Database = {
           bio: string | null
           college_id: string | null
           created_at: string
+          expertise_cities: Json | null
+          expertise_domains: Json | null
           full_name: string | null
           handle: string
           id: string
@@ -782,7 +784,10 @@ export type Database = {
           interests: Json | null
           is_verified: boolean
           location: string | null
+          occupation: string | null
           phone_number: string | null
+          questionnaire_completed: boolean | null
+          questionnaire_completed_at: string | null
           student_id_number: string | null
           trial_ends_at: string | null
           updated_at: string
@@ -794,6 +799,8 @@ export type Database = {
           bio?: string | null
           college_id?: string | null
           created_at?: string
+          expertise_cities?: Json | null
+          expertise_domains?: Json | null
           full_name?: string | null
           handle: string
           id: string
@@ -801,7 +808,10 @@ export type Database = {
           interests?: Json | null
           is_verified?: boolean
           location?: string | null
+          occupation?: string | null
           phone_number?: string | null
+          questionnaire_completed?: boolean | null
+          questionnaire_completed_at?: string | null
           student_id_number?: string | null
           trial_ends_at?: string | null
           updated_at?: string
@@ -813,6 +823,8 @@ export type Database = {
           bio?: string | null
           college_id?: string | null
           created_at?: string
+          expertise_cities?: Json | null
+          expertise_domains?: Json | null
           full_name?: string | null
           handle?: string
           id?: string
@@ -820,7 +832,10 @@ export type Database = {
           interests?: Json | null
           is_verified?: boolean
           location?: string | null
+          occupation?: string | null
           phone_number?: string | null
+          questionnaire_completed?: boolean | null
+          questionnaire_completed_at?: string | null
           student_id_number?: string | null
           trial_ends_at?: string | null
           updated_at?: string

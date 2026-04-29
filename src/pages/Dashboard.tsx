@@ -36,7 +36,7 @@ useEffect(() => {
 
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("full_name, handle, is_verified")
+      .select("full_name, handle, is_verified, questionnaire_completed")
       .eq("id", userId)
       .maybeSingle();
     console.info("[Dashboard] Profile lookup:", { profile, profileError });
@@ -50,6 +50,12 @@ useEffect(() => {
         navigate("/profile-setup", { replace: true, state: { internal: true, from: "/dashboard" } });
         return;
       }
+    }
+
+    if (profile && profile.questionnaire_completed === false) {
+      console.info("[Dashboard] Questionnaire not completed, redirecting to /welcome");
+      navigate("/welcome", { replace: true });
+      return;
     }
 
     const name = (profile?.full_name as string) || (profile?.handle as string) || (session.user.email ?? "there");
