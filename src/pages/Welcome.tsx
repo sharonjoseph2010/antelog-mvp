@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -58,6 +58,10 @@ const Welcome = () => {
   const [city, setCity] = useState("");
   const [expertiseCities, setExpertiseCities] = useState<string[]>([]);
   const [cityInput, setCityInput] = useState("");
+  const [cityOpen, setCityOpen] = useState(false);
+  const [expCityOpen, setExpCityOpen] = useState(false);
+  const cityWrapRef = useRef<HTMLDivElement>(null);
+  const expCityWrapRef = useRef<HTMLDivElement>(null);
 
   // Step 2
   const [occupation, setOccupation] = useState("");
@@ -72,6 +76,39 @@ const Welcome = () => {
   const [interestsOtherInput, setInterestsOtherInput] = useState("");
   const [interestsCustom, setInterestsCustom] = useState<string[]>([]);
   const [topicTab, setTopicTab] = useState<"expertise" | "interest">("expertise");
+
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (cityWrapRef.current && !cityWrapRef.current.contains(e.target as Node)) setCityOpen(false);
+      if (expCityWrapRef.current && !expCityWrapRef.current.contains(e.target as Node)) setExpCityOpen(false);
+    };
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, []);
+
+  const filterCities = (q: string) => {
+    const v = q.trim().toLowerCase();
+    if (!v) return CITY_SUGGESTIONS;
+    return CITY_SUGGESTIONS.filter((c) => c.toLowerCase().includes(v));
+  };
+
+  const CityDropdown = ({ query, onPick }: { query: string; onPick: (v: string) => void }) => {
+    const matches = filterCities(query);
+    if (matches.length === 0) return null;
+    return (
+      <ul className="absolute left-0 right-0 top-full mt-1 max-h-56 overflow-auto bg-slate-800 border border-slate-700 rounded-md shadow-lg z-50">
+        {matches.map((c) => (
+          <li
+            key={c}
+            onMouseDown={(e) => { e.preventDefault(); onPick(c); }}
+            className="px-3 py-2 text-sm text-white hover:bg-slate-700 cursor-pointer"
+          >
+            {c}
+          </li>
+        ))}
+      </ul>
+    );
+  };
 
   useEffect(() => {
     (async () => {
@@ -198,8 +235,8 @@ const Welcome = () => {
     const microLabel = variant === "expertise" ? "You know this well" : "You want to explore this";
     const activeChip =
       variant === "expertise"
-        ? "bg-amber-500 text-white border-amber-500 hover:bg-amber-500/90 dark:bg-amber-400 dark:text-amber-950 dark:border-amber-400"
-        : "bg-sky-600 text-white border-sky-600 hover:bg-sky-600/90 dark:bg-sky-400 dark:text-sky-950 dark:border-sky-400";
+        ? "border-[rgba(245,158,11,0.6)] bg-[rgba(245,158,11,0.15)] text-amber-300 hover:bg-[rgba(245,158,11,0.22)]"
+        : "border-[rgba(56,189,248,0.6)] bg-[rgba(56,189,248,0.15)] text-sky-300 hover:bg-[rgba(56,189,248,0.22)]";
     const accentText = variant === "expertise" ? "text-amber-600 dark:text-amber-400" : "text-sky-600 dark:text-sky-400";
     return (
     <div className="space-y-3">
@@ -295,36 +332,50 @@ const Welcome = () => {
                     <Label htmlFor="fullName">Full name</Label>
                     <Input id="fullName" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Your full name" />
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-2 relative" ref={cityWrapRef}>
                     <Label htmlFor="city">City you're based in</Label>
-                    <Input
-                      id="city"
-                      value={city}
-                      onChange={(e) => setCity(e.target.value)}
-                      placeholder="e.g. Bengaluru"
-                      list="city-suggestions"
-                      style={{ colorScheme: "light" }}
-                    />
-                    <datalist id="city-suggestions">
-                      {CITY_SUGGESTIONS.map((c) => <option key={c} value={c} />)}
-                    </datalist>
+                    <div className="relative">
+                      <Input
+                        id="city"
+                        value={city}
+                        onChange={(e) => { setCity(e.target.value); setCityOpen(true); }}
+                        onFocus={() => setCityOpen(true)}
+                        onKeyDown={(e) => { if (e.key === "Escape") setCityOpen(false); }}
+                        placeholder="e.g. Bengaluru"
+                        autoComplete="off"
+                      />
+                      {cityOpen && (
+                        <CityDropdown query={city} onPick={(v) => { setCity(v); setCityOpen(false); }} />
+                      )}
+                    </div>
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-2 relative" ref={expCityWrapRef}>
                     <Label>Cities you know well</Label>
                     <div className="flex gap-2">
-                      <Input
-                        value={cityInput}
-                        onChange={(e) => setCityInput(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            addExpertiseCity(cityInput);
-                          }
-                        }}
-                        placeholder="Type a city and press Enter"
-                        list="city-suggestions"
-                        style={{ colorScheme: "light" }}
-                      />
+                      <div className="relative flex-1">
+                        <Input
+                          value={cityInput}
+                          onChange={(e) => { setCityInput(e.target.value); setExpCityOpen(true); }}
+                          onFocus={() => setExpCityOpen(true)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              addExpertiseCity(cityInput);
+                              setExpCityOpen(false);
+                            } else if (e.key === "Escape") {
+                              setExpCityOpen(false);
+                            }
+                          }}
+                          placeholder="Type a city and press Enter"
+                          autoComplete="off"
+                        />
+                        {expCityOpen && (
+                          <CityDropdown
+                            query={cityInput}
+                            onPick={(v) => { addExpertiseCity(v); setExpCityOpen(false); }}
+                          />
+                        )}
+                      </div>
                       <Button type="button" variant="outline" onClick={() => addExpertiseCity(cityInput)}>Add</Button>
                     </div>
                     {expertiseCities.length > 0 && (
