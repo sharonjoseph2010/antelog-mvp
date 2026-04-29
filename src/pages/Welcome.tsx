@@ -43,7 +43,7 @@ const CITY_SUGGESTIONS = [
   "Goa",
 ];
 
-const TOTAL_STEPS = 5;
+const TOTAL_STEPS = 4;
 
 const Welcome = () => {
   const navigate = useNavigate();
@@ -62,13 +62,14 @@ const Welcome = () => {
   const [occupation, setOccupation] = useState("");
   const [bio, setBio] = useState("");
 
-  // Step 3
+  // Step 3 — combined expertise + interests
   const [expertiseDomains, setExpertiseDomains] = useState<string[]>([]);
-  const [expertiseOther, setExpertiseOther] = useState("");
+  const [expertiseOtherInput, setExpertiseOtherInput] = useState("");
+  const [expertiseCustom, setExpertiseCustom] = useState<string[]>([]);
 
-  // Step 4
   const [interests, setInterests] = useState<string[]>([]);
-  const [interestsOther, setInterestsOther] = useState("");
+  const [interestsOtherInput, setInterestsOtherInput] = useState("");
+  const [interestsCustom, setInterestsCustom] = useState<string[]>([]);
 
   useEffect(() => {
     (async () => {
@@ -94,8 +95,12 @@ const Welcome = () => {
         setOccupation(profile.occupation || "");
         setBio(profile.bio || "");
         setExpertiseCities(Array.isArray(profile.expertise_cities) ? (profile.expertise_cities as any[]).map(String) : []);
-        setExpertiseDomains(Array.isArray(profile.expertise_domains) ? (profile.expertise_domains as any[]).map(String) : []);
-        setInterests(Array.isArray(profile.interests) ? (profile.interests as any[]).map(String) : []);
+        const exp = Array.isArray(profile.expertise_domains) ? (profile.expertise_domains as any[]).map(String) : [];
+        setExpertiseDomains(exp.filter((t) => TOPIC_OPTIONS.includes(t)));
+        setExpertiseCustom(exp.filter((t) => !TOPIC_OPTIONS.includes(t)));
+        const intr = Array.isArray(profile.interests) ? (profile.interests as any[]).map(String) : [];
+        setInterests(intr.filter((t) => TOPIC_OPTIONS.includes(t)));
+        setInterestsCustom(intr.filter((t) => !TOPIC_OPTIONS.includes(t)));
       }
       setLoading(false);
     })();
@@ -105,14 +110,17 @@ const Welcome = () => {
 
   const addExpertiseCity = (val: string) => {
     const v = val.trim();
-    if (!v) return;
-    if (expertiseCities.includes(v)) return;
+    if (!v || expertiseCities.includes(v)) return;
     setExpertiseCities([...expertiseCities, v]);
     setCityInput("");
   };
+  const removeExpertiseCity = (v: string) => setExpertiseCities(expertiseCities.filter((c) => c !== v));
 
-  const removeExpertiseCity = (v: string) => {
-    setExpertiseCities(expertiseCities.filter((c) => c !== v));
+  const addCustom = (val: string, list: string[], setList: (v: string[]) => void, setInput: (v: string) => void) => {
+    const v = val.trim();
+    if (!v || list.includes(v)) { setInput(""); return; }
+    setList([...list, v]);
+    setInput("");
   };
 
   const toggle = (arr: string[], setArr: (v: string[]) => void, val: string) => {
@@ -120,9 +128,13 @@ const Welcome = () => {
     else setArr([...arr, val]);
   };
 
+  const finalExpertise = useMemo(() => [...expertiseDomains, ...expertiseCustom], [expertiseDomains, expertiseCustom]);
+  const finalInterests = useMemo(() => [...interests, ...interestsCustom], [interests, interestsCustom]);
+
   const canNext = () => {
     if (step === 1) return fullName.trim().length > 0 && city.trim().length > 0;
     if (step === 2) return occupation.trim().length > 0;
+    if (step === 3) return finalExpertise.length > 0 && finalInterests.length > 0;
     return true;
   };
 
@@ -135,20 +147,6 @@ const Welcome = () => {
   };
 
   const handleBack = () => setStep((s) => Math.max(1, s - 1));
-
-  const handleSkip = () => setStep((s) => Math.min(TOTAL_STEPS, s + 1));
-
-  const finalExpertise = useMemo(() => {
-    const arr = [...expertiseDomains];
-    if (expertiseOther.trim()) arr.push(expertiseOther.trim());
-    return arr;
-  }, [expertiseDomains, expertiseOther]);
-
-  const finalInterests = useMemo(() => {
-    const arr = [...interests];
-    if (interestsOther.trim()) arr.push(interestsOther.trim());
-    return arr;
-  }, [interests, interestsOther]);
 
   const handleFinish = async () => {
     if (!userId) return;
@@ -179,12 +177,72 @@ const Welcome = () => {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center text-muted-foreground">Loading…</div>
-    );
+    return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Loading…</div>;
   }
 
-  const showSkip = step === 3 || step === 4;
+  const renderTopicColumn = (
+    title: string,
+    subtitle: string,
+    selected: string[],
+    setSelected: (v: string[]) => void,
+    customs: string[],
+    setCustoms: (v: string[]) => void,
+    customInput: string,
+    setCustomInput: (v: string) => void,
+    inputId: string,
+  ) => (
+    <div className="space-y-3">
+      <div>
+        <h3 className="font-semibold">{title}</h3>
+        <p className="text-xs text-muted-foreground">{subtitle}</p>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {TOPIC_OPTIONS.map((t) => {
+          const active = selected.includes(t);
+          return (
+            <button
+              key={t}
+              type="button"
+              onClick={() => toggle(selected, setSelected, t)}
+              className={`px-3 py-1.5 rounded-full border text-sm transition-colors ${active ? "bg-primary text-primary-foreground border-primary" : "bg-background border-input hover:bg-accent"}`}
+            >
+              {t}
+            </button>
+          );
+        })}
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor={inputId}>Other</Label>
+        <div className="flex gap-2">
+          <Input
+            id={inputId}
+            value={customInput}
+            onChange={(e) => setCustomInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                addCustom(customInput, customs, setCustoms, setCustomInput);
+              }
+            }}
+            placeholder="Type a topic and press Enter"
+          />
+          <Button type="button" variant="outline" onClick={() => addCustom(customInput, customs, setCustoms, setCustomInput)}>Add</Button>
+        </div>
+        {customs.length > 0 && (
+          <div className="flex flex-wrap gap-2 pt-1">
+            {customs.map((c) => (
+              <Badge key={c} variant="secondary" className="gap-1">
+                {c}
+                <button onClick={() => setCustoms(customs.filter((x) => x !== c))} aria-label={`Remove ${c}`}>
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 
   return (
     <>
@@ -193,7 +251,7 @@ const Welcome = () => {
         <meta name="description" content="Tell us a bit about yourself to get the most out of Antelog." />
       </Helmet>
       <div className="min-h-screen bg-background py-10 px-4">
-        <div className="max-w-2xl mx-auto">
+        <div className="max-w-3xl mx-auto">
           <div className="mb-8">
             <div className="flex items-center justify-between mb-2 text-sm text-muted-foreground">
               <span>Step {step} of {TOTAL_STEPS}</span>
@@ -207,9 +265,8 @@ const Welcome = () => {
               <CardTitle className="text-2xl">
                 {step === 1 && "Your name & location"}
                 {step === 2 && "What do you do?"}
-                {step === 3 && "What are you an expert in?"}
-                {step === 4 && "Your interests"}
-                {step === 5 && "You're all set"}
+                {step === 3 && "Your expertise & interests"}
+                {step === 4 && "You're all set"}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -286,56 +343,33 @@ const Welcome = () => {
               )}
 
               {step === 3 && (
-                <>
-                  <p className="text-sm text-muted-foreground">What topics can you give great recommendations on?</p>
-                  <div className="flex flex-wrap gap-2">
-                    {TOPIC_OPTIONS.map((t) => {
-                      const active = expertiseDomains.includes(t);
-                      return (
-                        <button
-                          key={t}
-                          type="button"
-                          onClick={() => toggle(expertiseDomains, setExpertiseDomains, t)}
-                          className={`px-3 py-1.5 rounded-full border text-sm transition-colors ${active ? "bg-primary text-primary-foreground border-primary" : "bg-background border-input hover:bg-accent"}`}
-                        >
-                          {t}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="expOther">Other</Label>
-                    <Input id="expOther" value={expertiseOther} onChange={(e) => setExpertiseOther(e.target.value)} placeholder="Add a custom topic" />
-                  </div>
-                </>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {renderTopicColumn(
+                    "What are you an expert in?",
+                    "What topics can you give great recommendations on?",
+                    expertiseDomains,
+                    setExpertiseDomains,
+                    expertiseCustom,
+                    setExpertiseCustom,
+                    expertiseOtherInput,
+                    setExpertiseOtherInput,
+                    "expOther",
+                  )}
+                  {renderTopicColumn(
+                    "What are you interested in?",
+                    "What are you always looking for recommendations on?",
+                    interests,
+                    setInterests,
+                    interestsCustom,
+                    setInterestsCustom,
+                    interestsOtherInput,
+                    setInterestsOtherInput,
+                    "intOther",
+                  )}
+                </div>
               )}
 
               {step === 4 && (
-                <>
-                  <p className="text-sm text-muted-foreground">What are you always looking for recommendations on?</p>
-                  <div className="flex flex-wrap gap-2">
-                    {TOPIC_OPTIONS.map((t) => {
-                      const active = interests.includes(t);
-                      return (
-                        <button
-                          key={t}
-                          type="button"
-                          onClick={() => toggle(interests, setInterests, t)}
-                          className={`px-3 py-1.5 rounded-full border text-sm transition-colors ${active ? "bg-primary text-primary-foreground border-primary" : "bg-background border-input hover:bg-accent"}`}
-                        >
-                          {t}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="intOther">Other</Label>
-                    <Input id="intOther" value={interestsOther} onChange={(e) => setInterestsOther(e.target.value)} placeholder="Add a custom interest" />
-                  </div>
-                </>
-              )}
-
-              {step === 5 && (
                 <div className="space-y-4">
                   <p className="text-muted-foreground">You're all set! Your network will now know what you're great at recommending.</p>
                   <div className="rounded-lg border p-4 space-y-3 text-sm">
@@ -361,11 +395,6 @@ const Welcome = () => {
                   Back
                 </Button>
                 <div className="flex gap-2">
-                  {showSkip && (
-                    <Button type="button" variant="ghost" onClick={handleSkip} disabled={saving}>
-                      Skip
-                    </Button>
-                  )}
                   {step < TOTAL_STEPS ? (
                     <Button type="button" onClick={handleNext} disabled={!canNext()}>
                       Next
