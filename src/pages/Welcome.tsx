@@ -301,6 +301,7 @@ const Welcome = () => {
                       onChange={(e) => setCity(e.target.value)}
                       placeholder="e.g. Bengaluru"
                       list="city-suggestions"
+                      style={{ colorScheme: "light" }}
                     />
                     <datalist id="city-suggestions">
                       {CITY_SUGGESTIONS.map((c) => <option key={c} value={c} />)}
@@ -320,6 +321,7 @@ const Welcome = () => {
                         }}
                         placeholder="Type a city and press Enter"
                         list="city-suggestions"
+                        style={{ colorScheme: "light" }}
                       />
                       <Button type="button" variant="outline" onClick={() => addExpertiseCity(cityInput)}>Add</Button>
                     </div>
