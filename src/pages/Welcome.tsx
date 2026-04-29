@@ -371,6 +371,7 @@ const Welcome = () => {
                     expertiseOtherInput,
                     setExpertiseOtherInput,
                     "expOther",
+                    "expertise",
                   )}
                   {renderTopicColumn(
                     "What are you interested in?",
@@ -382,6 +383,7 @@ const Welcome = () => {
                     interestsOtherInput,
                     setInterestsOtherInput,
                     "intOther",
+                    "interest",
                   )}
                 </div>
               )}
