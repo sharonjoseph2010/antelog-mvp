@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -58,6 +58,10 @@ const Welcome = () => {
   const [city, setCity] = useState("");
   const [expertiseCities, setExpertiseCities] = useState<string[]>([]);
   const [cityInput, setCityInput] = useState("");
+  const [cityOpen, setCityOpen] = useState(false);
+  const [expCityOpen, setExpCityOpen] = useState(false);
+  const cityWrapRef = useRef<HTMLDivElement>(null);
+  const expCityWrapRef = useRef<HTMLDivElement>(null);
 
   // Step 2
   const [occupation, setOccupation] = useState("");
@@ -72,6 +76,39 @@ const Welcome = () => {
   const [interestsOtherInput, setInterestsOtherInput] = useState("");
   const [interestsCustom, setInterestsCustom] = useState<string[]>([]);
   const [topicTab, setTopicTab] = useState<"expertise" | "interest">("expertise");
+
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (cityWrapRef.current && !cityWrapRef.current.contains(e.target as Node)) setCityOpen(false);
+      if (expCityWrapRef.current && !expCityWrapRef.current.contains(e.target as Node)) setExpCityOpen(false);
+    };
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, []);
+
+  const filterCities = (q: string) => {
+    const v = q.trim().toLowerCase();
+    if (!v) return CITY_SUGGESTIONS;
+    return CITY_SUGGESTIONS.filter((c) => c.toLowerCase().includes(v));
+  };
+
+  const CityDropdown = ({ query, onPick }: { query: string; onPick: (v: string) => void }) => {
+    const matches = filterCities(query);
+    if (matches.length === 0) return null;
+    return (
+      <ul className="absolute left-0 right-0 top-full mt-1 max-h-56 overflow-auto bg-slate-800 border border-slate-700 rounded-md shadow-lg z-50">
+        {matches.map((c) => (
+          <li
+            key={c}
+            onMouseDown={(e) => { e.preventDefault(); onPick(c); }}
+            className="px-3 py-2 text-sm text-white hover:bg-slate-700 cursor-pointer"
+          >
+            {c}
+          </li>
+        ))}
+      </ul>
+    );
+  };
 
   useEffect(() => {
     (async () => {
