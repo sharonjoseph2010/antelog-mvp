@@ -360,7 +360,8 @@ const Welcome = () => {
               )}
 
               {step === 3 && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="relative grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+                  <div className="md:pr-4 md:border-r md:border-border">
                   {renderTopicColumn(
                     "What are you an expert in?",
                     "What topics can you give great recommendations on?",
@@ -373,6 +374,11 @@ const Welcome = () => {
                     "expOther",
                     "expertise",
                   )}
+                  </div>
+                  <div className="hidden md:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 items-center justify-center">
+                    <span className="bg-background px-2 text-xs font-semibold tracking-wider text-muted-foreground uppercase">vs</span>
+                  </div>
+                  <div className="md:pl-4">
                   {renderTopicColumn(
                     "What are you interested in?",
                     "What are you always looking for recommendations on?",
@@ -385,6 +391,7 @@ const Welcome = () => {
                     "intOther",
                     "interest",
                   )}
+                  </div>
                 </div>
               )}
 
