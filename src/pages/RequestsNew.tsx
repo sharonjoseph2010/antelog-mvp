@@ -288,6 +288,91 @@ export default function RequestsNew() {
     }));
   };
 
+  // Handle "Send request to them" from the Master Directory nudge.
+  // 1st-degree contributor → pre-select Specific People.
+  // 2nd-degree contributor → pre-select 1st Network and show "via Mike" message.
+  const handleSendRequestToContributor = async () => {
+    const cid = similarDirectoryList?.contributor_id;
+    const cname = similarDirectoryList?.contributor_name || "They";
+    if (!cid) return;
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Check direct friendship
+      const { data: directFriend } = await supabase
+        .from("friendships")
+        .select("id")
+        .or(
+          `and(user1_id.eq.${user.id},user2_id.eq.${cid}),and(user1_id.eq.${cid},user2_id.eq.${user.id})`
+        )
+        .maybeSingle();
+
+      if (directFriend) {
+        setFormData(prev => ({
+          ...prev,
+          audience_types: prev.audience_types.includes('specific_people')
+            ? prev.audience_types
+            : [...prev.audience_types, 'specific_people'],
+          selected_users: prev.selected_users.includes(cid)
+            ? prev.selected_users
+            : [...prev.selected_users, cid],
+        }));
+        loadNetworkContacts();
+        setDirectoryNudgeDismissed(true);
+        return;
+      }
+
+      // 2nd degree — find a mutual friend to mention by name
+      let mutualName = "a mutual friend";
+      const { data: viewerFriends } = await supabase
+        .from("friendships")
+        .select("user1_id, user2_id")
+        .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`);
+      const viewerFriendIds = (viewerFriends || []).map(f =>
+        f.user1_id === user.id ? f.user2_id : f.user1_id
+      );
+
+      if (viewerFriendIds.length > 0) {
+        const { data: contribFriends } = await supabase
+          .from("friendships")
+          .select("user1_id, user2_id")
+          .or(`user1_id.eq.${cid},user2_id.eq.${cid}`);
+        const contribFriendIds = new Set(
+          (contribFriends || []).map(f => (f.user1_id === cid ? f.user2_id : f.user1_id))
+        );
+        const mutualId = viewerFriendIds.find(id => contribFriendIds.has(id));
+        if (mutualId) {
+          const { data: mutualProfile } = await supabase
+            .from("profiles")
+            .select("full_name, handle")
+            .eq("id", mutualId)
+            .maybeSingle();
+          mutualName = mutualProfile?.full_name || (mutualProfile?.handle ? `@${mutualProfile.handle}` : "a mutual friend");
+        }
+      }
+
+      setFormData(prev => ({
+        ...prev,
+        audience_types: prev.audience_types.includes('first_network')
+          ? prev.audience_types
+          : [...prev.audience_types, 'first_network'],
+      }));
+      setDirectoryForwardMessage(
+        `${cname} is in your extended network via ${mutualName}. Send to your 1st Network and ask ${mutualName} to forward it to ${cname}.`
+      );
+      // Auto-dismiss the nudge after a short delay so user can read the message
+      setTimeout(() => {
+        setDirectoryNudgeDismissed(true);
+        setDirectoryForwardMessage(null);
+      }, 6000);
+    } catch (err) {
+      console.error("handleSendRequestToContributor error", err);
+      setDirectoryNudgeDismissed(true);
+    }
+  };
+
   const handleTitleBlur = async () => {
     if (!formData.title.trim() || !formData.category) return;
 
