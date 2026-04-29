@@ -62,6 +62,8 @@ export default function RequestsNew() {
   // Nudge 2: network experts
   const [networkExperts, setNetworkExperts] = useState<Array<{ profile_id: string; full_name: string | null; handle: string | null; matching_domains: string[]; degree: number }>>([]);
   const [expertNudgeDismissed, setExpertNudgeDismissed] = useState(false);
+  // Inline message shown inside the directory nudge after "Send request to them"
+  const [directoryForwardMessage, setDirectoryForwardMessage] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     title: '',
     category: '' as 'films' | 'places' | 'products' | 'services' | 'other',
