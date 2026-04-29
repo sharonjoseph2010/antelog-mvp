@@ -17,13 +17,22 @@ interface ProfileData {
   handle: string;
   phone_number: string;
   location: string;
+  occupation: string;
   bio: string;
   interests: string[];
-  batch: string;
+  expertise_domains: string[];
+  expertise_cities: string[];
   user_type: string;
   verification_status: string;
   is_verified: boolean;
 }
+
+const emptyProfile: ProfileData = {
+  full_name: "", handle: "", phone_number: "", location: "",
+  occupation: "", bio: "", interests: [], expertise_domains: [],
+  expertise_cities: [], user_type: "guest",
+  verification_status: "pending", is_verified: false,
+};
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -35,13 +44,12 @@ const Profile = () => {
   const [userId, setUserId] = useState<string | null>(null);
   const [email, setEmail] = useState("");
 
-  const [profile, setProfile] = useState<ProfileData>({
-    full_name: "", handle: "", phone_number: "", location: "",
-    bio: "", interests: [], batch: "", user_type: "guest",
-    verification_status: "pending", is_verified: false,
-  });
-  const [draft, setDraft] = useState<ProfileData>({ ...profile });
+  const [profile, setProfile] = useState<ProfileData>(emptyProfile);
+  const [draft, setDraft] = useState<ProfileData>(emptyProfile);
+
   const [newInterest, setNewInterest] = useState("");
+  const [newExpertise, setNewExpertise] = useState("");
+  const [newCity, setNewCity] = useState("");
   const interestInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -55,7 +63,7 @@ const Profile = () => {
 
         const { data, error } = await supabase
           .from("profiles")
-          .select("full_name, handle, phone_number, location, bio, interests, batch, user_type, verification_status, is_verified")
+          .select("full_name, handle, phone_number, location, occupation, bio, interests, expertise_domains, expertise_cities, user_type, verification_status, is_verified")
           .eq("id", user.id)
           .single();
 
@@ -70,9 +78,11 @@ const Profile = () => {
             handle: data.handle || "",
             phone_number: data.phone_number || "",
             location: data.location || "",
+            occupation: (data as any).occupation || "",
             bio: data.bio || "",
-            interests: Array.isArray(data.interests) ? (data.interests as string[]) : [],
-            batch: data.batch || "",
+            interests: Array.isArray(data.interests) ? (data.interests as any[]).map(String) : [],
+            expertise_domains: Array.isArray((data as any).expertise_domains) ? ((data as any).expertise_domains as any[]).map(String) : [],
+            expertise_cities: Array.isArray((data as any).expertise_cities) ? ((data as any).expertise_cities as any[]).map(String) : [],
             user_type: data.user_type || "guest",
             verification_status: data.verification_status || "pending",
             is_verified: data.is_verified || false,
@@ -91,30 +101,34 @@ const Profile = () => {
 
   const startEditing = () => {
     setDraft({ ...profile });
-    setNewInterest("");
+    setNewInterest(""); setNewExpertise(""); setNewCity("");
     setEditing(true);
   };
 
   const cancelEditing = () => {
     setDraft({ ...profile });
-    setNewInterest("");
+    setNewInterest(""); setNewExpertise(""); setNewCity("");
     setEditing(false);
   };
 
-  const addInterest = () => {
-    const tag = newInterest.trim();
-    if (!tag || draft.interests.length >= 10) return;
-    if (draft.interests.some(i => i.toLowerCase() === tag.toLowerCase())) {
-      setNewInterest("");
-      return;
+  const addTag = (
+    field: "interests" | "expertise_domains" | "expertise_cities",
+    value: string,
+    setInput: (v: string) => void,
+    max = 20,
+  ) => {
+    const tag = value.trim();
+    if (!tag) return;
+    if (draft[field].length >= max) return;
+    if (draft[field].some((i) => i.toLowerCase() === tag.toLowerCase())) {
+      setInput(""); return;
     }
-    setDraft(d => ({ ...d, interests: [...d.interests, tag] }));
-    setNewInterest("");
-    interestInputRef.current?.focus();
+    setDraft((d) => ({ ...d, [field]: [...d[field], tag] }));
+    setInput("");
   };
 
-  const removeInterest = (tag: string) => {
-    setDraft(d => ({ ...d, interests: d.interests.filter(i => i !== tag) }));
+  const removeTag = (field: "interests" | "expertise_domains" | "expertise_cities", tag: string) => {
+    setDraft((d) => ({ ...d, [field]: d[field].filter((i) => i !== tag) }));
   };
 
   const handleSave = async () => {
@@ -136,9 +150,11 @@ const Profile = () => {
         .update({
           full_name: draft.full_name.trim(),
           location: draft.location.trim() || null,
+          occupation: draft.occupation.trim() || null,
           bio: draft.bio.trim() || null,
-          interests: draft.interests.length > 0 ? draft.interests : null,
-          batch: draft.batch.trim() || null,
+          interests: draft.interests.length > 0 ? (draft.interests as any) : null,
+          expertise_domains: (draft.expertise_domains as any),
+          expertise_cities: (draft.expertise_cities as any),
           phone_number: draft.phone_number.trim() || null,
           updated_at: new Date().toISOString(),
         })
@@ -167,6 +183,49 @@ const Profile = () => {
     );
   }
 
+  const renderTagEditor = (
+    label: string,
+    field: "interests" | "expertise_domains" | "expertise_cities",
+    inputVal: string,
+    setInput: (v: string) => void,
+    placeholder: string,
+    emptyText: string,
+  ) => (
+    <div className="space-y-2">
+      <Label>{label}</Label>
+      <div className="flex flex-wrap gap-2">
+        {(editing ? draft[field] : profile[field]).map((tag) => (
+          <Badge key={tag} variant="secondary" className="gap-1 text-sm">
+            {tag}
+            {editing && (
+              <button type="button" onClick={() => removeTag(field, tag)} className="ml-0.5 hover:text-destructive">
+                <X className="h-3 w-3" />
+              </button>
+            )}
+          </Badge>
+        ))}
+        {(editing ? draft[field] : profile[field]).length === 0 && !editing && (
+          <p className="text-sm text-muted-foreground italic">{emptyText}</p>
+        )}
+      </div>
+      {editing && (
+        <div className="flex gap-2 mt-1">
+          <Input
+            value={inputVal}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag(field, inputVal, setInput); } }}
+            placeholder={placeholder}
+            maxLength={40}
+            className="flex-1"
+          />
+          <Button type="button" size="sm" variant="outline" onClick={() => addTag(field, inputVal, setInput)} disabled={!inputVal.trim()}>
+            <Plus className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <>
       <Helmet>
@@ -188,7 +247,7 @@ const Profile = () => {
         </div>
 
         <div className="space-y-6">
-          {/* Non-editable info */}
+          {/* Account */}
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">Account</CardTitle>
@@ -221,17 +280,16 @@ const Profile = () => {
             </CardContent>
           </Card>
 
-          {/* Editable fields */}
+          {/* Personal Info */}
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">Personal Info</CardTitle>
             </CardHeader>
             <CardContent className="space-y-5">
-              {/* Full Name */}
               <div className="space-y-1.5">
                 <Label htmlFor="fullName">Full Name</Label>
                 {editing ? (
-                  <Input id="fullName" value={draft.full_name} onChange={e => setDraft(d => ({ ...d, full_name: e.target.value }))} maxLength={50} />
+                  <Input id="fullName" value={draft.full_name} onChange={(e) => setDraft((d) => ({ ...d, full_name: e.target.value }))} maxLength={50} />
                 ) : (
                   <p className="text-sm">{profile.full_name || <span className="text-muted-foreground italic">Not set</span>}</p>
                 )}
@@ -239,11 +297,10 @@ const Profile = () => {
 
               <Separator />
 
-              {/* Phone */}
               <div className="space-y-1.5">
                 <Label htmlFor="phone">Phone Number</Label>
                 {editing ? (
-                  <Input id="phone" type="tel" value={draft.phone_number} onChange={e => setDraft(d => ({ ...d, phone_number: e.target.value }))} placeholder="+91 9876543210" />
+                  <Input id="phone" type="tel" value={draft.phone_number} onChange={(e) => setDraft((d) => ({ ...d, phone_number: e.target.value }))} placeholder="+91 9876543210" />
                 ) : (
                   <p className="text-sm">{profile.phone_number || <span className="text-muted-foreground italic">Not set</span>}</p>
                 )}
@@ -251,11 +308,10 @@ const Profile = () => {
 
               <Separator />
 
-              {/* Location */}
               <div className="space-y-1.5">
                 <Label htmlFor="location">Location</Label>
                 {editing ? (
-                  <Input id="location" value={draft.location} onChange={e => setDraft(d => ({ ...d, location: e.target.value }))} placeholder="e.g. Mumbai, India" maxLength={100} />
+                  <Input id="location" value={draft.location} onChange={(e) => setDraft((d) => ({ ...d, location: e.target.value }))} placeholder="e.g. Mumbai, India" maxLength={100} />
                 ) : (
                   <p className="text-sm">{profile.location || <span className="text-muted-foreground italic">Not set</span>}</p>
                 )}
@@ -263,24 +319,22 @@ const Profile = () => {
 
               <Separator />
 
-              {/* Batch */}
               <div className="space-y-1.5">
-                <Label htmlFor="batch">Batch</Label>
+                <Label htmlFor="occupation">Occupation</Label>
                 {editing ? (
-                  <Input id="batch" value={draft.batch} onChange={e => setDraft(d => ({ ...d, batch: e.target.value }))} placeholder="e.g. 2019" maxLength={20} />
+                  <Input id="occupation" value={draft.occupation} onChange={(e) => setDraft((d) => ({ ...d, occupation: e.target.value }))} placeholder="e.g. Software Engineer" maxLength={80} />
                 ) : (
-                  <p className="text-sm">{profile.batch || <span className="text-muted-foreground italic">Not set</span>}</p>
+                  <p className="text-sm">{profile.occupation || <span className="text-muted-foreground italic">Not set</span>}</p>
                 )}
               </div>
 
               <Separator />
 
-              {/* Bio */}
               <div className="space-y-1.5">
                 <Label htmlFor="bio">Bio</Label>
                 {editing ? (
                   <>
-                    <Textarea id="bio" value={draft.bio} onChange={e => setDraft(d => ({ ...d, bio: e.target.value }))} placeholder="A short intro about you..." maxLength={160} rows={3} />
+                    <Textarea id="bio" value={draft.bio} onChange={(e) => setDraft((d) => ({ ...d, bio: e.target.value }))} placeholder="A short intro about you..." maxLength={160} rows={3} />
                     <p className="text-xs text-muted-foreground text-right">{draft.bio.length}/160</p>
                   </>
                 ) : (
@@ -290,45 +344,18 @@ const Profile = () => {
 
               <Separator />
 
-              {/* Interests */}
-              <div className="space-y-2">
-                <Label>Interests {editing && <span className="text-muted-foreground font-normal">(up to 10)</span>}</Label>
-                <div className="flex flex-wrap gap-2">
-                  {(editing ? draft.interests : profile.interests).map(tag => (
-                    <Badge key={tag} variant="secondary" className="gap-1 text-sm">
-                      {tag}
-                      {editing && (
-                        <button type="button" onClick={() => removeInterest(tag)} className="ml-0.5 hover:text-destructive">
-                          <X className="h-3 w-3" />
-                        </button>
-                      )}
-                    </Badge>
-                  ))}
-                  {(editing ? draft.interests : profile.interests).length === 0 && !editing && (
-                    <p className="text-sm text-muted-foreground italic">No interests added</p>
-                  )}
-                </div>
-                {editing && draft.interests.length < 10 && (
-                  <div className="flex gap-2 mt-1">
-                    <Input
-                      ref={interestInputRef}
-                      value={newInterest}
-                      onChange={e => setNewInterest(e.target.value)}
-                      onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addInterest(); } }}
-                      placeholder="Type an interest and press Enter"
-                      maxLength={30}
-                      className="flex-1"
-                    />
-                    <Button type="button" size="sm" variant="outline" onClick={addInterest} disabled={!newInterest.trim()}>
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </div>
-                )}
-              </div>
+              {renderTagEditor("Cities I know well", "expertise_cities", newCity, setNewCity, "Type a city and press Enter", "No cities added")}
+
+              <Separator />
+
+              {renderTagEditor("Expert in", "expertise_domains", newExpertise, setNewExpertise, "Type a topic and press Enter", "No expertise added")}
+
+              <Separator />
+
+              {renderTagEditor("Interests", "interests", newInterest, setNewInterest, "Type an interest and press Enter", "No interests added")}
             </CardContent>
           </Card>
 
-          {/* Save / Cancel */}
           {editing && (
             <div className="flex justify-end gap-3">
               <Button variant="outline" onClick={cancelEditing} disabled={saving}>
