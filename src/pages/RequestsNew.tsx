@@ -50,7 +50,14 @@ export default function RequestsNew() {
   const [duplicateResults, setDuplicateResults] = useState<any[]>([]);
   const [expiryDays, setExpiryDays] = useState("7");
   // Nudge 1: similar directory lists
-  const [similarDirectoryList, setSimilarDirectoryList] = useState<{ id: string; title: string; total_votes: number } | null>(null);
+  const [similarDirectoryList, setSimilarDirectoryList] = useState<{
+    id: string;
+    title: string;
+    total_votes: number;
+    contributor_id: string | null;
+    contributor_name: string | null;
+    contributor_handle: string | null;
+  } | null>(null);
   const [directoryNudgeDismissed, setDirectoryNudgeDismissed] = useState(false);
   // Nudge 2: network experts
   const [networkExperts, setNetworkExperts] = useState<Array<{ profile_id: string; full_name: string | null; handle: string | null; matching_domains: string[]; degree: number }>>([]);
@@ -86,10 +93,36 @@ export default function RequestsNew() {
         });
         if (error) throw error;
         if (data && data.length > 0) {
+          const match = data[0] as any;
+          // Fetch contributor id from master_directory_lists
+          const { data: listRow } = await supabase
+            .from("master_directory_lists")
+            .select("original_contributor_id")
+            .eq("id", match.id)
+            .maybeSingle();
+
+          let contributor_id: string | null = listRow?.original_contributor_id ?? null;
+          let contributor_name: string | null = null;
+          let contributor_handle: string | null = null;
+
+          if (contributor_id) {
+            const { data: profileData } = await supabase.rpc("get_safe_profile_view", {
+              profile_id: contributor_id,
+            });
+            const profile = Array.isArray(profileData) ? profileData[0] : profileData;
+            if (profile) {
+              contributor_name = (profile as any).full_name ?? null;
+              contributor_handle = (profile as any).handle ?? null;
+            }
+          }
+
           setSimilarDirectoryList({
-            id: data[0].id,
-            title: data[0].title,
-            total_votes: data[0].total_votes ?? 0,
+            id: match.id,
+            title: match.title,
+            total_votes: match.total_votes ?? 0,
+            contributor_id,
+            contributor_name,
+            contributor_handle,
           });
         } else {
           setSimilarDirectoryList(null);
@@ -680,30 +713,84 @@ export default function RequestsNew() {
                   <div className="flex items-start gap-2 pr-6">
                     <ClipboardList className="h-4 w-4 mt-0.5 text-amber-300 shrink-0" />
                     <div className="space-y-2 flex-1">
-                      <p className="text-sm font-medium text-amber-200">
-                        This might already exist in the Master Directory
-                      </p>
-                      <p className="text-sm text-amber-100/90">
-                        "{similarDirectoryList.title}" — {similarDirectoryList.total_votes} {similarDirectoryList.total_votes === 1 ? "vote" : "votes"}
-                      </p>
-                      <div className="flex flex-wrap gap-2 pt-1">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => navigate(`/directory/${similarDirectoryList.id}`)}
-                        >
-                          View existing list
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setDirectoryNudgeDismissed(true)}
-                        >
-                          Continue creating request
-                        </Button>
-                      </div>
+                      {similarDirectoryList.contributor_name ? (
+                        <>
+                          <p className="text-sm font-medium text-amber-200">
+                            Someone in your network already made this list
+                          </p>
+                          <p className="text-sm text-amber-100/90">
+                            {similarDirectoryList.contributor_name} made "{similarDirectoryList.title}" — {similarDirectoryList.total_votes} {similarDirectoryList.total_votes === 1 ? "vote" : "votes"}
+                          </p>
+                          <div className="flex flex-wrap gap-2 pt-1">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => navigate(`/directory/${similarDirectoryList.id}`)}
+                            >
+                              View their list
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                const cid = similarDirectoryList.contributor_id;
+                                if (cid) {
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    audience_types: prev.audience_types.includes('specific_people')
+                                      ? prev.audience_types
+                                      : [...prev.audience_types, 'specific_people'],
+                                    selected_users: prev.selected_users.includes(cid)
+                                      ? prev.selected_users
+                                      : [...prev.selected_users, cid],
+                                  }));
+                                  loadNetworkContacts();
+                                }
+                                setDirectoryNudgeDismissed(true);
+                              }}
+                            >
+                              Send request to them
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setDirectoryNudgeDismissed(true)}
+                            >
+                              Continue
+                            </Button>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <p className="text-sm font-medium text-amber-200">
+                            This might already exist in the Master Directory
+                          </p>
+                          <p className="text-sm text-amber-100/90">
+                            "{similarDirectoryList.title}" — {similarDirectoryList.total_votes} {similarDirectoryList.total_votes === 1 ? "vote" : "votes"}
+                          </p>
+                          <div className="flex flex-wrap gap-2 pt-1">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => navigate(`/directory/${similarDirectoryList.id}`)}
+                            >
+                              View existing list
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setDirectoryNudgeDismissed(true)}
+                            >
+                              Continue creating request
+                            </Button>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
