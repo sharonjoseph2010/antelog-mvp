@@ -13,14 +13,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { AdminDeduplication } from "@/components/AdminDeduplication";
 import { Trash2, Search, Users, Mail } from "lucide-react";
 
-type PendingProfile = {
-  id: string;
-  full_name: string | null;
-  handle: string;
-  student_id_number: string | null;
-  id_card_image_url: string | null;
-};
-
 type UserProfile = {
   id: string;
   full_name: string | null;
@@ -41,8 +33,6 @@ type WaitlistEntry = {
 const Admin = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [items, setItems] = useState<PendingProfile[]>([]);
-  const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
   const [isAdmin, setIsAdmin] = useState(false);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
@@ -58,34 +48,6 @@ const Admin = () => {
   const [waitlistDeleteDialogOpen, setWaitlistDeleteDialogOpen] = useState(false);
   const [emailToDelete, setEmailToDelete] = useState<WaitlistEntry | null>(null);
   const [deletingEmail, setDeletingEmail] = useState(false);
-
-  const loadPending = async () => {
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("id, full_name, handle, student_id_number, id_card_image_url")
-      .eq("verification_status", "pending")
-      .order("created_at", { ascending: true });
-
-    if (error) {
-      toast.error("Failed to load pending verifications");
-      return;
-    }
-
-    setItems((data as any) || []);
-
-    // Generate signed URLs for images
-    const entries = await Promise.all(
-      (data || []).map(async (p: PendingProfile) => {
-        if (!p.id_card_image_url) return [p.id, ""] as const;
-        const { data: signed } = await supabase
-          .storage
-          .from("id-cards")
-          .createSignedUrl(p.id_card_image_url, 60 * 10); // 10 minutes
-        return [p.id, signed?.signedUrl || ""] as const;
-      })
-    );
-    setImageUrls(Object.fromEntries(entries));
-  };
 
   const loadUsers = async () => {
     setUsersLoading(true);
