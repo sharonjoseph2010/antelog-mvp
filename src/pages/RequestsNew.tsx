@@ -106,13 +106,23 @@ export default function RequestsNew() {
           let contributor_handle: string | null = null;
 
           if (contributor_id) {
-            const { data: profileData } = await supabase.rpc("get_safe_profile_view", {
-              profile_id: contributor_id,
-            });
-            const profile = Array.isArray(profileData) ? profileData[0] : profileData;
-            if (profile) {
-              contributor_name = (profile as any).full_name ?? null;
-              contributor_handle = (profile as any).handle ?? null;
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+              const { data: inNetwork } = await supabase.rpc("is_in_network", {
+                viewer_id: user.id,
+                profile_id: contributor_id,
+              });
+              if (inNetwork) {
+                const { data: contributorProfile } = await supabase
+                  .from("profiles")
+                  .select("full_name, handle")
+                  .eq("id", contributor_id)
+                  .single();
+                if (contributorProfile) {
+                  contributor_name = contributorProfile.full_name ?? null;
+                  contributor_handle = contributorProfile.handle ?? null;
+                }
+              }
             }
           }
 
