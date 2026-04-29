@@ -109,7 +109,6 @@ const Admin = () => {
       setIsAdmin(hasAdminRole);
 
       if (hasAdminRole) {
-        await loadPending();
         await loadUsers();
         await loadWaitlist();
       }
@@ -118,21 +117,6 @@ const Admin = () => {
     })();
     return () => { mounted = false; };
   }, [navigate]);
-
-  const updateStatus = async (profileId: string, status: "verified" | "rejected") => {
-    const { error } = await supabase
-      .from("profiles")
-      .update({ verification_status: status })
-      .eq("id", profileId);
-
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
-
-    toast.success(status === "verified" ? "Profile approved" : "Profile rejected");
-    setItems((prev) => prev.filter((p) => p.id !== profileId));
-  };
 
   const handleDeleteUser = async () => {
     if (!userToDelete) return;
@@ -196,22 +180,21 @@ const Admin = () => {
     return waitlistEmails.filter(e => e.email.toLowerCase().includes(query));
   }, [waitlistEmails, waitlistSearch]);
 
-  const pendingCount = items.length;
   const totalUsers = users.length;
   const waitlistCount = waitlistEmails.length;
 
   return (
     <>
       <Helmet>
-        <title>Admin — Pending verifications | Antelog</title>
-        <meta name="description" content="Review and approve pending student verifications." />
+        <title>Admin | Antelog</title>
+        <meta name="description" content="Manage users and the waitlist." />
         <link rel="canonical" href={window.location.href} />
       </Helmet>
       <main className="min-h-screen bg-background px-4 py-10">
         <section className="max-w-7xl mx-auto space-y-6">
           <header>
             <h1 className="text-3xl font-bold">Admin Panel</h1>
-            <p className="text-muted-foreground">Manage users and verifications</p>
+            <p className="text-muted-foreground">Manage users and the waitlist</p>
           </header>
 
           {!isAdmin && (
@@ -226,15 +209,11 @@ const Admin = () => {
           {isAdmin && (
             <>
               <Tabs defaultValue="users" className="w-full">
-                <TabsList className="grid w-full grid-cols-4">
+                <TabsList className="grid w-full grid-cols-3">
                   <TabsTrigger value="users" className="gap-2">
                     <Users className="h-4 w-4" />
                     User Management
                     <Badge variant="secondary">{totalUsers}</Badge>
-                  </TabsTrigger>
-                  <TabsTrigger value="verifications" className="gap-2">
-                    Pending Verifications
-                    {pendingCount > 0 && <Badge variant="destructive">{pendingCount}</Badge>}
                   </TabsTrigger>
                   <TabsTrigger value="waitlist" className="gap-2">
                     <Mail className="h-4 w-4" />
