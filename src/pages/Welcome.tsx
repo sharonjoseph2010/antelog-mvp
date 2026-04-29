@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
 import { X, Award, Compass } from "lucide-react";
 
@@ -70,6 +71,7 @@ const Welcome = () => {
   const [interests, setInterests] = useState<string[]>([]);
   const [interestsOtherInput, setInterestsOtherInput] = useState("");
   const [interestsCustom, setInterestsCustom] = useState<string[]>([]);
+  const [topicTab, setTopicTab] = useState<"expertise" | "interest">("expertise");
 
   useEffect(() => {
     (async () => {
@@ -200,7 +202,7 @@ const Welcome = () => {
         : "bg-sky-600 text-white border-sky-600 hover:bg-sky-600/90 dark:bg-sky-400 dark:text-sky-950 dark:border-sky-400";
     const accentText = variant === "expertise" ? "text-amber-600 dark:text-amber-400" : "text-sky-600 dark:text-sky-400";
     return (
-    <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+    <div className="space-y-3">
       <div className="space-y-1">
         <div className="flex items-center gap-2">
           <Icon className={`h-4 w-4 ${accentText}`} />
@@ -362,38 +364,64 @@ const Welcome = () => {
               )}
 
               {step === 3 && (
-                <div className="relative grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
-                  <div className="md:pr-4 md:border-r md:border-border">
-                  {renderTopicColumn(
-                    "What are you an expert in?",
-                    "What topics can you give great recommendations on?",
-                    expertiseDomains,
-                    setExpertiseDomains,
-                    expertiseCustom,
-                    setExpertiseCustom,
-                    expertiseOtherInput,
-                    setExpertiseOtherInput,
-                    "expOther",
-                    "expertise",
+                <div className="space-y-4">
+                  <Tabs value={topicTab} onValueChange={(v) => setTopicTab(v as "expertise" | "interest")}>
+                    <TabsList className="w-full grid grid-cols-2 bg-transparent p-0 h-auto border-b border-border rounded-none">
+                      <TabsTrigger
+                        value="expertise"
+                        className="rounded-none border-b-2 border-transparent bg-transparent text-muted-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-amber-500 data-[state=active]:text-amber-600 dark:data-[state=active]:text-amber-400 gap-2 py-3"
+                      >
+                        <Award className="h-4 w-4" />
+                        Expert in
+                        {expertiseDomains.length + expertiseCustom.length > 0 && (
+                          <span className="text-xs opacity-80">({expertiseDomains.length + expertiseCustom.length})</span>
+                        )}
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="interest"
+                        className="rounded-none border-b-2 border-transparent bg-transparent text-muted-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-sky-500 data-[state=active]:text-sky-600 dark:data-[state=active]:text-sky-400 gap-2 py-3"
+                      >
+                        <Compass className="h-4 w-4" />
+                        Interested in
+                        {interests.length + interestsCustom.length > 0 && (
+                          <span className="text-xs opacity-80">({interests.length + interestsCustom.length})</span>
+                        )}
+                      </TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="expertise" className="mt-6">
+                      {renderTopicColumn(
+                        "What are you an expert in?",
+                        "What topics can you give great recommendations on?",
+                        expertiseDomains,
+                        setExpertiseDomains,
+                        expertiseCustom,
+                        setExpertiseCustom,
+                        expertiseOtherInput,
+                        setExpertiseOtherInput,
+                        "expOther",
+                        "expertise",
+                      )}
+                    </TabsContent>
+                    <TabsContent value="interest" className="mt-6">
+                      {renderTopicColumn(
+                        "What are you interested in?",
+                        "What are you always looking for recommendations on?",
+                        interests,
+                        setInterests,
+                        interestsCustom,
+                        setInterestsCustom,
+                        interestsOtherInput,
+                        setInterestsOtherInput,
+                        "intOther",
+                        "interest",
+                      )}
+                    </TabsContent>
+                  </Tabs>
+                  {(finalExpertise.length === 0 || finalInterests.length === 0) && (
+                    <p className="text-xs text-muted-foreground text-center">
+                      Select at least one topic on each tab to continue.
+                    </p>
                   )}
-                  </div>
-                  <div className="hidden md:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 items-center justify-center">
-                    <span className="bg-background px-2 text-xs font-semibold tracking-wider text-muted-foreground uppercase">vs</span>
-                  </div>
-                  <div className="md:pl-4">
-                  {renderTopicColumn(
-                    "What are you interested in?",
-                    "What are you always looking for recommendations on?",
-                    interests,
-                    setInterests,
-                    interestsCustom,
-                    setInterestsCustom,
-                    interestsOtherInput,
-                    setInterestsOtherInput,
-                    "intOther",
-                    "interest",
-                  )}
-                  </div>
                 </div>
               )}
 
