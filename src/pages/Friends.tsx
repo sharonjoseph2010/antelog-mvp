@@ -70,6 +70,7 @@ interface Friendship {
   user2_id: string;
   created_at: string;
   friend_profile?: {
+    id: string;
     handle: string;
     full_name: string;
   };
@@ -90,6 +91,7 @@ interface Contact {
   is_matched: boolean;
   matched_user_id: string | null;
   matched_profile?: {
+    id: string;
     handle: string;
     full_name: string;
   };
@@ -441,7 +443,16 @@ const Friends = () => {
                       >
                         <div>
                           <h3 className="font-medium">
-                            {friendship.contact_name || friendship.friend_profile?.full_name || 'Unknown User'}
+                            {friendship.friend_profile?.id ? (
+                              <Link
+                                to={`/profile/${friendship.friend_profile.id}`}
+                                className="hover:underline"
+                              >
+                                {friendship.contact_name || friendship.friend_profile?.full_name || 'Unknown User'}
+                              </Link>
+                            ) : (
+                              friendship.contact_name || friendship.friend_profile?.full_name || 'Unknown User'
+                            )}
                           </h3>
                           <p className="text-sm text-muted-foreground">
                             @{friendship.friend_profile?.handle || 'unknown'}
@@ -500,7 +511,14 @@ const Friends = () => {
                           className="flex items-center justify-between p-4 border rounded-lg"
                         >
                           <div>
-                            <h3 className="font-medium">{member.full_name}</h3>
+                            <h3 className="font-medium">
+                              <Link
+                                to={`/profile/${member.profile_id}`}
+                                className="hover:underline"
+                              >
+                                {member.full_name}
+                              </Link>
+                            </h3>
                             <p className="text-sm text-muted-foreground">
                               @{member.handle}
                             </p>
@@ -576,7 +594,18 @@ const Friends = () => {
                         >
                           <div className="flex-1">
                             <div className="flex items-center gap-2">
-                              <h3 className="font-medium">{contact.contact_name}</h3>
+                              <h3 className="font-medium">
+                                {contact.is_matched && contact.matched_user_id ? (
+                                  <Link
+                                    to={`/profile/${contact.matched_user_id}`}
+                                    className="hover:underline"
+                                  >
+                                    {contact.contact_name}
+                                  </Link>
+                                ) : (
+                                  contact.contact_name
+                                )}
+                              </h3>
                               {contact.is_matched ? (
                                 <Badge variant="default" className="text-xs">On Antelog</Badge>
                               ) : (

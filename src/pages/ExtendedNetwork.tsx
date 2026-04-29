@@ -257,7 +257,12 @@ const ExtendedNetwork = () => {
                   >
                     <div className="flex-1">
                       <h3 className="font-medium text-lg">
-                        {connection.full_name}
+                        <Link
+                          to={`/profile/${connection.profile_id}`}
+                          className="hover:underline"
+                        >
+                          {connection.full_name}
+                        </Link>
                       </h3>
                       <p className="text-sm text-muted-foreground mb-2">
                         @{connection.handle}
