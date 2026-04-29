@@ -771,16 +771,13 @@ export type Database = {
       }
       profiles: {
         Row: {
-          batch: string | null
           bio: string | null
-          college_id: string | null
           created_at: string
           expertise_cities: Json | null
           expertise_domains: Json | null
           full_name: string | null
           handle: string
           id: string
-          id_card_image_url: string | null
           interests: Json | null
           is_verified: boolean
           location: string | null
@@ -788,23 +785,19 @@ export type Database = {
           phone_number: string | null
           questionnaire_completed: boolean | null
           questionnaire_completed_at: string | null
-          student_id_number: string | null
           trial_ends_at: string | null
           updated_at: string
           user_type: Database["public"]["Enums"]["user_type"]
           verification_status: Database["public"]["Enums"]["verification_status"]
         }
         Insert: {
-          batch?: string | null
           bio?: string | null
-          college_id?: string | null
           created_at?: string
           expertise_cities?: Json | null
           expertise_domains?: Json | null
           full_name?: string | null
           handle: string
           id: string
-          id_card_image_url?: string | null
           interests?: Json | null
           is_verified?: boolean
           location?: string | null
@@ -812,23 +805,19 @@ export type Database = {
           phone_number?: string | null
           questionnaire_completed?: boolean | null
           questionnaire_completed_at?: string | null
-          student_id_number?: string | null
           trial_ends_at?: string | null
           updated_at?: string
           user_type?: Database["public"]["Enums"]["user_type"]
           verification_status?: Database["public"]["Enums"]["verification_status"]
         }
         Update: {
-          batch?: string | null
           bio?: string | null
-          college_id?: string | null
           created_at?: string
           expertise_cities?: Json | null
           expertise_domains?: Json | null
           full_name?: string | null
           handle?: string
           id?: string
-          id_card_image_url?: string | null
           interests?: Json | null
           is_verified?: boolean
           location?: string | null
@@ -836,21 +825,12 @@ export type Database = {
           phone_number?: string | null
           questionnaire_completed?: boolean | null
           questionnaire_completed_at?: string | null
-          student_id_number?: string | null
           trial_ends_at?: string | null
           updated_at?: string
           user_type?: Database["public"]["Enums"]["user_type"]
           verification_status?: Database["public"]["Enums"]["verification_status"]
         }
-        Relationships: [
-          {
-            foreignKeyName: "profiles_college_id_fkey"
-            columns: ["college_id"]
-            isOneToOne: false
-            referencedRelation: "colleges"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       recommendation_clusters: {
         Row: {
@@ -1525,12 +1505,18 @@ export type Database = {
       get_safe_profile_view: {
         Args: { profile_id: string }
         Returns: {
+          bio: string
+          expertise_cities: Json
+          expertise_domains: Json
           full_name: string
           handle: string
           id: string
+          interests: Json
           is_verified: boolean
+          location: string
+          occupation: string
           phone_number: string
-          student_id_number: string
+          relationship: string
         }[]
       }
       has_role: {
