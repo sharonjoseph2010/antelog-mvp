@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate, Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -113,6 +113,9 @@ export default function RequestRespond() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
+  const suggestForwardTo = searchParams.get('suggest_forward_to');
+  const suggestExpertName = searchParams.get('expert_name');
   
   const [request, setRequest] = useState<Request | null>(null);
   const [responses, setResponses] = useState<RequestResponse[]>([]);
