@@ -362,11 +362,11 @@ export default function RequestsNew() {
       setDirectoryForwardMessage(
         `${cname} is in your extended network via ${mutualName}. Send to your 1st Network and ask ${mutualName} to forward it to ${cname}.`
       );
-      // Auto-dismiss the nudge after a short delay so user can read the message
+      // Auto-dismiss the nudge after 5s so user can read the message
       setTimeout(() => {
         setDirectoryNudgeDismissed(true);
         setDirectoryForwardMessage(null);
-      }, 6000);
+      }, 5000);
     } catch (err) {
       console.error("handleSendRequestToContributor error", err);
       setDirectoryNudgeDismissed(true);
