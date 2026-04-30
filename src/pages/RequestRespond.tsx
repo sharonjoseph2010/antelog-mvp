@@ -1372,11 +1372,9 @@ export default function RequestRespond() {
         </div>
       )}
       <div className="mb-6">
-        <Button variant="ghost" asChild className="mb-4">
-          <Link to="/requests" className="flex items-center gap-2">
-            <ArrowLeft className="h-4 w-4" />
-            Back to Requests
-          </Link>
+        <Button variant="ghost" className="mb-4 flex items-center gap-2" onClick={() => navigate(-1)}>
+          <ArrowLeft className="h-4 w-4" />
+          Back to Requests
         </Button>
         
         <h1 className="text-3xl font-bold mb-2">Respond to Request</h1>
