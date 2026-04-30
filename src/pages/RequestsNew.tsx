@@ -633,6 +633,69 @@ export default function RequestsNew() {
       console.log('Total notifications to create:', notifications.length);
       console.log('All notifications:', JSON.stringify(notifications, null, 2));
 
+      // 4. Forward suggestions: notify mutual friends about 2nd-degree experts
+      if (formData.audience_types.includes('first_network')) {
+        try {
+          const categoryToDomains: Record<string, string[]> = {
+            places: ["Food & Cafes"],
+            products: ["Electronics & Gadgets", "Home & Appliances"],
+            films: ["Books & Media"],
+            travel: ["Travel & Hotels"],
+          };
+          const domains = categoryToDomains[formData.category];
+          if (domains && domains.length > 0) {
+            const { data: experts } = await supabase.rpc('find_network_experts', {
+              viewer_id: user.id,
+              query_domains: domains,
+            });
+            const secondDegreeExperts = (experts || []).filter((e: any) => e.degree === 2);
+
+            if (secondDegreeExperts.length > 0) {
+              // Viewer's direct friends
+              const { data: viewerFriends } = await supabase
+                .from('friendships')
+                .select('user1_id, user2_id')
+                .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`);
+              const viewerFriendIds = (viewerFriends || []).map(f =>
+                f.user1_id === user.id ? f.user2_id : f.user1_id
+              );
+
+              const seenMutuals = new Set<string>();
+              for (const expert of secondDegreeExperts) {
+                const { data: expFriends } = await supabase
+                  .from('friendships')
+                  .select('user1_id, user2_id')
+                  .or(`user1_id.eq.${expert.profile_id},user2_id.eq.${expert.profile_id}`);
+                const expFriendIds = new Set(
+                  (expFriends || []).map(f =>
+                    f.user1_id === expert.profile_id ? f.user2_id : f.user1_id
+                  )
+                );
+                const mutualId = viewerFriendIds.find(id => expFriendIds.has(id));
+                if (!mutualId) continue;
+                const dedupeKey = `${mutualId}:${expert.profile_id}`;
+                if (seenMutuals.has(dedupeKey)) continue;
+                seenMutuals.add(dedupeKey);
+                notifications.push({
+                  user_id: mutualId,
+                  type: 'forward_suggestion',
+                  title: `${expert.full_name || 'Someone'} in your network might know about this`,
+                  message: `${creatorName} just asked about ${formData.title}. ${expert.full_name || 'Someone'} in your network has expertise in this — consider forwarding the request to them.`,
+                  related_user_id: user.id,
+                  metadata: {
+                    request_id: newRequest.id,
+                    expert_id: expert.profile_id,
+                    expert_name: expert.full_name,
+                  },
+                });
+              }
+            }
+          }
+        } catch (err) {
+          console.error('Forward suggestion generation failed:', err);
+        }
+      }
+
       // Insert all notifications
       if (notifications.length > 0) {
         console.log('\n🔄 Attempting to insert notifications into database...');
