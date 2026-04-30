@@ -899,7 +899,7 @@ export default function RequestsNew() {
                               </p>
                             )}
                             <div className="flex flex-wrap gap-2 pt-1">
-                              <Button type="button" variant="outline" size="sm" onClick={() => navigate(`/directory/${similarDirectoryList.id}`)}>
+                              <Button type="button" variant="outline" size="sm" onClick={() => window.open(`/directory/${similarDirectoryList.id}`, '_blank')}>
                                 View their list
                               </Button>
                               <Button type="button" variant="outline" size="sm" onClick={handleSendRequestToContributor}>
@@ -942,7 +942,7 @@ export default function RequestsNew() {
                                   </p>
                                 )}
                                 <div className="flex flex-wrap gap-2 pt-1">
-                                  <Button type="button" variant="outline" size="sm" onClick={() => navigate(`/directory/${similarDirectoryList.id}`)}>
+                                  <Button type="button" variant="outline" size="sm" onClick={() => window.open(`/directory/${similarDirectoryList.id}`, '_blank')}>
                                     View their list
                                   </Button>
                                   <Button type="button" variant="outline" size="sm" onClick={handleSendRequestToContributor}>
@@ -962,7 +962,7 @@ export default function RequestsNew() {
                                   "{similarDirectoryList.title}" — {similarDirectoryList.total_votes} {similarDirectoryList.total_votes === 1 ? "vote" : "votes"}
                                 </p>
                                 <div className="flex flex-wrap gap-2 pt-1">
-                                  <Button type="button" variant="outline" size="sm" onClick={() => navigate(`/directory/${similarDirectoryList.id}`)}>
+                                  <Button type="button" variant="outline" size="sm" onClick={() => window.open(`/directory/${similarDirectoryList.id}`, '_blank')}>
                                     View existing list
                                   </Button>
                                   <Button type="button" variant="ghost" size="sm" onClick={() => setDirectoryNudgeDismissed(true)}>

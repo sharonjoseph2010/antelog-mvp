@@ -334,7 +334,7 @@ export default function DirectoryListDetail() {
       <div className="min-h-screen bg-background">
         <div className="container mx-auto px-4 py-8 max-w-3xl">
           {/* Back */}
-          <Button variant="ghost" className="mb-4" onClick={() => navigate("/directory")}>
+          <Button variant="ghost" className="mb-4" onClick={() => navigate(-1)}>
             <ArrowLeft className="h-4 w-4 mr-2" /> Back to Directory
           </Button>
 
