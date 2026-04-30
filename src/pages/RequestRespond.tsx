@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate, Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -113,6 +113,9 @@ export default function RequestRespond() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
+  const suggestForwardTo = searchParams.get('suggest_forward_to');
+  const suggestExpertName = searchParams.get('expert_name');
   
   const [request, setRequest] = useState<Request | null>(null);
   const [responses, setResponses] = useState<RequestResponse[]>([]);
@@ -1347,6 +1350,24 @@ export default function RequestRespond() {
           </div>
           <Button variant="ghost" size="sm" onClick={() => setShowWelcomeBanner(false)}>
             <X className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
+      {/* Forward suggestion banner from notification */}
+      {suggestForwardTo && request && (
+        <div className="mb-6 p-4 rounded-lg border border-amber-500/40 bg-amber-500/10 flex items-center justify-between gap-4">
+          <div className="flex-1">
+            <p className="text-sm text-foreground">
+              {request.creator_profile?.full_name || 'Someone'} asked about this — {suggestExpertName || 'someone'} in your network is an expert.
+            </p>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => setShowForwardModal(true)}
+          >
+            Forward to {suggestExpertName ? suggestExpertName.split(' ')[0] : 'them'}
           </Button>
         </div>
       )}

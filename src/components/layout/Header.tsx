@@ -197,6 +197,16 @@ const Header = ({ isAuthenticated, isAdmin, userType, onLogout }: HeaderProps) =
       case 'request_forwarded':
       case 'new_request':
         return requestId ? `/requests/${requestId}/respond` : '/requests';
+      case 'forward_suggestion': {
+        if (!requestId) return '/requests';
+        const expertId = notification.metadata?.expert_id;
+        const expertName = notification.metadata?.expert_name;
+        const params = new URLSearchParams();
+        if (expertId) params.set('suggest_forward_to', expertId);
+        if (expertName) params.set('expert_name', expertName);
+        const qs = params.toString();
+        return `/requests/${requestId}/respond${qs ? `?${qs}` : ''}`;
+      }
       case 'contact_joined':
       case 'network_addition':
       case 'friend_suggestion':
