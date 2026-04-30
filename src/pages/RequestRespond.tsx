@@ -1353,6 +1353,24 @@ export default function RequestRespond() {
           </Button>
         </div>
       )}
+      {/* Forward suggestion banner from notification */}
+      {suggestForwardTo && request && (
+        <div className="mb-6 p-4 rounded-lg border border-amber-500/40 bg-amber-500/10 flex items-center justify-between gap-4">
+          <div className="flex-1">
+            <p className="text-sm text-foreground">
+              {request.creator_profile?.full_name || 'Someone'} asked about this — {suggestExpertName || 'someone'} in your network is an expert.
+            </p>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => setShowForwardModal(true)}
+          >
+            Forward to {suggestExpertName ? suggestExpertName.split(' ')[0] : 'them'}
+          </Button>
+        </div>
+      )}
       <div className="mb-6">
         <Button variant="ghost" asChild className="mb-4">
           <Link to="/requests" className="flex items-center gap-2">
