@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, ShieldCheck } from "lucide-react";
+import { Users, ShieldCheck, Sparkles } from "lucide-react";
 
 const Index = () => {
   const isStealthMode = import.meta.env.VITE_STEALTH_MODE === "true";
@@ -91,7 +91,7 @@ const Index = () => {
             <Card>
               <CardHeader>
                 <div className="mb-2 text-muted-foreground">
-                  <ShieldCheck className="h-5 w-5" aria-hidden />
+                  <Sparkles className="h-5 w-5" aria-hidden />
                 </div>
                 <CardTitle>Smart Discovery</CardTitle>
               </CardHeader>
