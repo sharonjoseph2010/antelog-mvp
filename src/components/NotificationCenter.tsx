@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Bell, Users, UserPlus, Check, MessageSquare, MessageCircle, ThumbsUp } from "lucide-react";
+import { Bell, Users, UserPlus, Check, MessageSquare, MessageCircle, ThumbsUp, Share2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { isInNetwork, getDisplayNameSync } from "@/hooks/useNetworkAwareName";
 
@@ -68,7 +68,7 @@ const getNotificationIcon = (type: string) => {
     case 'forwarded_request':
       return <MessageCircle className="h-4 w-4" />;
     case 'forward_suggestion':
-      return <MessageCircle className="h-4 w-4" />;
+      return <Share2 className="h-4 w-4" />;
     case 'recommendation_voted':
       return <ThumbsUp className="h-4 w-4" />;
     default:
