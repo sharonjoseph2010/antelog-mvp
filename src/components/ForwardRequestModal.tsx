@@ -38,6 +38,7 @@ interface ForwardRequestModalProps {
   requestCreatorId: string;
   existingNetworkPath?: NetworkPath[];
   onForwardComplete?: () => void;
+  preselectedFriendIds?: string[];
 }
 
 export function ForwardRequestModal({
@@ -48,7 +49,8 @@ export function ForwardRequestModal({
   requestCreatorName,
   requestCreatorId,
   existingNetworkPath = [],
-  onForwardComplete
+  onForwardComplete,
+  preselectedFriendIds,
 }: ForwardRequestModalProps) {
   const { toast } = useToast();
   const [friends, setFriends] = useState<Friend[]>([]);
@@ -59,8 +61,11 @@ export function ForwardRequestModal({
   useEffect(() => {
     if (open) {
       loadFriends();
+      if (preselectedFriendIds && preselectedFriendIds.length > 0) {
+        setSelectedFriendIds(preselectedFriendIds);
+      }
     }
-  }, [open]);
+  }, [open, preselectedFriendIds]);
 
   const loadFriends = async () => {
     try {
