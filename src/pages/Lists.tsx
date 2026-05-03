@@ -451,31 +451,15 @@ const Lists = () => {
           {confirmStep === 1 && (
             <div className="space-y-4 py-2">
               <div className="space-y-2">
-                <Label>List title</Label>
+                <Label>Your list</Label>
                 <Input
                   value={data?.find((l) => l.id === confirmListId)?.title ?? ""}
                   readOnly
                   disabled
                 />
-                <p className="text-xs text-muted-foreground">Title can't be changed after publishing</p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="publish-category">Category</Label>
-                <Select
-                  value={confirmCategory}
-                  onValueChange={(val) => setConfirmCategory(val as ListCategory)}
-                >
-                  <SelectTrigger id="publish-category">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CATEGORY_OPTIONS.map((cat) => (
-                      <SelectItem key={cat} value={cat}>
-                        {cat.charAt(0).toUpperCase() + cat.slice(1)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Your list will be published as a standardized Master Directory entry. We'll generate a clean public title in the next step.
+                </p>
               </div>
             </div>
           )}
@@ -483,25 +467,59 @@ const Lists = () => {
           {confirmStep === 2 && (
             <div className="space-y-4 py-2">
               <div className="space-y-2">
-                <Label htmlFor="publish-geography">Where does this apply? (optional)</Label>
+                <Label htmlFor="publish-entity">What is this list about?</Label>
                 <Input
-                  id="publish-geography"
-                  value={confirmGeography}
-                  onChange={(e) => setConfirmGeography(e.target.value)}
-                  placeholder="e.g. Indiranagar, Bengaluru / Pan India / Online"
+                  id="publish-entity"
+                  value={entityInput}
+                  onChange={(e) => setEntityInput(e.target.value)}
+                  placeholder="e.g. cafes, films, schools, products"
                 />
-                <p className="text-xs text-muted-foreground">Leave blank if location doesn't matter</p>
+                {resolving && (
+                  <p className="text-xs text-muted-foreground">Checking…</p>
+                )}
+                {resolvedEntity && resolvedEntity.preferred_term.toLowerCase() !== entityInput.trim().toLowerCase() && (
+                  <button
+                    type="button"
+                    onClick={() => setEntityInput(resolvedEntity.preferred_term)}
+                    className="text-xs inline-flex items-center gap-1 rounded-full border border-input bg-muted/50 px-2 py-1 hover:bg-muted"
+                  >
+                    We'll use "{resolvedEntity.plural_term}" → preferred term
+                  </button>
+                )}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="publish-usecase">Any specific filter? (optional)</Label>
+                <Label htmlFor="publish-geography">Location (optional)</Label>
+                <Input
+                  id="publish-geography"
+                  value={displayGeography}
+                  onChange={(e) => setDisplayGeography(e.target.value)}
+                  placeholder="e.g. Indiranagar, Bengaluru / Pan India / Online"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="publish-usecase">Specific use case (optional)</Label>
                 <Input
                   id="publish-usecase"
-                  value={confirmUseCase}
-                  onChange={(e) => setConfirmUseCase(e.target.value)}
-                  placeholder="e.g. under ₹15000 / pet-friendly / vegetarian"
+                  value={useCase}
+                  onChange={(e) => setUseCase(e.target.value)}
+                  placeholder="e.g. pet-friendly / remote work / for families"
                 />
-                <p className="text-xs text-muted-foreground">Helps distinguish from similar lists</p>
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="publish-hardfilter">Hard filter (optional)</Label>
+                <Input
+                  id="publish-hardfilter"
+                  value={hardFilter}
+                  onChange={(e) => setHardFilter(e.target.value)}
+                  placeholder="e.g. under ₹15,000 / open after 10pm"
+                />
+              </div>
+              {livePreview && (
+                <div className="rounded-md border border-input bg-muted/30 p-3 space-y-1">
+                  <p className="text-xs text-muted-foreground">Your list will appear as:</p>
+                  <p className="text-sm font-medium">{livePreview}</p>
+                </div>
+              )}
             </div>
           )}
 
@@ -510,22 +528,36 @@ const Lists = () => {
               {signatureMatch ? (
                 <div className="rounded-md border border-destructive/40 bg-destructive/10 p-4 space-y-2">
                   <p className="text-sm font-medium">
-                    An identical list already exists in the Directory. View it to contribute instead.
+                    This list already exists in the Master Directory
                   </p>
-                  <p className="text-sm text-muted-foreground">{signatureMatch.title}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {signatureMatch.canonical_title || signatureMatch.title}
+                  </p>
                 </div>
               ) : (
-                <div className="rounded-md border border-input p-4 space-y-2 text-sm">
-                  <p className="font-medium">Ready to publish</p>
-                  <p><span className="text-muted-foreground">Title: </span>{data?.find((l) => l.id === confirmListId)?.title}</p>
-                  <p><span className="text-muted-foreground">Category: </span>{confirmCategory}</p>
-                  {confirmGeography.trim() && (
-                    <p><span className="text-muted-foreground">Geography: </span>{confirmGeography}</p>
+                <>
+                  <div className="rounded-md border border-input p-4 space-y-3 text-sm">
+                    <p className="font-medium">Ready to publish</p>
+                    <p className="text-base font-semibold">{livePreview}</p>
+                    <div className="space-y-1 pt-2 border-t border-input/50">
+                      <p><span className="text-muted-foreground">Source title: </span>{data?.find((l) => l.id === confirmListId)?.title}</p>
+                      {displayGeography.trim() && (
+                        <p><span className="text-muted-foreground">Geography: </span>{displayGeography}</p>
+                      )}
+                      {useCase.trim() && (
+                        <p><span className="text-muted-foreground">Use case: </span>{useCase}</p>
+                      )}
+                      {hardFilter.trim() && (
+                        <p><span className="text-muted-foreground">Hard filter: </span>{hardFilter}</p>
+                      )}
+                    </div>
+                  </div>
+                  {tooSpecificWarning && (
+                    <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+                      This may be too specific for the Master Directory. Consider publishing it only in your network, or broadening the scope.
+                    </div>
                   )}
-                  {confirmUseCase.trim() && (
-                    <p><span className="text-muted-foreground">Filter: </span>{confirmUseCase}</p>
-                  )}
-                </div>
+                </>
               )}
             </div>
           )}
