@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { CheckCircle, Globe, Loader2 } from "lucide-react";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -99,6 +100,17 @@ const Lists = () => {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [confirmListId, setConfirmListId] = useState<string | null>(null);
   const [confirmCategory, setConfirmCategory] = useState<ListCategory>("other");
+  const [confirmStep, setConfirmStep] = useState<1 | 2 | 3>(1);
+  const [confirmGeography, setConfirmGeography] = useState("");
+  const [confirmUseCase, setConfirmUseCase] = useState("");
+  const [signatureMatch, setSignatureMatch] = useState<{ id: string; title: string } | null>(null);
+  const [checkingSignature, setCheckingSignature] = useState(false);
+
+  const normalizeForSig = (s: string) =>
+    s.trim().toLowerCase().replace(/\s+/g, "_");
+
+  const buildSignature = (cat: string, title: string, geo: string, use: string) =>
+    `${cat}|${normalizeForSig(title)}|${normalizeForSig(geo)}|${normalizeForSig(use)}`;
 
   if (error) {
     toast({ title: "Failed to load lists", description: (error as Error).message });
@@ -109,12 +121,45 @@ const Lists = () => {
     if (!list) return;
     setConfirmListId(listId);
     setConfirmCategory(list.category);
+    setConfirmStep(1);
+    setConfirmGeography("");
+    setConfirmUseCase("");
+    setSignatureMatch(null);
     setShowConfirmDialog(true);
+  };
+
+  const resetConfirmDialog = () => {
+    setShowConfirmDialog(false);
+    setConfirmListId(null);
+    setConfirmStep(1);
+    setConfirmGeography("");
+    setConfirmUseCase("");
+    setSignatureMatch(null);
+  };
+
+  const handleStepNext = async () => {
+    if (confirmStep === 1) {
+      setConfirmStep(2);
+      return;
+    }
+    if (confirmStep === 2) {
+      const list = data?.find((l) => l.id === confirmListId);
+      if (!list) return;
+      setCheckingSignature(true);
+      const sig = buildSignature(confirmCategory, list.title, confirmGeography, confirmUseCase);
+      const { data: match } = await supabase
+        .from("master_directory_lists")
+        .select("id, title")
+        .eq("canonical_signature", sig)
+        .maybeSingle();
+      setCheckingSignature(false);
+      setSignatureMatch(match ?? null);
+      setConfirmStep(3);
+    }
   };
 
   const handleConfirmPublish = async () => {
     if (!confirmListId) return;
-    setShowConfirmDialog(false);
     setPublishingListId(confirmListId);
 
     const list = data?.find((l) => l.id === confirmListId);
@@ -141,11 +186,15 @@ const Lists = () => {
       if (similar && similar.length > 0) {
         setDuplicateMatch(similar[0] as any);
         setShowMergeDialog(true);
+        setShowConfirmDialog(false);
         return;
       }
 
       // No duplicate — create new directory list
       const normalized = list.title.trim().toLowerCase().replace(/\s+/g, " ");
+      const sig = buildSignature(confirmCategory, list.title, confirmGeography, confirmUseCase);
+      const geoVal = confirmGeography.trim() || null;
+      const useVal = confirmUseCase.trim() || null;
       const { data: newDirList, error: createErr } = await supabase
         .from("master_directory_lists")
         .insert({
@@ -153,6 +202,10 @@ const Lists = () => {
           title_normalized: normalized,
           category: confirmCategory,
           original_contributor_id: userRes.user.id,
+          geography: geoVal,
+          use_case: useVal,
+          canonical_signature: sig,
+          canonical_query: `${list.title} ${confirmGeography} ${confirmUseCase}`.trim(),
         })
         .select()
         .single();
@@ -200,6 +253,7 @@ const Lists = () => {
         description: "Your list is now live in the Master Directory!",
       });
       queryClient.invalidateQueries({ queryKey: ["my-lists"] });
+      resetConfirmDialog();
     } catch (err: any) {
       toast({ title: "Publish failed", description: err.message, variant: "destructive" });
     } finally {
@@ -308,49 +362,127 @@ const Lists = () => {
 
       {/* Confirm Publish Dialog */}
       <Dialog open={showConfirmDialog} onOpenChange={(open) => {
-        setShowConfirmDialog(open);
-        if (!open) setConfirmListId(null);
+        if (!open) resetConfirmDialog();
+        else setShowConfirmDialog(open);
       }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Publish to Directory</DialogTitle>
             <DialogDescription>
-              Make sure your category is correct — this helps others find your list
+              Step {confirmStep} of 3
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-3 py-2">
-            <Label htmlFor="publish-category">Category</Label>
-            <Select
-              value={confirmCategory}
-              onValueChange={(val) => setConfirmCategory(val as ListCategory)}
-            >
-              <SelectTrigger id="publish-category">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {CATEGORY_OPTIONS.map((cat) => (
-                  <SelectItem key={cat} value={cat}>
-                    {cat.charAt(0).toUpperCase() + cat.slice(1)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {confirmStep === 1 && (
+            <div className="space-y-4 py-2">
+              <div className="space-y-2">
+                <Label>List title</Label>
+                <Input
+                  value={data?.find((l) => l.id === confirmListId)?.title ?? ""}
+                  readOnly
+                  disabled
+                />
+                <p className="text-xs text-muted-foreground">Title can't be changed after publishing</p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="publish-category">Category</Label>
+                <Select
+                  value={confirmCategory}
+                  onValueChange={(val) => setConfirmCategory(val as ListCategory)}
+                >
+                  <SelectTrigger id="publish-category">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CATEGORY_OPTIONS.map((cat) => (
+                      <SelectItem key={cat} value={cat}>
+                        {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
 
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowConfirmDialog(false);
-                setConfirmListId(null);
-              }}
-            >
+          {confirmStep === 2 && (
+            <div className="space-y-4 py-2">
+              <div className="space-y-2">
+                <Label htmlFor="publish-geography">Where does this apply? (optional)</Label>
+                <Input
+                  id="publish-geography"
+                  value={confirmGeography}
+                  onChange={(e) => setConfirmGeography(e.target.value)}
+                  placeholder="e.g. Indiranagar, Bengaluru / Pan India / Online"
+                />
+                <p className="text-xs text-muted-foreground">Leave blank if location doesn't matter</p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="publish-usecase">Any specific filter? (optional)</Label>
+                <Input
+                  id="publish-usecase"
+                  value={confirmUseCase}
+                  onChange={(e) => setConfirmUseCase(e.target.value)}
+                  placeholder="e.g. under ₹15000 / pet-friendly / vegetarian"
+                />
+                <p className="text-xs text-muted-foreground">Helps distinguish from similar lists</p>
+              </div>
+            </div>
+          )}
+
+          {confirmStep === 3 && (
+            <div className="space-y-4 py-2">
+              {signatureMatch ? (
+                <div className="rounded-md border border-destructive/40 bg-destructive/10 p-4 space-y-2">
+                  <p className="text-sm font-medium">
+                    An identical list already exists in the Directory. View it to contribute instead.
+                  </p>
+                  <p className="text-sm text-muted-foreground">{signatureMatch.title}</p>
+                </div>
+              ) : (
+                <div className="rounded-md border border-input p-4 space-y-2 text-sm">
+                  <p className="font-medium">Ready to publish</p>
+                  <p><span className="text-muted-foreground">Title: </span>{data?.find((l) => l.id === confirmListId)?.title}</p>
+                  <p><span className="text-muted-foreground">Category: </span>{confirmCategory}</p>
+                  {confirmGeography.trim() && (
+                    <p><span className="text-muted-foreground">Geography: </span>{confirmGeography}</p>
+                  )}
+                  {confirmUseCase.trim() && (
+                    <p><span className="text-muted-foreground">Filter: </span>{confirmUseCase}</p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter className="gap-2 sm:gap-2">
+            {confirmStep > 1 && (
+              <Button
+                variant="outline"
+                onClick={() => setConfirmStep((s) => (s === 3 ? 2 : 1))}
+                disabled={publishingListId !== null || checkingSignature}
+              >
+                Back
+              </Button>
+            )}
+            <Button variant="outline" onClick={resetConfirmDialog}>
               Cancel
             </Button>
-            <Button onClick={handleConfirmPublish}>
-              Confirm &amp; Publish
-            </Button>
+            {confirmStep < 3 && (
+              <Button onClick={handleStepNext} disabled={checkingSignature}>
+                {checkingSignature ? <><Loader2 className="h-3 w-3 animate-spin mr-1" />Checking…</> : "Next"}
+              </Button>
+            )}
+            {confirmStep === 3 && signatureMatch && (
+              <Button onClick={() => { window.open(`/directory/${signatureMatch.id}`, '_blank'); }}>
+                View existing list
+              </Button>
+            )}
+            {confirmStep === 3 && !signatureMatch && (
+              <Button onClick={handleConfirmPublish} disabled={publishingListId !== null}>
+                {publishingListId ? <><Loader2 className="h-3 w-3 animate-spin mr-1" />Publishing…</> : "Confirm & Publish"}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
