@@ -1838,6 +1838,24 @@ export default function RequestRespond() {
       )}
 
       {/* Response Section - Conditional UI based on user's response status */}
+      {forwardSuggestion && !isOwnRequest && (
+        <div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 p-4">
+          <p className="text-sm text-amber-900 dark:text-amber-200">
+            <span className="mr-1">💡</span>
+            <span className="font-medium">{forwardSuggestion.expert_name}</span> in your network has expertise in this topic. Consider forwarding this request to them.
+          </p>
+          <div className="mt-3">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowForwardModal(true)}
+            >
+              <Share2 className="h-4 w-4 mr-2" />
+              Forward to {forwardSuggestion.expert_name}
+            </Button>
+          </div>
+        </div>
+      )}
       {isOwnRequest ? (
         <Card className="mb-8 border-muted">
           <CardContent className="py-8">
