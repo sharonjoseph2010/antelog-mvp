@@ -2323,6 +2323,7 @@ export default function RequestRespond() {
           requestCreatorName={request.creator_profile?.full_name || 'Unknown'}
           requestCreatorId={request.creator_id}
           existingNetworkPath={request.network_path}
+          preselectedFriendIds={forwardSuggestion ? [forwardSuggestion.expert_id] : undefined}
           onForwardComplete={() => {
             loadRequestData();
             toast({
