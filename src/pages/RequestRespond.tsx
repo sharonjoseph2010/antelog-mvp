@@ -232,6 +232,35 @@ export default function RequestRespond() {
     }
   }, [id]);
 
+  // Load forward_suggestion notification for this user + request
+  useEffect(() => {
+    if (!id) return;
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase
+        .from('notifications')
+        .select('metadata')
+        .eq('user_id', user.id)
+        .eq('type', 'forward_suggestion')
+        .eq('metadata->>request_id', id)
+        .maybeSingle();
+      const meta: any = data?.metadata;
+      if (meta?.expert_id) {
+        // Fall back to suggest_forward_to query param values too
+        setForwardSuggestion({
+          expert_id: meta.expert_id,
+          expert_name: meta.expert_name || suggestExpertName || 'an expert',
+        });
+      } else if (suggestForwardTo) {
+        setForwardSuggestion({
+          expert_id: suggestForwardTo,
+          expert_name: suggestExpertName || 'an expert',
+        });
+      }
+    })();
+  }, [id, suggestForwardTo, suggestExpertName]);
+
   const loadRequestData = async () => {
     setIsLoading(true);
     try {
