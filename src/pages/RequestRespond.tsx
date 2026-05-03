@@ -124,6 +124,7 @@ export default function RequestRespond() {
   const [showForwardModal, setShowForwardModal] = useState(false);
   const [canForward, setCanForward] = useState(false);
   const [hasForwarded, setHasForwarded] = useState(false);
+  const [forwardSuggestion, setForwardSuggestion] = useState<{ expert_id: string; expert_name: string } | null>(null);
   const [isOwnRequest, setIsOwnRequest] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isClosingRequest, setIsClosingRequest] = useState(false);
