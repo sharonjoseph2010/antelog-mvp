@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Helmet } from "react-helmet-async";
 import { Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -115,7 +115,7 @@ const Lists = () => {
   const [tooSpecificWarning, setTooSpecificWarning] = useState(false);
 
   // Resolve preferred term as user types (debounced)
-  React.useEffect(() => {
+  useEffect(() => {
     if (!entityInput.trim() || confirmStep !== 2) {
       setResolvedEntity(null);
       return;
@@ -134,7 +134,7 @@ const Lists = () => {
   }, [entityInput, confirmStep]);
 
   // Live title preview
-  React.useEffect(() => {
+  useEffect(() => {
     if (confirmStep !== 2) return;
     const entity = resolvedEntity?.preferred_term || entityInput.trim();
     const plural = resolvedEntity?.plural_term || (entity ? `${entity}s` : "");
