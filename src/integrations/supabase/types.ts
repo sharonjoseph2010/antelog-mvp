@@ -182,6 +182,33 @@ export type Database = {
         }
         Relationships: []
       }
+      directory_preferred_terms: {
+        Row: {
+          aliases: Json | null
+          category_group: string
+          created_at: string | null
+          id: string
+          plural_term: string
+          preferred_term: string
+        }
+        Insert: {
+          aliases?: Json | null
+          category_group: string
+          created_at?: string | null
+          id?: string
+          plural_term: string
+          preferred_term: string
+        }
+        Update: {
+          aliases?: Json | null
+          category_group?: string
+          created_at?: string | null
+          id?: string
+          plural_term?: string
+          preferred_term?: string
+        }
+        Relationships: []
+      }
       directory_votes: {
         Row: {
           created_at: string
@@ -655,17 +682,28 @@ export type Database = {
       }
       master_directory_lists: {
         Row: {
+          aliases: Json | null
           canonical_query: string | null
           canonical_signature: string | null
+          canonical_title: string | null
           category: string
+          category_group: string | null
           contributor_count: number | null
           created_at: string | null
+          display_geography: string | null
           domain: string | null
+          entity_type: string | null
           facets: Json | null
           geography: string | null
           hard_filter: string | null
           id: string
+          legacy_migrated: boolean | null
+          normalized_geography: string | null
           original_contributor_id: string | null
+          ranking_lens: string | null
+          source_title: string | null
+          status: string | null
+          temporal_scope: string | null
           title: string
           title_normalized: string
           total_votes: number | null
@@ -673,17 +711,28 @@ export type Database = {
           use_case: string | null
         }
         Insert: {
+          aliases?: Json | null
           canonical_query?: string | null
           canonical_signature?: string | null
+          canonical_title?: string | null
           category?: string
+          category_group?: string | null
           contributor_count?: number | null
           created_at?: string | null
+          display_geography?: string | null
           domain?: string | null
+          entity_type?: string | null
           facets?: Json | null
           geography?: string | null
           hard_filter?: string | null
           id?: string
+          legacy_migrated?: boolean | null
+          normalized_geography?: string | null
           original_contributor_id?: string | null
+          ranking_lens?: string | null
+          source_title?: string | null
+          status?: string | null
+          temporal_scope?: string | null
           title: string
           title_normalized: string
           total_votes?: number | null
@@ -691,17 +740,28 @@ export type Database = {
           use_case?: string | null
         }
         Update: {
+          aliases?: Json | null
           canonical_query?: string | null
           canonical_signature?: string | null
+          canonical_title?: string | null
           category?: string
+          category_group?: string | null
           contributor_count?: number | null
           created_at?: string | null
+          display_geography?: string | null
           domain?: string | null
+          entity_type?: string | null
           facets?: Json | null
           geography?: string | null
           hard_filter?: string | null
           id?: string
+          legacy_migrated?: boolean | null
+          normalized_geography?: string | null
           original_contributor_id?: string | null
+          ranking_lens?: string | null
+          source_title?: string | null
+          status?: string | null
+          temporal_scope?: string | null
           title?: string
           title_normalized?: string
           total_votes?: number | null
@@ -1423,6 +1483,27 @@ export type Database = {
         Args: { user_id_to_delete: string }
         Returns: undefined
       }
+      build_canonical_signature: {
+        Args: {
+          p_entity_type: string
+          p_geography?: string
+          p_hard_filter?: string
+          p_ranking_lens?: string
+          p_temporal_scope?: string
+          p_use_case?: string
+        }
+        Returns: string
+      }
+      build_canonical_title: {
+        Args: {
+          p_entity_type: string
+          p_geography?: string
+          p_hard_filter?: string
+          p_plural_term?: string
+          p_use_case?: string
+        }
+        Returns: string
+      }
       calculate_request_relevance: {
         Args: { request_id_param: string; user_id_param: string }
         Returns: number
@@ -1594,12 +1675,21 @@ export type Database = {
         Returns: number
       }
       normalize_directory_text: { Args: { input: string }; Returns: string }
+      normalize_for_canonical: { Args: { input: string }; Returns: string }
       normalize_phone_number: { Args: { phone_input: string }; Returns: string }
       refresh_contact_matches: {
         Args: { user_id_param?: string }
         Returns: Json
       }
       refresh_master_directory: { Args: never; Returns: undefined }
+      resolve_preferred_term: {
+        Args: { input: string }
+        Returns: {
+          category_group: string
+          plural_term: string
+          preferred_term: string
+        }[]
+      }
       search_directory_pool_items: {
         Args: { p_list_id: string; p_query: string; p_threshold?: number }
         Returns: {
