@@ -124,6 +124,7 @@ export default function RequestRespond() {
   const [showForwardModal, setShowForwardModal] = useState(false);
   const [canForward, setCanForward] = useState(false);
   const [hasForwarded, setHasForwarded] = useState(false);
+  const [forwardSuggestion, setForwardSuggestion] = useState<{ expert_id: string; expert_name: string } | null>(null);
   const [isOwnRequest, setIsOwnRequest] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isClosingRequest, setIsClosingRequest] = useState(false);
@@ -230,6 +231,35 @@ export default function RequestRespond() {
       loadExistingShareLinks();
     }
   }, [id]);
+
+  // Load forward_suggestion notification for this user + request
+  useEffect(() => {
+    if (!id) return;
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase
+        .from('notifications')
+        .select('metadata')
+        .eq('user_id', user.id)
+        .eq('type', 'forward_suggestion')
+        .eq('metadata->>request_id', id)
+        .maybeSingle();
+      const meta: any = data?.metadata;
+      if (meta?.expert_id) {
+        // Fall back to suggest_forward_to query param values too
+        setForwardSuggestion({
+          expert_id: meta.expert_id,
+          expert_name: meta.expert_name || suggestExpertName || 'an expert',
+        });
+      } else if (suggestForwardTo) {
+        setForwardSuggestion({
+          expert_id: suggestForwardTo,
+          expert_name: suggestExpertName || 'an expert',
+        });
+      }
+    })();
+  }, [id, suggestForwardTo, suggestExpertName]);
 
   const loadRequestData = async () => {
     setIsLoading(true);
@@ -1808,6 +1838,24 @@ export default function RequestRespond() {
       )}
 
       {/* Response Section - Conditional UI based on user's response status */}
+      {forwardSuggestion && !isOwnRequest && (
+        <div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 p-4">
+          <p className="text-sm text-amber-900 dark:text-amber-200">
+            <span className="mr-1">💡</span>
+            <span className="font-medium">{forwardSuggestion.expert_name}</span> in your network has expertise in this topic. Consider forwarding this request to them.
+          </p>
+          <div className="mt-3">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowForwardModal(true)}
+            >
+              <Share2 className="h-4 w-4 mr-2" />
+              Forward to {forwardSuggestion.expert_name}
+            </Button>
+          </div>
+        </div>
+      )}
       {isOwnRequest ? (
         <Card className="mb-8 border-muted">
           <CardContent className="py-8">
@@ -2275,6 +2323,7 @@ export default function RequestRespond() {
           requestCreatorName={request.creator_profile?.full_name || 'Unknown'}
           requestCreatorId={request.creator_id}
           existingNetworkPath={request.network_path}
+          preselectedFriendIds={forwardSuggestion ? [forwardSuggestion.expert_id] : undefined}
           onForwardComplete={() => {
             loadRequestData();
             toast({
