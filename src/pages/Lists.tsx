@@ -18,16 +18,7 @@ import {
 import { CheckCircle, Globe, Loader2 } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import type { Database } from "@/integrations/supabase/types";
-
-const CATEGORY_OPTIONS: ListCategory[] = ["films", "places", "products", "services", "other"];
 
 type ListCategory = Database["public"]["Enums"]["list_category"];
 
