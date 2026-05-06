@@ -1570,10 +1570,24 @@ export type Database = {
         }
         Returns: undefined
       }
-      estimate_anonymous_expertise_reach: {
-        Args: { p_category: string; p_keywords?: string[]; p_location: string }
-        Returns: number
-      }
+      estimate_anonymous_expertise_reach:
+        | {
+            Args: {
+              p_category: string
+              p_keywords?: string[]
+              p_location: string
+            }
+            Returns: number
+          }
+        | {
+            Args: {
+              p_category: string
+              p_keywords?: string[]
+              p_location: string
+              p_title?: string
+            }
+            Returns: number
+          }
       find_network_experts: {
         Args: { query_domains: string[]; viewer_id: string }
         Returns: {
