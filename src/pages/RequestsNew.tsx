@@ -27,7 +27,7 @@ const requestSchema = z.object({
   title: z.string().trim().min(10, "Request must be at least 10 characters").max(500, "Request must be less than 500 characters"),
   category: z.enum(['films', 'places', 'products', 'services', 'other']),
   location: z.string().trim().max(100, "Location must be less than 100 characters").optional(),
-  audience_types: z.array(z.enum(['first_network', 'group', 'specific_people', 'public', 'anonymous_expertise'])).min(1, "Select at least one audience"),
+  audience_types: z.array(z.enum(['first_network', 'group', 'specific_people', 'anonymous_expertise'])).min(1, "Select at least one audience"),
   group_id: z.string().optional(),
   selected_users: z.array(z.string()).optional(),
   allow_forwarding: z.boolean()
@@ -69,7 +69,7 @@ export default function RequestsNew() {
     title: '',
     category: '' as 'films' | 'places' | 'products' | 'services' | 'other',
     location: '',
-    audience_types: [] as Array<'first_network' | 'group' | 'specific_people' | 'public' | 'anonymous_expertise'>,
+    audience_types: [] as Array<'first_network' | 'group' | 'specific_people' | 'anonymous_expertise'>,
     group_id: '',
     allow_forwarding: false,
     selected_users: [] as string[]
@@ -299,7 +299,7 @@ export default function RequestsNew() {
     }
   };
 
-  const toggleAudienceType = (type: 'first_network' | 'group' | 'specific_people' | 'public' | 'anonymous_expertise') => {
+  const toggleAudienceType = (type: 'first_network' | 'group' | 'specific_people' | 'anonymous_expertise') => {
     setFormData(prev => ({
       ...prev,
       audience_types: prev.audience_types.includes(type)
@@ -487,9 +487,9 @@ export default function RequestsNew() {
         allow_forwarding: formData.allow_forwarding
       });
 
-      // Set allow_forwarding to false if only public is selected
-      const allowForwarding = formData.audience_types.length === 1 && formData.audience_types[0] === 'public' 
-        ? false 
+      // Disable forwarding for anonymous-only requests
+      const allowForwarding = formData.audience_types.length === 1 && formData.audience_types[0] === 'anonymous_expertise'
+        ? false
         : formData.allow_forwarding;
 
       console.log('Creating request with allow_forwarding:', allowForwarding);
@@ -798,18 +798,10 @@ export default function RequestsNew() {
       showForwarding: true
     },
     {
-      value: 'public' as const,
-      label: 'Public (Anonymous)',
-      description: 'Share publicly with anonymous identity via AI matching',
-      helperText: 'Your request will appear in the Master Directory. Your identity remains anonymous to users outside your network.',
-      icon: Globe,
-      showForwarding: false
-    },
-    {
       value: 'anonymous_expertise' as const,
       label: 'Relevant anonymous contributors',
-      description: 'Your request may be shown anonymously to people with relevant expertise or interests.',
-      helperText: 'Selectively routed to a small number of relevant strangers. Not publicly broadcast or searchable. They cannot forward your request.',
+      description: 'Your request may be selectively shown to people with relevant expertise or interests.',
+      helperText: 'Requests are routed privately to a small number of relevant contributors. They are not publicly broadcast or searchable.',
       icon: Sparkles,
       showForwarding: false
     }
@@ -826,9 +818,6 @@ export default function RequestsNew() {
     }
     if (formData.audience_types.includes('specific_people')) {
       count += formData.selected_users.length;
-    }
-    if (formData.audience_types.includes('public')) {
-      count += totalUsersCount;
     }
     return count;
   };
