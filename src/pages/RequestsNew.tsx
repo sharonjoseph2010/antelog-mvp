@@ -92,12 +92,13 @@ export default function RequestsNew() {
           p_category: formData.category || null,
           p_location: formData.location || null,
           p_keywords: null,
+          p_title: formData.title || null,
         });
         if (!error) setAnonReach((data as number) ?? 0);
       } catch { /* ignore */ }
     }, 400);
     return () => clearTimeout(timer);
-  }, [formData.audience_types, formData.category, formData.location]);
+  }, [formData.audience_types, formData.category, formData.location, formData.title]);
 
   // Nudge 1: debounced check for similar lists in Master Directory
   useEffect(() => {
