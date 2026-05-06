@@ -257,10 +257,10 @@ export default function RequestEdit() {
       showForwarding: true
     },
     {
-      value: 'public' as const,
-      label: 'Public (Anonymous)',
-      description: 'Share publicly with anonymous identity via AI matching',
-      helperText: 'Your request will appear in the Master Directory. Your identity remains anonymous to users outside your network.',
+      value: 'anonymous_expertise' as const,
+      label: 'Relevant anonymous contributors',
+      description: 'Your request may be selectively shown to people with relevant expertise or interests.',
+      helperText: 'Requests are routed privately to a small number of relevant contributors. They are not publicly broadcast or searchable.',
       icon: Globe,
       showForwarding: false
     }
