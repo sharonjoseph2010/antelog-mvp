@@ -25,7 +25,7 @@ const requestSchema = z.object({
   title: z.string().trim().min(10, "Request must be at least 10 characters").max(500, "Request must be less than 500 characters"),
   category: z.enum(['films', 'places', 'products', 'services', 'other']),
   location: z.string().trim().max(100, "Location must be less than 100 characters").optional(),
-  audience_types: z.array(z.enum(['first_network', 'group', 'specific_people', 'public'])).min(1, "Select at least one audience"),
+  audience_types: z.array(z.enum(['first_network', 'group', 'specific_people', 'anonymous_expertise'])).min(1, "Select at least one audience"),
   group_id: z.string().optional(),
   selected_users: z.array(z.string()).optional(),
   allow_forwarding: z.boolean()
@@ -43,7 +43,7 @@ export default function RequestEdit() {
     title: '',
     category: '' as 'films' | 'places' | 'products' | 'services' | 'other',
     location: '',
-    audience_types: [] as Array<'first_network' | 'group' | 'specific_people' | 'public'>,
+    audience_types: [] as Array<'first_network' | 'group' | 'specific_people' | 'anonymous_expertise'>,
     group_id: '',
     allow_forwarding: false,
     selected_users: [] as string[]
@@ -84,7 +84,7 @@ export default function RequestEdit() {
         title: data.title,
         category: data.category,
         location: data.location || '',
-        audience_types: (data.audience_types || [data.audience_type]) as Array<'first_network' | 'group' | 'specific_people' | 'public'>,
+        audience_types: (data.audience_types || [data.audience_type]) as Array<'first_network' | 'group' | 'specific_people' | 'anonymous_expertise'>,
         group_id: data.group_id || '',
         allow_forwarding: data.allow_forwarding || false,
         selected_users: data.selected_users || []
@@ -131,7 +131,7 @@ export default function RequestEdit() {
     }
   };
 
-  const toggleAudienceType = (type: 'first_network' | 'group' | 'specific_people' | 'public') => {
+  const toggleAudienceType = (type: 'first_network' | 'group' | 'specific_people' | 'anonymous_expertise') => {
     setFormData(prev => ({
       ...prev,
       audience_types: prev.audience_types.includes(type)
