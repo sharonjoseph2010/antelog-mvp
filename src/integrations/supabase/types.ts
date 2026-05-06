@@ -1548,6 +1548,10 @@ export type Database = {
         Returns: number
       }
       cleanup_expired_contacts: { Args: never; Returns: undefined }
+      debug_anonymous_match: {
+        Args: { p_request_id: string; p_uid?: string }
+        Returns: Json
+      }
       debug_phone_match: {
         Args: { contact_phone_input: string; profile_phone_input: string }
         Returns: {
@@ -1746,6 +1750,7 @@ export type Database = {
       normalize_directory_text: { Args: { input: string }; Returns: string }
       normalize_for_canonical: { Args: { input: string }; Returns: string }
       normalize_phone_number: { Args: { phone_input: string }; Returns: string }
+      normalize_token: { Args: { t: string }; Returns: string }
       refresh_contact_matches: {
         Args: { user_id_param?: string }
         Returns: Json
@@ -1792,6 +1797,7 @@ export type Database = {
         Args: { p_list_id: string; p_new_category: string; p_new_title: string }
         Returns: undefined
       }
+      tokenize_text: { Args: { t: string }; Returns: string[] }
       update_guest_recommendation_merge: {
         Args: {
           _guest_contribution_id: string
@@ -1806,10 +1812,12 @@ export type Database = {
         Args: { user_id_input: string }
         Returns: number
       }
+      user_expertise_tokens: { Args: { p_uid: string }; Returns: string[] }
       user_in_direct_audience: {
         Args: { p_request_id: string; p_uid: string }
         Returns: boolean
       }
+      user_location_tokens: { Args: { p_uid: string }; Returns: string[] }
       validate_authenticated_user: { Args: never; Returns: boolean }
     }
     Enums: {
