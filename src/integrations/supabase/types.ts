@@ -987,6 +987,30 @@ export type Database = {
         }
         Relationships: []
       }
+      request_anonymous_impressions: {
+        Row: {
+          dismissed_at: string | null
+          recipient_id: string
+          request_id: string
+          responded: boolean
+          surfaced_at: string
+        }
+        Insert: {
+          dismissed_at?: string | null
+          recipient_id: string
+          request_id: string
+          responded?: boolean
+          surfaced_at?: string
+        }
+        Update: {
+          dismissed_at?: string | null
+          recipient_id?: string
+          request_id?: string
+          responded?: boolean
+          surfaced_at?: string
+        }
+        Relationships: []
+      }
       request_forwards: {
         Row: {
           created_at: string
@@ -1116,6 +1140,7 @@ export type Database = {
           group_id: string | null
           id: string
           location: string | null
+          routing_signal: number
           selected_users: string[] | null
           status: Database["public"]["Enums"]["request_status"]
           title: string
@@ -1134,6 +1159,7 @@ export type Database = {
           group_id?: string | null
           id?: string
           location?: string | null
+          routing_signal?: number
           selected_users?: string[] | null
           status?: Database["public"]["Enums"]["request_status"]
           title: string
@@ -1152,6 +1178,7 @@ export type Database = {
           group_id?: string | null
           id?: string
           location?: string | null
+          routing_signal?: number
           selected_users?: string[] | null
           status?: Database["public"]["Enums"]["request_status"]
           title?: string
@@ -1483,6 +1510,18 @@ export type Database = {
         Args: { user_id_to_delete: string }
         Returns: undefined
       }
+      anonymous_active_cap_ok: {
+        Args: { p_recipient_id: string }
+        Returns: boolean
+      }
+      anonymous_creator_cooldown_ok: {
+        Args: { p_creator_id: string; p_recipient_id: string }
+        Returns: boolean
+      }
+      anonymous_thread_label: {
+        Args: { p_request_id: string; p_uid: string }
+        Returns: string
+      }
       build_canonical_signature: {
         Args: {
           p_entity_type: string
@@ -1518,6 +1557,10 @@ export type Database = {
           profile_normalized: string
           profile_original: string
         }[]
+      }
+      estimate_anonymous_expertise_reach: {
+        Args: { p_category: string; p_keywords?: string[]; p_location: string }
+        Returns: number
       }
       find_network_experts: {
         Args: { query_domains: string[]; viewer_id: string }
@@ -1590,6 +1633,19 @@ export type Database = {
           profile_id: string
         }[]
       }
+      get_for_you_requests: {
+        Args: { p_limit?: number }
+        Returns: {
+          category: string
+          contributor_label: string
+          created_at: string
+          creator_label: string
+          expires_at: string
+          location: string
+          request_id: string
+          title: string
+        }[]
+      }
       get_network_contributors: {
         Args: { contributor_ids: string[]; user_id_param: string }
         Returns: {
@@ -1600,6 +1656,7 @@ export type Database = {
           is_friend: boolean
         }[]
       }
+      get_response_origin: { Args: { p_response_id: string }; Returns: string }
       get_safe_profile_data: {
         Args: { profile_id: string }
         Returns: {
@@ -1674,6 +1731,10 @@ export type Database = {
         Args: { new_user_id: string; new_user_phone: string }
         Returns: number
       }
+      matches_anonymous_expertise: {
+        Args: { p_request_id: string; p_uid: string }
+        Returns: boolean
+      }
       normalize_directory_text: { Args: { input: string }; Returns: string }
       normalize_for_canonical: { Args: { input: string }; Returns: string }
       normalize_phone_number: { Args: { phone_input: string }; Returns: string }
@@ -1682,6 +1743,7 @@ export type Database = {
         Returns: Json
       }
       refresh_master_directory: { Args: never; Returns: undefined }
+      request_is_exhausted: { Args: { p_request_id: string }; Returns: boolean }
       resolve_preferred_term: {
         Args: { input: string }
         Returns: {
@@ -1732,6 +1794,10 @@ export type Database = {
         Args: { user_id_input: string }
         Returns: number
       }
+      user_in_direct_audience: {
+        Args: { p_request_id: string; p_uid: string }
+        Returns: boolean
+      }
       validate_authenticated_user: { Args: never; Returns: boolean }
     }
     Enums: {
@@ -1743,6 +1809,7 @@ export type Database = {
         | "group"
         | "specific_people"
         | "public"
+        | "anonymous_expertise"
       request_category: "films" | "places" | "products" | "services" | "other"
       request_status: "open" | "responded" | "reviewing" | "closed"
       response_type: "existing_list" | "new_recommendations" | "comment"
@@ -1884,6 +1951,7 @@ export const Constants = {
         "group",
         "specific_people",
         "public",
+        "anonymous_expertise",
       ],
       request_category: ["films", "places", "products", "services", "other"],
       request_status: ["open", "responded", "reviewing", "closed"],
