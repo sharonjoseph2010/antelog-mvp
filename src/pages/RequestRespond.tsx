@@ -371,6 +371,13 @@ export default function RequestRespond() {
             .eq("response_id", response.id)
             .order("position", { ascending: true });
 
+          // Determine response origin (direct network vs anonymous expertise)
+          const { data: originData } = await supabase.rpc("get_response_origin", {
+            p_response_id: response.id,
+          });
+          const origin: 'direct' | 'anonymous' =
+            originData === 'anonymous' ? 'anonymous' : 'direct';
+
           // Get votes for each recommendation
           const recommendationsWithVotes = await Promise.all(
             (recsData || []).map(async (rec) => {
@@ -409,10 +416,11 @@ export default function RequestRespond() {
           return {
             ...response,
             responder_profile: {
-              full_name: responderDisplayName,
-              handle: responderDisplayHandle
+              full_name: origin === 'anonymous' ? 'Anonymous contributor' : responderDisplayName,
+              handle: origin === 'anonymous' ? 'anonymous' : responderDisplayHandle,
             },
-            recommendations: recommendationsWithVotes
+            recommendations: recommendationsWithVotes,
+            origin,
           };
         })
       );
