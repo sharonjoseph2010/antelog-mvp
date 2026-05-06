@@ -1558,6 +1558,14 @@ export type Database = {
           profile_original: string
         }[]
       }
+      dismiss_anonymous_impression: {
+        Args: {
+          p_action?: string
+          p_request_id: string
+          p_snooze_days?: number
+        }
+        Returns: undefined
+      }
       estimate_anonymous_expertise_reach: {
         Args: { p_category: string; p_keywords?: string[]; p_location: string }
         Returns: number
@@ -1744,6 +1752,10 @@ export type Database = {
       }
       refresh_master_directory: { Args: never; Returns: undefined }
       request_is_exhausted: { Args: { p_request_id: string }; Returns: boolean }
+      request_response_threshold: {
+        Args: { p_category: string }
+        Returns: number
+      }
       resolve_preferred_term: {
         Args: { input: string }
         Returns: {
