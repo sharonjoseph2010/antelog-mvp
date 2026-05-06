@@ -487,9 +487,9 @@ export default function RequestsNew() {
         allow_forwarding: formData.allow_forwarding
       });
 
-      // Set allow_forwarding to false if only public is selected
-      const allowForwarding = formData.audience_types.length === 1 && formData.audience_types[0] === 'public' 
-        ? false 
+      // Disable forwarding for anonymous-only requests
+      const allowForwarding = formData.audience_types.length === 1 && formData.audience_types[0] === 'anonymous_expertise'
+        ? false
         : formData.allow_forwarding;
 
       console.log('Creating request with allow_forwarding:', allowForwarding);
