@@ -49,6 +49,7 @@ export default function RequestsNew() {
   const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
   const [duplicateResults, setDuplicateResults] = useState<any[]>([]);
   const [expiryDays, setExpiryDays] = useState("7");
+  const [anonReach, setAnonReach] = useState<number | null>(null);
   // Nudge 1: similar directory lists
   const [similarDirectoryList, setSimilarDirectoryList] = useState<{
     id: string;
@@ -783,6 +784,14 @@ export default function RequestsNew() {
       description: 'Share publicly with anonymous identity via AI matching',
       helperText: 'Your request will appear in the Master Directory. Your identity remains anonymous to users outside your network.',
       icon: Globe,
+      showForwarding: false
+    },
+    {
+      value: 'anonymous_expertise' as const,
+      label: 'Relevant anonymous contributors',
+      description: 'Your request may be shown anonymously to people with relevant expertise or interests.',
+      helperText: 'Selectively routed to a small number of relevant strangers. Not publicly broadcast or searchable. They cannot forward your request.',
+      icon: Sparkles,
       showForwarding: false
     }
   ];
