@@ -80,6 +80,25 @@ export default function RequestsNew() {
     loadNetworkCounts();
   }, []);
 
+  // Anonymous expertise reach estimator (debounced, server-side)
+  useEffect(() => {
+    if (!formData.audience_types.includes('anonymous_expertise')) {
+      setAnonReach(null);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      try {
+        const { data, error } = await supabase.rpc('estimate_anonymous_expertise_reach', {
+          p_category: formData.category || null,
+          p_location: formData.location || null,
+          p_keywords: null,
+        });
+        if (!error) setAnonReach((data as number) ?? 0);
+      } catch { /* ignore */ }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [formData.audience_types, formData.category, formData.location]);
+
   // Nudge 1: debounced check for similar lists in Master Directory
   useEffect(() => {
     if (directoryNudgeDismissed) return;
@@ -1234,11 +1253,16 @@ export default function RequestsNew() {
 
             {/* Reach Summary */}
             {formData.audience_types.length > 0 && (
-              <div className="p-4 bg-muted/50 rounded-lg">
+              <div className="p-4 bg-muted/50 rounded-lg space-y-1">
                 <p className="text-sm font-medium mb-1">Estimated Reach</p>
                 <p className="text-xs text-muted-foreground">
-                  This request will reach approximately <span className="font-semibold">{formatReachCount(estimateReach())}</span> across {formData.audience_types.length} {formData.audience_types.length === 1 ? 'audience' : 'audiences'}
+                  Direct network: <span className="font-semibold">{formatReachCount(estimateReach())}</span>
                 </p>
+                {formData.audience_types.includes('anonymous_expertise') && (
+                  <p className="text-xs text-muted-foreground">
+                    Anonymous expertise: <span className="font-semibold">~{anonReach ?? '…'} relevant contributors</span>
+                  </p>
+                )}
               </div>
             )}
 
