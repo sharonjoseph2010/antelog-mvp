@@ -12,7 +12,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { checkForDuplicates } from "@/lib/masterDirectory";
-import { MessageSquare, ArrowLeft, Users, User, UserCheck, Globe, X, CircleCheck, ExternalLink, AlertTriangle, Search, ClipboardList, Brain } from "lucide-react";
+import { MessageSquare, ArrowLeft, Users, User, UserCheck, Globe, X, CircleCheck, ExternalLink, AlertTriangle, Search, ClipboardList, Brain, Sparkles } from "lucide-react";
 import { z } from "zod";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
@@ -27,7 +27,7 @@ const requestSchema = z.object({
   title: z.string().trim().min(10, "Request must be at least 10 characters").max(500, "Request must be less than 500 characters"),
   category: z.enum(['films', 'places', 'products', 'services', 'other']),
   location: z.string().trim().max(100, "Location must be less than 100 characters").optional(),
-  audience_types: z.array(z.enum(['first_network', 'group', 'specific_people', 'public'])).min(1, "Select at least one audience"),
+  audience_types: z.array(z.enum(['first_network', 'group', 'specific_people', 'public', 'anonymous_expertise'])).min(1, "Select at least one audience"),
   group_id: z.string().optional(),
   selected_users: z.array(z.string()).optional(),
   allow_forwarding: z.boolean()
@@ -68,7 +68,7 @@ export default function RequestsNew() {
     title: '',
     category: '' as 'films' | 'places' | 'products' | 'services' | 'other',
     location: '',
-    audience_types: [] as Array<'first_network' | 'group' | 'specific_people' | 'public'>,
+    audience_types: [] as Array<'first_network' | 'group' | 'specific_people' | 'public' | 'anonymous_expertise'>,
     group_id: '',
     allow_forwarding: false,
     selected_users: [] as string[]
