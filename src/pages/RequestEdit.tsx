@@ -188,7 +188,7 @@ export default function RequestEdit() {
     setIsSubmitting(true);
 
     try {
-      const allowForwarding = formData.audience_types.length === 1 && formData.audience_types[0] === 'public' 
+      const allowForwarding = formData.audience_types.length === 1 && formData.audience_types[0] === 'anonymous_expertise' 
         ? false 
         : formData.allow_forwarding;
 
