@@ -279,7 +279,7 @@ export default function RequestsNew() {
     }
   };
 
-  const toggleAudienceType = (type: 'first_network' | 'group' | 'specific_people' | 'public') => {
+  const toggleAudienceType = (type: 'first_network' | 'group' | 'specific_people' | 'public' | 'anonymous_expertise') => {
     setFormData(prev => ({
       ...prev,
       audience_types: prev.audience_types.includes(type)
