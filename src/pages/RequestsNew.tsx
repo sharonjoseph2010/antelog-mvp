@@ -12,7 +12,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { checkForDuplicates } from "@/lib/masterDirectory";
-import { MessageSquare, ArrowLeft, Users, User, UserCheck, Globe, X, CircleCheck, ExternalLink, AlertTriangle, Search, ClipboardList, Brain } from "lucide-react";
+import { MessageSquare, ArrowLeft, Users, User, UserCheck, Globe, X, CircleCheck, ExternalLink, AlertTriangle, Search, ClipboardList, Brain, Sparkles } from "lucide-react";
 import { z } from "zod";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
@@ -27,7 +27,7 @@ const requestSchema = z.object({
   title: z.string().trim().min(10, "Request must be at least 10 characters").max(500, "Request must be less than 500 characters"),
   category: z.enum(['films', 'places', 'products', 'services', 'other']),
   location: z.string().trim().max(100, "Location must be less than 100 characters").optional(),
-  audience_types: z.array(z.enum(['first_network', 'group', 'specific_people', 'public'])).min(1, "Select at least one audience"),
+  audience_types: z.array(z.enum(['first_network', 'group', 'specific_people', 'public', 'anonymous_expertise'])).min(1, "Select at least one audience"),
   group_id: z.string().optional(),
   selected_users: z.array(z.string()).optional(),
   allow_forwarding: z.boolean()
@@ -49,6 +49,7 @@ export default function RequestsNew() {
   const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
   const [duplicateResults, setDuplicateResults] = useState<any[]>([]);
   const [expiryDays, setExpiryDays] = useState("7");
+  const [anonReach, setAnonReach] = useState<number | null>(null);
   // Nudge 1: similar directory lists
   const [similarDirectoryList, setSimilarDirectoryList] = useState<{
     id: string;
@@ -68,7 +69,7 @@ export default function RequestsNew() {
     title: '',
     category: '' as 'films' | 'places' | 'products' | 'services' | 'other',
     location: '',
-    audience_types: [] as Array<'first_network' | 'group' | 'specific_people' | 'public'>,
+    audience_types: [] as Array<'first_network' | 'group' | 'specific_people' | 'public' | 'anonymous_expertise'>,
     group_id: '',
     allow_forwarding: false,
     selected_users: [] as string[]
@@ -78,6 +79,25 @@ export default function RequestsNew() {
     loadUserGroups();
     loadNetworkCounts();
   }, []);
+
+  // Anonymous expertise reach estimator (debounced, server-side)
+  useEffect(() => {
+    if (!formData.audience_types.includes('anonymous_expertise')) {
+      setAnonReach(null);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      try {
+        const { data, error } = await supabase.rpc('estimate_anonymous_expertise_reach', {
+          p_category: formData.category || null,
+          p_location: formData.location || null,
+          p_keywords: null,
+        });
+        if (!error) setAnonReach((data as number) ?? 0);
+      } catch { /* ignore */ }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [formData.audience_types, formData.category, formData.location]);
 
   // Nudge 1: debounced check for similar lists in Master Directory
   useEffect(() => {
@@ -279,7 +299,7 @@ export default function RequestsNew() {
     }
   };
 
-  const toggleAudienceType = (type: 'first_network' | 'group' | 'specific_people' | 'public') => {
+  const toggleAudienceType = (type: 'first_network' | 'group' | 'specific_people' | 'public' | 'anonymous_expertise') => {
     setFormData(prev => ({
       ...prev,
       audience_types: prev.audience_types.includes(type)
@@ -784,6 +804,14 @@ export default function RequestsNew() {
       helperText: 'Your request will appear in the Master Directory. Your identity remains anonymous to users outside your network.',
       icon: Globe,
       showForwarding: false
+    },
+    {
+      value: 'anonymous_expertise' as const,
+      label: 'Relevant anonymous contributors',
+      description: 'Your request may be shown anonymously to people with relevant expertise or interests.',
+      helperText: 'Selectively routed to a small number of relevant strangers. Not publicly broadcast or searchable. They cannot forward your request.',
+      icon: Sparkles,
+      showForwarding: false
     }
   ];
 
@@ -1225,11 +1253,16 @@ export default function RequestsNew() {
 
             {/* Reach Summary */}
             {formData.audience_types.length > 0 && (
-              <div className="p-4 bg-muted/50 rounded-lg">
+              <div className="p-4 bg-muted/50 rounded-lg space-y-1">
                 <p className="text-sm font-medium mb-1">Estimated Reach</p>
                 <p className="text-xs text-muted-foreground">
-                  This request will reach approximately <span className="font-semibold">{formatReachCount(estimateReach())}</span> across {formData.audience_types.length} {formData.audience_types.length === 1 ? 'audience' : 'audiences'}
+                  Direct network: <span className="font-semibold">{formatReachCount(estimateReach())}</span>
                 </p>
+                {formData.audience_types.includes('anonymous_expertise') && (
+                  <p className="text-xs text-muted-foreground">
+                    Anonymous expertise: <span className="font-semibold">~{anonReach ?? '…'} relevant contributors</span>
+                  </p>
+                )}
               </div>
             )}
 
