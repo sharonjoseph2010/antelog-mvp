@@ -2,394 +2,171 @@ import { useEffect, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Sparkles, TrendingUp, Users, BadgeCheck } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { MoreHorizontal } from "lucide-react";
 import { toast } from "sonner";
+import { formatDistanceToNow } from "date-fns";
 
-interface DisplayIdentity {
-  name: string;
-  handle: string;
-  is_anonymous: boolean;
-  is_verified: boolean;
-}
-
-interface RequestWithRelevance {
-  id: string;
+interface ForYouRequest {
+  request_id: string;
   title: string;
   category: string;
   location: string | null;
   created_at: string;
-  creator_id: string;
-  relevance_score: number;
-  creator_identity: DisplayIdentity | null;
-}
-
-interface TrendingList {
-  id: string;
-  title: string;
-  category: string;
-  description: string | null;
-  owner_id: string;
-  mention_count: number;
-  owner_identity: DisplayIdentity | null;
+  expires_at: string;
+  creator_label: string | null;
+  contributor_label: string | null;
 }
 
 export default function ForYou() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [relevantRequests, setRelevantRequests] = useState<RequestWithRelevance[]>([]);
-  const [trendingLists, setTrendingLists] = useState<TrendingList[]>([]);
-  const [similarLists, setSimilarLists] = useState<TrendingList[]>([]);
+  const [items, setItems] = useState<ForYouRequest[]>([]);
 
   useEffect(() => {
-    loadForYouContent();
+    load();
   }, []);
 
-  const loadForYouContent = async () => {
+  const load = async () => {
+    setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        navigate('/login');
+        navigate("/login");
         return;
       }
-
-      // Load relevant requests
-      await loadRelevantRequests(user.id);
-      
-      // Load trending public lists
-      await loadTrendingLists(user.id);
-      
-      // Load similar interest lists
-      await loadSimilarLists(user.id);
-
-    } catch (error) {
-      console.error('Error loading For You content:', error);
-      toast.error('Failed to load recommendations');
+      const { data, error } = await supabase.rpc("get_for_you_requests", { p_limit: 20 });
+      if (error) throw error;
+      setItems((data || []) as ForYouRequest[]);
+    } catch (e) {
+      console.error(e);
+      toast.error("Couldn't load For You");
     } finally {
       setLoading(false);
     }
   };
 
-  const loadRelevantRequests = async (userId: string) => {
-    // Get all public and first_network requests
-    const { data: requests, error } = await supabase
-      .from('requests')
-      .select('*')
-      .in('audience_type', ['public', 'first_network'])
-      .eq('status', 'open')
-      .order('created_at', { ascending: false })
-      .limit(20);
-
+  const dismiss = async (
+    requestId: string,
+    action: "dismiss" | "snooze" | "not_relevant",
+    snoozeDays = 7,
+  ) => {
+    const { error } = await supabase.rpc("dismiss_anonymous_impression", {
+      p_request_id: requestId,
+      p_action: action,
+      p_snooze_days: snoozeDays,
+    });
     if (error) {
-      console.error('Error loading requests:', error);
+      toast.error("Couldn't update");
       return;
     }
-
-    if (!requests || requests.length === 0) {
-      setRelevantRequests([]);
-      return;
-    }
-
-    // Calculate relevance scores and get identities
-    const requestsWithScores = await Promise.all(
-      requests.map(async (request) => {
-        // Calculate relevance score
-        const { data: scoreData } = await supabase.rpc('calculate_request_relevance', {
-          user_id_param: userId,
-          request_id_param: request.id
-        });
-
-        // Get creator display identity
-        const { data: identityData } = await supabase.rpc('get_display_identity', {
-          viewer_id: userId,
-          profile_id: request.creator_id
-        });
-
-        return {
-          ...request,
-          relevance_score: scoreData || 0,
-          creator_identity: identityData?.[0] || null
-        };
-      })
-    );
-
-    // Sort by relevance and filter score > 0
-    const sortedRequests = requestsWithScores
-      .filter(r => r.relevance_score > 0)
-      .sort((a, b) => b.relevance_score - a.relevance_score)
-      .slice(0, 10);
-
-    setRelevantRequests(sortedRequests);
+    setItems((prev) => prev.filter((r) => r.request_id !== requestId));
   };
-
-  const loadTrendingLists = async (userId: string) => {
-    // Get trending public lists based on mention counts
-    const { data: entries, error } = await supabase
-      .from('master_directory_entries')
-      .select('*')
-      .order('mention_count', { ascending: false })
-      .limit(15);
-
-    if (error) {
-      console.error('Error loading trending lists:', error);
-      return;
-    }
-
-    if (!entries || entries.length === 0) {
-      setTrendingLists([]);
-      return;
-    }
-
-    // Get unique contributors and their identities
-    const uniqueUserIds = [...new Set(entries.flatMap(e => e.mentioned_by_users))];
-    const listsWithIdentities = await Promise.all(
-      uniqueUserIds.slice(0, 10).map(async (ownerId) => {
-        // Get a list owned by this user
-        const { data: list } = await supabase
-          .from('lists')
-          .select('id, title, category, description, owner_id')
-          .eq('owner_id', ownerId)
-          .eq('visibility', 'public')
-          .limit(1)
-          .single();
-
-        if (!list) return null;
-
-        // Get display identity
-        const { data: identityData } = await supabase.rpc('get_display_identity', {
-          viewer_id: userId,
-          profile_id: ownerId
-        });
-
-        // Count mentions for this user
-        const mentionCount = entries
-          .filter(e => e.mentioned_by_users.includes(ownerId))
-          .reduce((sum, e) => sum + e.mention_count, 0);
-
-        return {
-          ...list,
-          mention_count: mentionCount,
-          owner_identity: identityData?.[0] || null
-        };
-      })
-    );
-
-    setTrendingLists(listsWithIdentities.filter(Boolean) as TrendingList[]);
-  };
-
-  const loadSimilarLists = async (userId: string) => {
-    // Get user's list categories
-    const { data: userLists } = await supabase
-      .from('lists')
-      .select('category')
-      .eq('owner_id', userId);
-
-    if (!userLists || userLists.length === 0) {
-      setSimilarLists([]);
-      return;
-    }
-
-    const userCategories = [...new Set(userLists.map(l => l.category))];
-
-    // Find public lists in same categories by other users
-    const { data: lists, error } = await supabase
-      .from('lists')
-      .select('id, title, category, description, owner_id')
-      .in('category', userCategories)
-      .eq('visibility', 'public')
-      .neq('owner_id', userId)
-      .limit(10);
-
-    if (error) {
-      console.error('Error loading similar lists:', error);
-      return;
-    }
-
-    if (!lists || lists.length === 0) {
-      setSimilarLists([]);
-      return;
-    }
-
-    // Get identities
-    const listsWithIdentities = await Promise.all(
-      lists.map(async (list) => {
-        const { data: identityData } = await supabase.rpc('get_display_identity', {
-          viewer_id: userId,
-          profile_id: list.owner_id
-        });
-
-        return {
-          ...list,
-          mention_count: 0,
-          owner_identity: identityData?.[0] || null
-        };
-      })
-    );
-
-    setSimilarLists(listsWithIdentities);
-  };
-
-  if (loading) {
-    return (
-      <div className="container max-w-6xl py-8">
-        <Skeleton className="h-10 w-64 mb-8" />
-        <div className="space-y-6">
-          <Skeleton className="h-64 w-full" />
-          <Skeleton className="h-64 w-full" />
-          <Skeleton className="h-64 w-full" />
-        </div>
-      </div>
-    );
-  }
 
   return (
     <>
       <Helmet>
-        <title>For You - Antelog</title>
-        <meta name="description" content="Discover curated recommendations and requests matched to your expertise" />
+        <title>For You — Antelog</title>
+        <meta
+          name="description"
+          content="A quiet, finite list of requests where your expertise might help."
+        />
       </Helmet>
 
-      <div className="container max-w-6xl py-8 space-y-8">
-        {/* Header */}
-        <div className="flex items-center gap-3">
-          <Sparkles className="h-8 w-8 text-primary" />
-          <h1 className="text-3xl font-bold">For You</h1>
-        </div>
+      <div className="container max-w-2xl py-10 space-y-6">
+        <header className="space-y-2">
+          <h1 className="text-2xl font-semibold tracking-tight">For You</h1>
+          <p className="text-sm text-muted-foreground">
+            A small, finite set of open questions where your background might help.
+            You appear anonymously here. This is not a feed.
+          </p>
+        </header>
 
-        {/* Requests You Can Answer */}
-        <section className="space-y-4">
-          <div className="flex items-center gap-2">
-            <Users className="h-5 w-5 text-muted-foreground" />
-            <h2 className="text-2xl font-semibold">Requests You Can Answer</h2>
+        {loading ? (
+          <div className="space-y-3">
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-24 w-full" />
           </div>
-          
-          {relevantRequests.length === 0 ? (
-            <Card>
-              <CardContent className="py-8 text-center text-muted-foreground">
-                No relevant requests found. Create more public lists to help us match you with requests!
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid gap-4">
-              {relevantRequests.map((request) => (
-                <Card key={request.id} className="hover:border-primary transition-colors cursor-pointer" onClick={() => navigate(`/requests/${request.id}`)}>
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <div className="space-y-1">
-                        <CardTitle className="text-lg">{request.title}</CardTitle>
-                        <CardDescription className="flex items-center gap-2">
-                          {request.creator_identity && (
-                            <span className="flex items-center gap-1">
-                              {request.creator_identity.name}
-                              {request.creator_identity.is_verified && (
-                                <BadgeCheck className="h-4 w-4 text-primary" />
-                              )}
-                            </span>
-                          )}
-                          {request.location && <span>• {request.location}</span>}
-                        </CardDescription>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="secondary">{request.category}</Badge>
-                        <Badge variant="outline">Match: {request.relevance_score}</Badge>
-                      </div>
+        ) : items.length === 0 ? (
+          <Card>
+            <CardContent className="py-10 text-center text-sm text-muted-foreground">
+              Nothing relevant right now. Check back later — this list stays quiet by design.
+            </CardContent>
+          </Card>
+        ) : (
+          <ul className="space-y-3">
+            {items.map((r) => (
+              <li key={r.request_id}>
+                <Card className="border-muted">
+                  <CardHeader className="pb-2">
+                    <div className="flex items-start justify-between gap-3">
+                      <button
+                        onClick={() => navigate(`/requests/${r.request_id}`)}
+                        className="text-left"
+                      >
+                        <CardTitle className="text-base font-medium leading-snug">
+                          {r.title}
+                        </CardTitle>
+                      </button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-muted-foreground"
+                            aria-label="Manage this request"
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => dismiss(r.request_id, "snooze", 7)}>
+                            Snooze 7 days
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => dismiss(r.request_id, "dismiss")}>
+                            Dismiss
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => dismiss(r.request_id, "not_relevant")}>
+                            Not relevant
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </CardHeader>
-                </Card>
-              ))}
-            </div>
-          )}
-        </section>
-
-        {/* Trending Public Lists */}
-        <section className="space-y-4">
-          <div className="flex items-center gap-2">
-            <TrendingUp className="h-5 w-5 text-muted-foreground" />
-            <h2 className="text-2xl font-semibold">Trending Lists</h2>
-          </div>
-          
-          {trendingLists.length === 0 ? (
-            <Card>
-              <CardContent className="py-8 text-center text-muted-foreground">
-                No trending lists available yet
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid gap-4 md:grid-cols-2">
-              {trendingLists.map((list) => (
-                <Card key={list.id} className="hover:border-primary transition-colors cursor-pointer" onClick={() => navigate(`/lists/${list.id}`)}>
-                  <CardHeader>
-                    <CardTitle className="text-lg">{list.title}</CardTitle>
-                    <CardDescription className="flex items-center gap-2">
-                      {list.owner_identity && (
-                        <span className="flex items-center gap-1">
-                          {list.owner_identity.name}
-                          {list.owner_identity.is_verified && (
-                            <BadgeCheck className="h-4 w-4 text-primary" />
-                          )}
-                        </span>
+                  <CardContent className="pt-0">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                      <Badge variant="secondary" className="font-normal">
+                        {r.category}
+                      </Badge>
+                      {r.location && <span>{r.location}</span>}
+                      <span>
+                        opened {formatDistanceToNow(new Date(r.created_at), { addSuffix: true })}
+                      </span>
+                      {r.contributor_label && (
+                        <span className="ml-auto">You appear as {r.contributor_label}</span>
                       )}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center justify-between">
-                      <Badge variant="secondary">{list.category}</Badge>
-                      <span className="text-sm text-muted-foreground">{list.mention_count} mentions</span>
                     </div>
-                    {list.description && (
-                      <p className="mt-2 text-sm text-muted-foreground line-clamp-2">{list.description}</p>
-                    )}
                   </CardContent>
                 </Card>
-              ))}
-            </div>
-          )}
-        </section>
+              </li>
+            ))}
+          </ul>
+        )}
 
-        {/* Similar Interests */}
-        <section className="space-y-4">
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-muted-foreground" />
-            <h2 className="text-2xl font-semibold">Similar Interests</h2>
-          </div>
-          
-          {similarLists.length === 0 ? (
-            <Card>
-              <CardContent className="py-8 text-center text-muted-foreground">
-                Create some lists to see recommendations based on your interests
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid gap-4 md:grid-cols-2">
-              {similarLists.map((list) => (
-                <Card key={list.id} className="hover:border-primary transition-colors cursor-pointer" onClick={() => navigate(`/lists/${list.id}`)}>
-                  <CardHeader>
-                    <CardTitle className="text-lg">{list.title}</CardTitle>
-                    <CardDescription className="flex items-center gap-2">
-                      {list.owner_identity && (
-                        <span className="flex items-center gap-1">
-                          {list.owner_identity.name}
-                          {list.owner_identity.is_verified && (
-                            <BadgeCheck className="h-4 w-4 text-primary" />
-                          )}
-                        </span>
-                      )}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <Badge variant="secondary">{list.category}</Badge>
-                    {list.description && (
-                      <p className="mt-2 text-sm text-muted-foreground line-clamp-2">{list.description}</p>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </section>
+        <p className="text-xs text-muted-foreground pt-4">
+          Antelog routes a small number of relevant questions here. No counts, no trends,
+          no infinite scroll.
+        </p>
       </div>
     </>
   );

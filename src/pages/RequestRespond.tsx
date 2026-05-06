@@ -71,6 +71,7 @@ interface RequestResponse {
     handle: string;
   };
   recommendations: Recommendation[];
+  origin?: 'direct' | 'anonymous';
 }
 
 interface RecommendationInput {
@@ -370,6 +371,13 @@ export default function RequestRespond() {
             .eq("response_id", response.id)
             .order("position", { ascending: true });
 
+          // Determine response origin (direct network vs anonymous expertise)
+          const { data: originData } = await supabase.rpc("get_response_origin", {
+            p_response_id: response.id,
+          });
+          const origin: 'direct' | 'anonymous' =
+            originData === 'anonymous' ? 'anonymous' : 'direct';
+
           // Get votes for each recommendation
           const recommendationsWithVotes = await Promise.all(
             (recsData || []).map(async (rec) => {
@@ -408,10 +416,11 @@ export default function RequestRespond() {
           return {
             ...response,
             responder_profile: {
-              full_name: responderDisplayName,
-              handle: responderDisplayHandle
+              full_name: origin === 'anonymous' ? 'Anonymous contributor' : responderDisplayName,
+              handle: origin === 'anonymous' ? 'anonymous' : responderDisplayHandle,
             },
-            recommendations: recommendationsWithVotes
+            recommendations: recommendationsWithVotes,
+            origin,
           };
         })
       );
@@ -2113,20 +2122,25 @@ export default function RequestRespond() {
         </Card>
       )}
 
-      {/* Existing Responses */}
-      <div className="space-y-4">
-        <h2 className="text-xl font-semibold">
-          Responses ({responses.length + guestContributions.length})
-        </h2>
-        
-        {responses.length > 0 ? (
-          responses.map((response) => (
-            <Card key={response.id}>
+      {/* Existing Responses — split by origin */}
+      {(() => {
+        const directResponses = responses.filter((r) => r.origin !== 'anonymous');
+        const anonymousResponses = responses.filter((r) => r.origin === 'anonymous');
+        const renderResponseCard = (response: RequestResponse) => (
+          <Card
+            key={response.id}
+            className={response.origin === 'anonymous' ? 'border-dashed' : ''}
+          >
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
                     <div>
                       <p className="font-medium">{response.responder_profile.full_name}</p>
+                      {response.origin === 'anonymous' && (
+                        <p className="text-xs text-muted-foreground">
+                          Routed via anonymous expertise — identity withheld
+                        </p>
+                      )}
                     </div>
                   </div>
                   <span className="text-sm text-muted-foreground">
@@ -2183,7 +2197,7 @@ export default function RequestRespond() {
                               </Badge>
                             )}
                             
-                            {rec.voters.length > 0 && (
+                            {rec.voters.length > 0 && response.origin !== 'anonymous' && (
                               <div className="text-xs text-muted-foreground text-right">
                                 {rec.voters.slice(0, 3).map(v => v.full_name || v.handle).join(", ")}
                                 {rec.voters.length > 3 && ` +${rec.voters.length - 3} more`}
@@ -2197,22 +2211,55 @@ export default function RequestRespond() {
                 </div>
               </CardContent>
             </Card>
-          ))
-        ) : (
-          <Card>
+        );
+
+        return (
+          <div className="space-y-8">
+            {/* From your network */}
+            <section className="space-y-3">
+              <div>
+                <h2 className="text-xl font-semibold">From your network</h2>
+                <p className="text-xs text-muted-foreground">
+                  People connected to you through your trust graph.
+                </p>
+              </div>
+              {directResponses.length > 0 ? (
+                <div className="space-y-4">{directResponses.map(renderResponseCard)}</div>
+              ) : (
+                <Card>
             <CardContent>
               <div className="text-center py-8">
                 <div className="mx-auto w-12 h-12 bg-muted rounded-full flex items-center justify-center mb-3">
                   <MessageSquare className="h-6 w-6 text-muted-foreground" />
                 </div>
-                <h3 className="font-medium mb-1">No responses yet</h3>
+                <h3 className="font-medium mb-1">No network responses yet</h3>
                 <p className="text-sm text-muted-foreground">
-                  Be the first to respond to this request!
+                  Nobody from your network has responded yet.
                 </p>
               </div>
             </CardContent>
-          </Card>
-        )}
+                </Card>
+              )}
+            </section>
+
+            {/* Anonymous expertise */}
+            {anonymousResponses.length > 0 && (
+              <section className="space-y-3 pt-4 border-t">
+                <div>
+                  <h2 className="text-xl font-semibold">Anonymous expertise</h2>
+                  <p className="text-xs text-muted-foreground">
+                    Contributors routed by relevance. Identities are withheld;
+                    treat as informational input, not social trust.
+                  </p>
+                </div>
+                <div className="space-y-4">{anonymousResponses.map(renderResponseCard)}</div>
+              </section>
+            )}
+          </div>
+        );
+      })()}
+
+      <div className="space-y-4">
 
         {/* Guest Contributions */}
         {guestContributions.length > 0 && (
