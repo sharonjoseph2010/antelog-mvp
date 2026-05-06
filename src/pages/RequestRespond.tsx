@@ -71,6 +71,7 @@ interface RequestResponse {
     handle: string;
   };
   recommendations: Recommendation[];
+  origin?: 'direct' | 'anonymous';
 }
 
 interface RecommendationInput {
