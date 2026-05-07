@@ -111,8 +111,8 @@ export default function ForYou() {
                   <CardHeader className="pb-2">
                     <div className="flex items-start justify-between gap-3">
                       <button
-                        onClick={() => navigate(`/requests/${r.request_id}`)}
-                        className="text-left"
+                        onClick={() => navigate(`/requests/${r.request_id}/respond`)}
+                        className="text-left hover:text-primary transition-colors"
                       >
                         <CardTitle className="text-base font-medium leading-snug">
                           {r.title}
