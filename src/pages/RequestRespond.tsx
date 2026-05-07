@@ -331,9 +331,19 @@ export default function RequestRespond() {
         });
       }
 
-      // On request pages we always reveal the creator's real identity.
-      const isCreatorConnected = true;
-      
+      // Anonymous expertise sealing: only reveal creator identity when the
+      // viewer has a direct trust relationship with the creator in this
+      // request's context. Otherwise treat as anonymous.
+      let isCreatorConnected = userIsOwner;
+      if (!userIsOwner) {
+        const { data: canReveal } = await supabase.rpc("can_reveal_identity", {
+          p_viewer_id: user.id,
+          p_request_id: id,
+          p_target_user_id: requestData.creator_id,
+        });
+        isCreatorConnected = !!canReveal;
+      }
+
       setRequest({
         ...requestData,
         creator_profile,
