@@ -1547,6 +1547,14 @@ export type Database = {
         Args: { request_id_param: string; user_id_param: string }
         Returns: number
       }
+      can_reveal_identity: {
+        Args: {
+          p_request_id: string
+          p_target_user_id: string
+          p_viewer_id: string
+        }
+        Returns: boolean
+      }
       cleanup_expired_contacts: { Args: never; Returns: undefined }
       debug_anonymous_match: {
         Args: { p_request_id: string; p_uid?: string }
