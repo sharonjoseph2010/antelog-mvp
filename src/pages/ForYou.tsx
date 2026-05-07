@@ -107,17 +107,24 @@ export default function ForYou() {
           <ul className="space-y-3">
             {items.map((r) => (
               <li key={r.request_id}>
-                <Card className="border-muted cursor-pointer transition-colors hover:bg-muted/40 hover:border-foreground/20">
+                <Card
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => navigate(`/requests/${r.request_id}/respond`)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      navigate(`/requests/${r.request_id}/respond`);
+                    }
+                  }}
+                  className="border-muted cursor-pointer transition-colors hover:bg-muted/40 hover:border-foreground/20 focus:outline-none focus:ring-1 focus:ring-ring"
+                >
                   <CardHeader className="pb-2">
                     <div className="flex items-start justify-between gap-3">
-                      <button
-                        onClick={() => navigate(`/requests/${r.request_id}/respond`)}
-                        className="text-left hover:text-primary transition-colors"
-                      >
-                        <CardTitle className="text-base font-medium leading-snug">
-                          {r.title}
-                        </CardTitle>
-                      </button>
+                      <CardTitle className="text-base font-medium leading-snug">
+                        {r.title}
+                      </CardTitle>
+                      <div onClick={(e) => e.stopPropagation()}>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button
@@ -141,6 +148,7 @@ export default function ForYou() {
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent className="pt-0">
