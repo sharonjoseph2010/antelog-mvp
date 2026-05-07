@@ -107,7 +107,7 @@ export default function ForYou() {
           <ul className="space-y-3">
             {items.map((r) => (
               <li key={r.request_id}>
-                <Card className="border-muted">
+                <Card className="border-muted cursor-pointer transition-colors hover:bg-muted/40 hover:border-foreground/20">
                   <CardHeader className="pb-2">
                     <div className="flex items-start justify-between gap-3">
                       <button
