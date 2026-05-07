@@ -1458,13 +1458,14 @@ export default function RequestRespond() {
             <div className="flex-1">
               <CardTitle className="text-xl mb-2">{request.title}</CardTitle>
               
-              {/* Requested by + Share Chain */}
+              {/* Requested by + Share Chain.
+                  When the viewer reached this request via anonymous expertise
+                  routing, the creator's identity is sealed. */}
               {request.creator_profile && (
                 <p className="text-sm text-muted-foreground mb-1">
-                  Requested by {request.isCreatorConnected 
-                    ? (request.creator_profile.full_name || request.creator_profile.handle)
-                    : (request.creator_profile.handle ? `@${request.creator_profile.handle}` : 'Someone')
-                  }
+                  {request.isCreatorConnected
+                    ? `Requested by ${request.creator_profile.full_name || request.creator_profile.handle}`
+                    : "Requested anonymously"}
                 </p>
               )}
               {/* Tier 1: Subtle share chain for forwarded requests */}
