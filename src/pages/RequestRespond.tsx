@@ -331,9 +331,19 @@ export default function RequestRespond() {
         });
       }
 
-      // On request pages we always reveal the creator's real identity.
-      const isCreatorConnected = true;
-      
+      // Anonymous expertise sealing: only reveal creator identity when the
+      // viewer has a direct trust relationship with the creator in this
+      // request's context. Otherwise treat as anonymous.
+      let isCreatorConnected = userIsOwner;
+      if (!userIsOwner) {
+        const { data: canReveal } = await supabase.rpc("can_reveal_identity", {
+          p_viewer_id: user.id,
+          p_request_id: id,
+          p_target_user_id: requestData.creator_id,
+        });
+        isCreatorConnected = !!canReveal;
+      }
+
       setRequest({
         ...requestData,
         creator_profile,
@@ -758,26 +768,45 @@ export default function RequestRespond() {
 
       if (recsError) throw recsError;
 
-      // Notify request creator (only for new responses)
+      // Notify request creator (only for new responses).
+      // Anonymous expertise routing must seal identity: never include real name/handle
+      // when the responder reached this request through anonymous routing.
       if (!isEditing && request.creator_id !== user.id) {
-        const { data: responderProfile } = await supabase
-          .from("profiles")
-          .select("full_name, handle")
-          .eq("id", user.id)
-          .single();
+        const { data: canReveal } = await supabase.rpc("can_reveal_identity", {
+          p_viewer_id: request.creator_id,
+          p_request_id: request.id,
+          p_target_user_id: user.id,
+        });
 
-        const responderName = responderProfile?.full_name || responderProfile?.handle || "Someone";
-        
+        let title: string;
+        let relatedUserId: string | null = user.id;
+        if (canReveal) {
+          const { data: responderProfile } = await supabase
+            .from("profiles")
+            .select("full_name, handle")
+            .eq("id", user.id)
+            .single();
+          const responderName = responderProfile?.full_name || responderProfile?.handle || "Someone";
+          title = `${responderName} responded to your request`;
+        } else {
+          const { data: label } = await supabase.rpc("anonymous_thread_label", {
+            p_uid: user.id,
+            p_request_id: request.id,
+          });
+          title = `${label || "Anonymous contributor"} responded to your request`;
+          relatedUserId = null;
+        }
+
         await supabase
           .from("notifications")
           .insert({
             user_id: request.creator_id,
             type: "request_response",
-            title: `${responderName} responded to your request`,
+            title,
             message: request.title,
-            related_user_id: user.id,
+            related_user_id: relatedUserId,
             is_read: false,
-            metadata: { request_id: request.id }
+            metadata: { request_id: request.id, anonymous: !canReveal },
           });
       }
 
@@ -1429,13 +1458,14 @@ export default function RequestRespond() {
             <div className="flex-1">
               <CardTitle className="text-xl mb-2">{request.title}</CardTitle>
               
-              {/* Requested by + Share Chain */}
+              {/* Requested by + Share Chain.
+                  When the viewer reached this request via anonymous expertise
+                  routing, the creator's identity is sealed. */}
               {request.creator_profile && (
                 <p className="text-sm text-muted-foreground mb-1">
-                  Requested by {request.isCreatorConnected 
-                    ? (request.creator_profile.full_name || request.creator_profile.handle)
-                    : (request.creator_profile.handle ? `@${request.creator_profile.handle}` : 'Someone')
-                  }
+                  {request.isCreatorConnected
+                    ? `Requested by ${request.creator_profile.full_name || request.creator_profile.handle}`
+                    : "Requested anonymously"}
                 </p>
               )}
               {/* Tier 1: Subtle share chain for forwarded requests */}
