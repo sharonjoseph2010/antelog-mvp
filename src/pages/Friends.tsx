@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Users, Upload, Trash2 } from "lucide-react";
+import { FriendRequestButton } from "@/components/FriendRequestButton";
 
 // Custom icon for 2nd degree - two people connected
 const TwoPersonChain = ({ className }: { className?: string }) => (
@@ -527,9 +528,17 @@ const Friends = () => {
                               {member.mutual_friends.length > 2 && ` +${member.mutual_friends.length - 2} more`}
                             </p>
                           </div>
-                          <Button variant="outline" size="sm" asChild>
-                            <Link to={`/profile/${member.profile_id}`}>View Profile</Link>
-                          </Button>
+                          <div className="flex items-center gap-2">
+                            <Button variant="outline" size="sm" asChild>
+                              <Link to={`/profile/${member.profile_id}`}>View Profile</Link>
+                            </Button>
+                            {currentUserId && (
+                              <FriendRequestButton
+                                currentUserId={currentUserId}
+                                targetUserId={member.profile_id}
+                              />
+                            )}
+                          </div>
                         </div>
                       ))}
                     </div>
