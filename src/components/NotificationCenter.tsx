@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Bell, Users, UserPlus, Check, MessageSquare, MessageCircle, ThumbsUp, Share2 } from "lucide-react";
+import { Bell, Users, UserPlus, Check, MessageSquare, MessageCircle, ThumbsUp, Share2, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { isInNetwork, getDisplayNameSync } from "@/hooks/useNetworkAwareName";
 
@@ -47,6 +47,8 @@ const getNotificationRoute = (notification: Notification): string => {
     case 'friend_suggestion':
     case 'friend_request':
       return '/friends';
+    case 'friend_request_accepted':
+      return notification.related_user_id ? `/profile/${notification.related_user_id}` : '/friends';
     default:
       return '/dashboard';
   }
@@ -57,6 +59,8 @@ const getNotificationIcon = (type: string) => {
     case 'friend_suggestion':
       return <Users className="h-4 w-4" />;
     case 'friend_request':
+      return <UserPlus className="h-4 w-4" />;
+    case 'friend_request_accepted':
       return <UserPlus className="h-4 w-4" />;
     case 'contact_joined':
     case 'network_addition':
@@ -79,6 +83,7 @@ const getNotificationIcon = (type: string) => {
 export const NotificationCenter = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [actioning, setActioning] = useState<string | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -198,6 +203,69 @@ export const NotificationCenter = () => {
     navigate(route);
   };
 
+  const acceptFriendRequest = async (notification: Notification) => {
+    if (!notification.related_user_id) return;
+    setActioning(notification.id);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const requesterId = notification.related_user_id;
+
+      // Create friendship
+      const { error: fErr } = await supabase
+        .from('friendships')
+        .insert({ user1_id: requesterId, user2_id: user.id });
+      if (fErr && !`${fErr.message}`.toLowerCase().includes('duplicate')) throw fErr;
+
+      // Update friend_request status
+      await supabase
+        .from('friend_requests')
+        .update({ status: 'accepted', updated_at: new Date().toISOString() })
+        .eq('requester_id', requesterId)
+        .eq('addressee_id', user.id);
+
+      // Notify requester
+      const { data: me } = await supabase
+        .from('profiles').select('full_name, handle').eq('id', user.id).maybeSingle();
+      const displayName = me?.full_name || (me?.handle ? `@${me.handle}` : 'Someone');
+      await supabase.from('notifications').insert({
+        user_id: requesterId,
+        type: 'friend_request_accepted',
+        title: `${displayName} accepted your connection request`,
+        message: 'You are now connected on Antelog.',
+        related_user_id: user.id,
+      });
+
+      await markAsRead(notification.id);
+      toast({ title: 'Connection accepted' });
+    } catch (e: any) {
+      toast({ title: 'Could not accept', description: e?.message, variant: 'destructive' });
+    } finally {
+      setActioning(null);
+    }
+  };
+
+  const declineFriendRequest = async (notification: Notification) => {
+    if (!notification.related_user_id) return;
+    setActioning(notification.id);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      await supabase
+        .from('friend_requests')
+        .update({ status: 'declined', updated_at: new Date().toISOString() })
+        .eq('requester_id', notification.related_user_id)
+        .eq('addressee_id', user.id);
+      await markAsRead(notification.id);
+      toast({ title: 'Request declined' });
+    } catch (e: any) {
+      toast({ title: 'Could not decline', description: e?.message, variant: 'destructive' });
+    } finally {
+      setActioning(null);
+    }
+  };
+
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
   if (isLoading) {
@@ -279,6 +347,25 @@ export const NotificationCenter = () => {
                     <p className="text-xs text-muted-foreground mt-1">
                       {new Date(notification.created_at).toLocaleString()}
                     </p>
+                    {notification.type === 'friend_request' && !notification.is_read && (
+                      <div className="flex items-center gap-2 mt-2" onClick={(e) => e.stopPropagation()}>
+                        <Button
+                          size="sm"
+                          onClick={() => acceptFriendRequest(notification)}
+                          disabled={actioning === notification.id}
+                        >
+                          <Check className="h-3 w-3" /> Accept
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => declineFriendRequest(notification)}
+                          disabled={actioning === notification.id}
+                        >
+                          <X className="h-3 w-3" /> Decline
+                        </Button>
+                      </div>
+                    )}
                   </div>
                   {!notification.is_read && (
                     <div className="h-2 w-2 bg-primary rounded-full flex-shrink-0 mt-2" />
