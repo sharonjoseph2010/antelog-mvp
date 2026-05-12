@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, ShieldCheck, MapPin, Briefcase, Pencil, Lock } from "lucide-react";
+import { FriendRequestButton } from "@/components/FriendRequestButton";
 
 interface SafeProfile {
   id: string;
@@ -125,10 +126,16 @@ const PublicProfile = () => {
           <CardContent className="p-6 space-y-6">
             {/* 1. Connection context bar */}
             {ctxLabel && (
-              <div>
+              <div className="flex items-center gap-3 flex-wrap">
                 <Badge variant="secondary" className="text-xs font-normal text-muted-foreground">
                   {ctxLabel}
                 </Badge>
+                {profile.relationship === "second_degree" && viewerId && profile.id && (
+                  <FriendRequestButton
+                    currentUserId={viewerId}
+                    targetUserId={profile.id}
+                  />
+                )}
               </div>
             )}
 
