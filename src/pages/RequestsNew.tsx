@@ -22,6 +22,41 @@ interface Group {
   member_count: number;
 }
 
+// Known expertise domains and the title-keywords that map to them.
+// Token-based, deterministic. No AI, no embeddings.
+const DOMAIN_KEYWORDS: Record<string, string[]> = {
+  "Food & Cafes": ["food", "cafe", "cafes", "coffee", "restaurant", "restaurants", "eat", "eatery", "dining", "brunch", "bakery", "dessert", "biryani", "pizza", "bar", "pub"],
+  "Travel & Hotels": ["travel", "trip", "hotel", "hotels", "stay", "homestay", "resort", "hostel", "airbnb", "vacation", "holiday", "itinerary", "tour"],
+  "Electronics & Gadgets": ["laptop", "phone", "smartphone", "headphones", "earbuds", "camera", "gadget", "electronics", "monitor", "tv", "console"],
+  "Fashion & Clothing": ["fashion", "clothing", "clothes", "shirt", "dress", "shoes", "sneakers", "outfit", "wardrobe", "boutique"],
+  "Fitness & Health": ["gym", "fitness", "workout", "yoga", "trainer", "pilates", "crossfit", "health", "wellness"],
+  "Books & Media": ["book", "books", "novel", "film", "films", "movie", "movies", "series", "show", "podcast", "magazine"],
+  "Home & Appliances": ["home", "appliance", "appliances", "furniture", "kitchen", "washing machine", "fridge", "ac", "interior"],
+  "Finance & Banking": ["finance", "bank", "banking", "loan", "credit", "investment", "mutual fund", "stocks", "insurance", "tax"],
+  "Beauty & Skincare": ["beauty", "skincare", "salon", "spa", "makeup", "hair", "barber"],
+  "Parenting": ["parenting", "kids", "child", "children", "baby", "toddler", "school", "preschool", "daycare"],
+  "Pets": ["pet", "pets", "dog", "cat", "vet", "groomer"],
+  "Sports": ["sports", "cricket", "football", "tennis", "badminton", "running", "marathon"],
+  "Cars & Bikes": ["car", "cars", "bike", "bikes", "motorcycle", "scooter", "ev", "mechanic"],
+  "Education": ["education", "course", "tutor", "coaching", "college", "university", "bootcamp", "class"],
+  "Real Estate": ["real estate", "apartment", "flat", "house", "rent", "broker", "property", "pg"],
+};
+
+function deriveDomainsFromTitle(title: string): string[] {
+  const lower = ` ${title.toLowerCase()} `;
+  const matched: string[] = [];
+  for (const [domain, keywords] of Object.entries(DOMAIN_KEYWORDS)) {
+    for (const kw of keywords) {
+      // word-boundary-ish match
+      if (lower.includes(` ${kw} `) || lower.includes(` ${kw}s `) || lower.includes(` ${kw},`) || lower.includes(` ${kw}.`)) {
+        matched.push(domain);
+        break;
+      }
+    }
+  }
+  return matched;
+}
+
 // Input validation schema
 const requestSchema = z.object({
   title: z.string().trim().min(10, "Request must be at least 10 characters").max(500, "Request must be less than 500 characters"),
