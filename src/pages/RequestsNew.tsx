@@ -167,25 +167,20 @@ export default function RequestsNew() {
     return () => clearTimeout(timer);
   }, [formData.title, directoryNudgeDismissed]);
 
-  // Nudge 2: check network experts when category changes
+  // Nudge 2: check network experts based on title text (token-matched against known expertise domains)
   useEffect(() => {
     if (expertNudgeDismissed) return;
-    if (!formData.category) {
+    const title = (formData.title || "").trim();
+    if (title.length < 4) {
       setNetworkExperts([]);
       return;
     }
-    const categoryToDomains: Record<string, string[]> = {
-      places: ["Food & Cafes"],
-      products: ["Electronics & Gadgets", "Home & Appliances"],
-      films: ["Books & Media"],
-      travel: ["Travel & Hotels"],
-    };
-    const domains = categoryToDomains[formData.category];
-    if (!domains) {
+    const domains = deriveDomainsFromTitle(title);
+    if (domains.length === 0) {
       setNetworkExperts([]);
       return;
     }
-    (async () => {
+    const timer = setTimeout(async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
@@ -198,8 +193,9 @@ export default function RequestsNew() {
       } catch (err) {
         console.error("find_network_experts error", err);
       }
-    })();
-  }, [formData.category, expertNudgeDismissed]);
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [formData.title, expertNudgeDismissed]);
 
   const frostedAmber = "relative rounded-lg border border-[rgba(245,158,11,0.4)] bg-[rgba(245,158,11,0.10)] backdrop-blur-sm p-4";
   const frostedSky = "relative rounded-lg border border-[rgba(56,189,248,0.4)] bg-[rgba(56,189,248,0.10)] backdrop-blur-sm p-4";
@@ -657,14 +653,8 @@ export default function RequestsNew() {
       // 4. Forward suggestions: notify mutual friends about 2nd-degree experts
       if (formData.audience_types.includes('first_network')) {
         try {
-          const categoryToDomains: Record<string, string[]> = {
-            places: ["Food & Cafes"],
-            products: ["Electronics & Gadgets", "Home & Appliances"],
-            films: ["Books & Media"],
-            travel: ["Travel & Hotels"],
-          };
-          const domains = categoryToDomains[formData.category];
-          if (domains && domains.length > 0) {
+          const domains = deriveDomainsFromTitle(formData.title || "");
+          if (domains.length > 0) {
             const { data: experts } = await supabase.rpc('find_network_experts', {
               viewer_id: user.id,
               query_domains: domains,
