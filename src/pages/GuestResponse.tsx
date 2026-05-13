@@ -1,14 +1,11 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { MapPin, Users, Clock, Share2, CheckCircle2, Eye, ThumbsUp } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import { differenceInDays } from "date-fns";
 
 export default function GuestResponse() {
   const { requestId, token } = useParams();
@@ -20,13 +17,12 @@ export default function GuestResponse() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [preview, setPreview] = useState<{ items: { recommendation_text: string; reason: string | null }[]; total: number }>({ items: [], total: 0 });
 
   const [contributorName, setContributorName] = useState("");
   const [contributorContact, setContributorContact] = useState("");
   const [recommendations, setRecommendations] = useState([
     { text: "", reason: "", link: "", position: 1 },
-    { text: "", reason: "", link: "", position: 2 },
-    { text: "", reason: "", link: "", position: 3 },
   ]);
 
   const [myShareLink, setMyShareLink] = useState<string | null>(null);
@@ -67,7 +63,7 @@ export default function GuestResponse() {
     try {
       const { data: requestData, error: requestError } = await supabase
         .from("requests")
-        .select("id, title, category, location, created_at, creator_id")
+        .select("id, title, category, location, created_at, creator_id, expires_at")
         .eq("id", requestId!)
         .single();
 
@@ -84,6 +80,19 @@ export default function GuestResponse() {
       }
 
       setRequest({ ...requestData, creator_profile });
+
+      // Fetch preview recommendations
+      const { data: previewData } = await supabase.rpc("get_guest_page_preview" as any, {
+        p_request_id: requestId!,
+      });
+      if (previewData && Array.isArray(previewData)) {
+        const items = previewData.slice(0, 2).map((r: any) => ({
+          recommendation_text: r.recommendation_text,
+          reason: r.reason,
+        }));
+        const total = previewData.length > 0 ? Number(previewData[0].total_count ?? 0) : 0;
+        setPreview({ items, total });
+      }
 
       const { data: linkData, error: linkError } = await supabase
         .from("share_links")
@@ -297,209 +306,215 @@ export default function GuestResponse() {
   if (!request || !shareLink) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
-        <Card className="max-w-md w-full">
-          <CardContent className="pt-6 text-center space-y-2">
-            <h2 className="text-xl font-semibold text-foreground">Request Not Found</h2>
-            <p className="text-muted-foreground">This link may be invalid or expired.</p>
-          </CardContent>
-        </Card>
+        <div className="max-w-md w-full text-center space-y-2">
+          <h2 className="text-xl font-semibold text-foreground">Request Not Found</h2>
+          <p className="text-muted-foreground">This link may be invalid or expired.</p>
+        </div>
       </div>
     );
   }
 
   const isAtCapacity = (shareLink.current_responses ?? 0) >= (shareLink.max_responses ?? 5);
+  const daysLeft = request.expires_at
+    ? Math.max(0, differenceInDays(new Date(request.expires_at), new Date()))
+    : null;
+  const requesterName = request.creator_profile?.full_name || "Someone";
+  const renderPreview = () =>
+    preview.items.length > 0 ? (
+      <section className="space-y-3">
+        <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+          Some recommendations already shared
+        </h2>
+        <div className="space-y-3">
+          {preview.items.map((it, i) => (
+            <div key={i} className="space-y-1">
+              <p className="font-semibold text-foreground">{it.recommendation_text}</p>
+              {it.reason && <p className="text-sm text-muted-foreground">{it.reason}</p>}
+            </div>
+          ))}
+          {preview.total > preview.items.length && (
+            <p className="text-sm text-muted-foreground">
+              + {preview.total - preview.items.length} more recommendation{preview.total - preview.items.length === 1 ? "" : "s"}
+            </p>
+          )}
+        </div>
+      </section>
+    ) : null;
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
-        {/* Header */}
-        <div className="space-y-3">
-          <Badge variant="secondary" className="capitalize">{request.category}</Badge>
-          <h1 className="text-2xl font-bold text-foreground">{request.title}</h1>
-          <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
-            {shareLink.generated_by_name && (
-              <span className="flex items-center gap-1">
-                <Users className="h-4 w-4" />
-                Shared by {shareLink.generated_by_name}
-                {shareLink.fullChain && shareLink.fullChain.length > 1 && (
-                  <span className="text-muted-foreground text-xs">
-                    {" "}(via {shareLink.fullChain.slice(0, -1).reverse().join(" → ")})
-                  </span>
-                )}
-              </span>
-            )}
-            {request.creator_profile?.full_name && (
-              <span>Asked by {request.creator_profile.full_name}</span>
-            )}
-            {request.location && (
-              <span className="flex items-center gap-1">
-                <MapPin className="h-4 w-4" />
-                {request.location}
-              </span>
-            )}
-            <span className="flex items-center gap-1">
-              <Clock className="h-4 w-4" />
-              {formatDistanceToNow(new Date(request.created_at), { addSuffix: true })}
-            </span>
+      <div className="max-w-2xl mx-auto px-4 py-12 space-y-10">
+        {/* Header block */}
+        <header className="space-y-4">
+          <h1 className="text-3xl md:text-4xl font-bold text-foreground leading-tight">
+            {request.title}
+          </h1>
+          <div className="space-y-1">
+            <p className="text-base text-foreground">
+              {requesterName} asked people they trust for recommendations.
+            </p>
+            <p className="text-base text-muted-foreground">You were invited to contribute.</p>
           </div>
-        </div>
+          <p className="text-sm text-muted-foreground">
+            {preview.total} recommendation{preview.total === 1 ? "" : "s"} so far
+            {daysLeft !== null && <> · Closes in {daysLeft} day{daysLeft === 1 ? "" : "s"}</>}
+            {request.category && <> · {request.category}</>}
+          </p>
+        </header>
 
         {hasSubmitted ? (
-          <div className="space-y-6">
-            <Card>
-              <CardContent className="pt-6 space-y-6">
-                <div className="flex items-start gap-3">
-                  <CheckCircle2 className="h-6 w-6 text-primary flex-shrink-0 mt-0.5" />
-                  <p className="text-lg font-medium text-foreground">
-                    Thanks {contributorName}! Your recommendations are saved.
-                  </p>
-                </div>
+          <div className="space-y-10">
+            {/* Confirmation */}
+            <section className="space-y-2">
+              <h2 className="text-2xl font-semibold text-foreground">Thanks {contributorName}.</h2>
+              <p className="text-muted-foreground">Your recommendations were added.</p>
+            </section>
 
-                <div className="border-t pt-4 space-y-3">
-                  <p className="font-medium text-foreground">Want to see what others recommended?</p>
-                  <ul className="space-y-2 text-sm text-muted-foreground">
-                    <li className="flex items-center gap-2">
-                      <Eye className="h-4 w-4" /> See all recommendations
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <ThumbsUp className="h-4 w-4" /> Vote on the best answers
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <Users className="h-4 w-4" /> See who voted for yours
-                    </li>
-                  </ul>
-                  <Button className="w-full" onClick={() => {
-                    navigate(`/signup?request_id=${encodeURIComponent(requestId!)}`);
-                  }}>
-                    Join Antelog — Free (5 Requests)
-                  </Button>
-                  <p className="text-xs text-center text-muted-foreground">
-                    Already have an account?{" "}
-                    <button onClick={() => navigate("/login")} className="underline text-primary">
-                      Log in
-                    </button>
-                  </p>
+            {/* Recommendation tease */}
+            {preview.items.length > 0 && (
+              <section className="space-y-3">
+                <div className="space-y-3">
+                  {preview.items.map((it, i) => (
+                    <div key={i} className="space-y-1">
+                      <p className="font-semibold text-foreground">{it.recommendation_text}</p>
+                      {it.reason && <p className="text-sm text-muted-foreground">{it.reason}</p>}
+                    </div>
+                  ))}
+                  {preview.total > preview.items.length && (
+                    <p className="text-sm text-muted-foreground">
+                      + {preview.total - preview.items.length} more recommendation{preview.total - preview.items.length === 1 ? "" : "s"}
+                    </p>
+                  )}
                 </div>
-              </CardContent>
-            </Card>
-
-            {!myShareLink ? (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <Share2 className="h-4 w-4" />
-                    Know someone who might help?
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <p className="text-sm text-muted-foreground">
-                    Share this request with up to 5 people in your network.
-                  </p>
-                  <Button variant="outline" className="w-full" onClick={generateMyShareLink}>
-                    Generate My Share Link
-                  </Button>
-                </CardContent>
-              </Card>
-            ) : (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Your Share Link</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <p className="text-sm text-muted-foreground">
-                    Share with up to 5 people. Each can share with 5 more.
-                  </p>
-                  <div className="flex gap-2">
-                    <Input value={myShareLink} readOnly className="text-xs" />
-                    <Button variant="outline" size="sm" onClick={copyShareLink}>
-                      Copy
-                    </Button>
-                  </div>
-                  <p className="text-xs text-muted-foreground">0/5 people have used this link</p>
-                </CardContent>
-              </Card>
+                <p className="text-sm text-muted-foreground">
+                  Join Antelog to see the full list and vote on the best suggestions.
+                </p>
+              </section>
             )}
+
+            {/* Signup CTA */}
+            <section className="space-y-4">
+              <p className="text-foreground font-medium">Join Antelog to:</p>
+              <ul className="space-y-1 text-sm text-muted-foreground list-none">
+                <li>• See all recommendations for this request</li>
+                <li>• Vote on the best suggestions</li>
+                <li>• Ask your own network for trusted answers</li>
+                <li>• Get 5 free requests when you join</li>
+              </ul>
+              <Button
+                className="w-full"
+                size="lg"
+                onClick={() => navigate(`/signup?request_id=${encodeURIComponent(requestId!)}`)}
+              >
+                Join Antelog — Free
+              </Button>
+              <p className="text-sm text-muted-foreground">
+                Already have an account?{" "}
+                <button onClick={() => navigate("/login")} className="underline text-foreground">
+                  Log in
+                </button>
+              </p>
+            </section>
+
+            {/* Share loop */}
+            <section className="space-y-3 pt-6 border-t border-border">
+              <h2 className="text-lg font-semibold text-foreground">Know someone who might help?</h2>
+              <p className="text-sm text-muted-foreground">Pass this request to someone you trust.</p>
+              {!myShareLink ? (
+                <Button variant="outline" onClick={generateMyShareLink}>
+                  Generate Share Link
+                </Button>
+              ) : (
+                <div className="flex gap-2">
+                  <Input value={myShareLink} readOnly className="text-xs" />
+                  <Button variant="outline" size="sm" onClick={copyShareLink}>
+                    Copy
+                  </Button>
+                </div>
+              )}
+            </section>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Your Information</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">Your Name *</label>
-                  <Input
-                    value={contributorName}
-                    onChange={(e) => setContributorName(e.target.value)}
-                    placeholder="e.g., John Doe"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">Contact (Optional)</label>
-                  <Input
-                    value={contributorContact}
-                    onChange={(e) => setContributorContact(e.target.value)}
-                    placeholder="Phone or email"
-                  />
-                  <p className="text-xs text-muted-foreground">We'll notify you when the request is closed</p>
-                </div>
-              </CardContent>
-            </Card>
+          <form onSubmit={handleSubmit} className="space-y-10">
+            {renderPreview()}
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Your Recommendations (Up to 5)</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {recommendations.map((rec, idx) => (
-                  <div key={idx} className="space-y-2 p-3 rounded-md border border-border">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-foreground">Recommendation {idx + 1}</span>
-                      {recommendations.length > 1 && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRemoveRecommendation(idx)}
-                          className="text-destructive h-auto py-1 px-2 text-xs"
-                        >
-                          Remove
-                        </Button>
-                      )}
+            {/* Composer */}
+            <section className="space-y-5">
+              <h2 className="text-lg font-semibold text-foreground">What do you recommend?</h2>
+              {recommendations.map((rec, idx) => (
+                <div key={idx} className="space-y-3">
+                  {idx > 0 && (
+                    <div className="flex items-center justify-between pt-2">
+                      <span className="text-xs text-muted-foreground uppercase tracking-wide">
+                        Recommendation {idx + 1}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveRecommendation(idx)}
+                        className="text-xs text-muted-foreground hover:text-destructive underline"
+                      >
+                        Remove
+                      </button>
                     </div>
-                    <Input
-                      value={rec.text}
-                      onChange={(e) => updateRecommendation(idx, "text", e.target.value)}
-                      placeholder="What do you recommend?"
-                      required={idx === 0}
-                    />
-                    <Textarea
-                      value={rec.reason}
-                      onChange={(e) => updateRecommendation(idx, "reason", e.target.value)}
-                      placeholder="Why? (optional)"
-                      rows={2}
-                    />
-                    <Input
-                      value={rec.link}
-                      onChange={(e) => updateRecommendation(idx, "link", e.target.value)}
-                      placeholder="Link (optional)"
-                      type="url"
-                    />
-                  </div>
-                ))}
+                  )}
+                  <Input
+                    value={rec.text}
+                    onChange={(e) => updateRecommendation(idx, "text", e.target.value)}
+                    placeholder="What do you recommend?"
+                    required={idx === 0}
+                  />
+                  <Textarea
+                    value={rec.reason}
+                    onChange={(e) => updateRecommendation(idx, "reason", e.target.value)}
+                    placeholder="Why? (optional)"
+                    rows={2}
+                  />
+                  <Input
+                    value={rec.link}
+                    onChange={(e) => updateRecommendation(idx, "link", e.target.value)}
+                    placeholder="Link (optional)"
+                    type="url"
+                  />
+                </div>
+              ))}
+              {recommendations.length < 5 && (
+                <button
+                  type="button"
+                  onClick={handleAddRecommendation}
+                  className="text-sm text-foreground underline hover:text-primary"
+                >
+                  + Add another recommendation
+                </button>
+              )}
+            </section>
 
-                {recommendations.length < 5 && (
-                  <Button type="button" variant="outline" onClick={handleAddRecommendation} className="w-full">
-                    + Add Another
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
+            {/* Identity */}
+            <section className="space-y-4 pt-2 border-t border-border">
+              <h2 className="text-lg font-semibold text-foreground pt-4">Who are you?</h2>
+              <div className="space-y-2">
+                <label className="text-sm text-foreground">Your name *</label>
+                <Input
+                  value={contributorName}
+                  onChange={(e) => setContributorName(e.target.value)}
+                  placeholder="Your full name"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm text-foreground">Phone or email (optional)</label>
+                <Input
+                  value={contributorContact}
+                  onChange={(e) => setContributorContact(e.target.value)}
+                  placeholder="Phone or email"
+                />
+                <p className="text-xs text-muted-foreground">
+                  We'll let you know when this request is finalized.
+                </p>
+              </div>
+            </section>
 
             <Button type="submit" className="w-full" size="lg" disabled={isSubmitting || isAtCapacity}>
-              {isSubmitting ? "Submitting..." : "Submit Recommendations"}
+              {isSubmitting ? "Submitting..." : "Share Recommendations"}
             </Button>
 
             {isAtCapacity && (

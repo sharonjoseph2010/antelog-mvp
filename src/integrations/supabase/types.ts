@@ -1680,6 +1680,14 @@ export type Database = {
           title: string
         }[]
       }
+      get_guest_page_preview: {
+        Args: { p_request_id: string }
+        Returns: {
+          reason: string
+          recommendation_text: string
+          total_count: number
+        }[]
+      }
       get_network_contributors: {
         Args: { contributor_ids: string[]; user_id_param: string }
         Returns: {
