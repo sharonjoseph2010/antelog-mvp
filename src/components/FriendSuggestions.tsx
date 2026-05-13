@@ -210,9 +210,6 @@ export const FriendSuggestions = () => {
                   <p className="text-sm text-muted-foreground">
                     @{suggestion.user_profile?.handle || 'unknown'}
                   </p>
-                  <p className="text-xs text-muted-foreground">
-                    Matched via {suggestion.match_type}: {suggestion.match_value}
-                  </p>
                 </div>
               </div>
 

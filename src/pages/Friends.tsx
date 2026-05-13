@@ -282,6 +282,16 @@ const Friends = () => {
 
       if (friendshipError) throw friendshipError;
 
+      // Resolve the adder's full_name from profiles (do NOT use the saved contact name)
+      const { data: adderProfile } = await supabase
+        .from('profiles')
+        .select('full_name, handle')
+        .eq('id', currentUserId)
+        .maybeSingle();
+      const adderDisplay =
+        adderProfile?.full_name ||
+        (adderProfile?.handle ? `@${adderProfile.handle}` : 'Someone');
+
       // Create notification for the added person
       const { error: notificationError } = await supabase
         .from('notifications')
@@ -289,7 +299,7 @@ const Friends = () => {
           user_id: contact.matched_user_id,
           type: 'network_addition',
           title: 'Added to 1st Network',
-          message: `${contact.contact_name} added you to their 1st Network`,
+          message: `${adderDisplay} added you to their 1st Network`,
           related_user_id: currentUserId,
         });
 
