@@ -257,8 +257,18 @@ export default function GuestResponse() {
         if (contributionError) throw contributionError;
         setPassOnly(true);
         setHasSubmitted(true);
-      } catch (error) {
+    } catch (error: any) {
         console.error("Error submitting pass-only:", error);
+      const msg = String(error?.message || "");
+      if (/request is closed|request has expired/i.test(msg)) {
+        toast({
+          title: "This request was just closed.",
+          description: "Your response wasn't saved.",
+          variant: "destructive",
+        });
+        setTimeout(() => window.location.reload(), 1200);
+        return;
+      }
         toast({
           title: "Submission Failed",
           description: "Please try again",
@@ -319,8 +329,18 @@ export default function GuestResponse() {
         title: "Thanks for your input!",
         description: "Your recommendations have been saved.",
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error submitting:", error);
+      const msg = String(error?.message || "");
+      if (/request is closed|request has expired/i.test(msg)) {
+        toast({
+          title: "This request was just closed.",
+          description: "Your response wasn't saved.",
+          variant: "destructive",
+        });
+        setTimeout(() => window.location.reload(), 1200);
+        return;
+      }
       toast({
         title: "Submission Failed",
         description: "Please try again",
