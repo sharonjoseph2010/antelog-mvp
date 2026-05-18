@@ -369,19 +369,6 @@ export default function GuestResponse() {
     setTimeout(() => setCopied(false), 1500);
   };
 
-  const handlePassAlong = async () => {
-    if (!contributorName.trim()) {
-      toast({
-        title: "Name Required",
-        description: "Please enter your name",
-        variant: "destructive",
-      });
-      return;
-    }
-    setIsGeneratingPassAlong(true);
-    await generateMyShareLink(contributorName.trim());
-    setIsGeneratingPassAlong(false);
-  };
 
   if (isLoading) {
     return (
