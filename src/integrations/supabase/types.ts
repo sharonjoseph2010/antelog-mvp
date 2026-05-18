@@ -1699,6 +1699,20 @@ export type Database = {
         }[]
       }
       get_response_origin: { Args: { p_response_id: string }; Returns: string }
+      get_response_tree: {
+        Args: { p_request_id: string }
+        Returns: {
+          depth: number
+          forwarded_to_count: number
+          has_responded: boolean
+          is_antelog_user: boolean
+          is_root: boolean
+          link_id: string
+          parent_link_id: string
+          person_name: string
+          recommendation_count: number
+        }[]
+      }
       get_safe_profile_data: {
         Args: { profile_id: string }
         Returns: {
