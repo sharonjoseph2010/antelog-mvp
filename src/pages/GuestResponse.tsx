@@ -785,7 +785,7 @@ export default function GuestResponse() {
             </section>
 
             {/* Recommendation composer */}
-            {recActive && (
+            {recActive ? (
               <section className="space-y-5">
                 {recommendations.map((rec, idx) => (
                   <div key={idx} className="space-y-3">
@@ -833,48 +833,17 @@ export default function GuestResponse() {
                   </button>
                 )}
               </section>
-            )}
-
-            {/* Pass-along panel */}
-            {passActive && (
-              <section className="space-y-3 rounded-lg bg-muted/30 p-4">
-                <p className="text-sm text-muted-foreground">
-                  Enter your name — we'll create a unique link to share on WhatsApp. Whoever responds via your link is traced back to you.
+            ) : (
+              <section className="rounded-lg bg-muted/30 p-4">
+                <p className="text-sm text-muted-foreground leading-[1.55]">
+                  Just pass this along — no recommendation needed. Your name below is used to track who forwarded.
                 </p>
-                {!myShareLink ? (
-                  <div className="flex flex-col sm:flex-row gap-2">
-                    <Input
-                      value={contributorName}
-                      onChange={(e) => setContributorName(e.target.value)}
-                      placeholder="Your full name"
-                      className="bg-background"
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={handlePassAlong}
-                      disabled={isGeneratingPassAlong}
-                      className="whitespace-nowrap"
-                    >
-                      {isGeneratingPassAlong ? "Generating..." : "Get my link →"}
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <div className="flex gap-2">
-                      <Input value={myShareLink} readOnly className="text-xs bg-background" />
-                      <Button type="button" variant="outline" size="sm" onClick={copyShareLink}>
-                        {copied ? "Copied" : "Copy"}
-                      </Button>
-                    </div>
-                  </div>
-                )}
               </section>
             )}
 
             {/* Identity */}
             <section className="space-y-4 pt-6 border-t border-border">
-              <h2 className="text-lg font-semibold text-foreground">Who are you?</h2>
+              <h2 className="text-lg font-semibold text-foreground">Who's sharing this?</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-sm text-foreground">Your name *</label>
@@ -899,13 +868,18 @@ export default function GuestResponse() {
               </div>
             </section>
 
-            <Button type="submit" className="w-full" size="lg" disabled={isSubmitting || isAtCapacity || (!recActive && !passActive)}>
+            <Button
+              type="submit"
+              className="w-full"
+              size="lg"
+              disabled={isSubmitting || isAtCapacity || (!recActive && !passActive)}
+            >
               {isSubmitting
                 ? "Submitting..."
-                : recActive && passActive
-                ? "Share & get forward link →"
-                : passActive
-                ? "Get my share link →"
+                : !recActive && !passActive
+                ? "Pick one to continue"
+                : !recActive && passActive
+                ? "Continue to share link"
                 : "Share recommendations"}
             </Button>
             <p className="text-center text-xs text-muted-foreground -mt-4">
