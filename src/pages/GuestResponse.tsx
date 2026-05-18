@@ -433,7 +433,12 @@ export default function GuestResponse() {
 
   const CatIcon = categoryIcon(request.category);
 
-  const renderPreview = (label: string, items = preview.items, total = preview.total) => {
+  const renderPreview = (
+    label: string,
+    items = preview.items,
+    total = preview.total,
+    linkable = false,
+  ) => {
     if (total === 0 || items.length === 0) return null;
     const showCountLine = total > 2;
     return (
@@ -450,11 +455,18 @@ export default function GuestResponse() {
               {it.recommendation_text}
             </p>
           ))}
-          {showCountLine && (
+          {showCountLine && linkable ? (
+            <a
+              href={`/signup?request_id=${encodeURIComponent(requestId!)}`}
+              className="block text-sm text-foreground underline py-1.5 cursor-pointer"
+            >
+              + {total - 2} more — join to see
+            </a>
+          ) : showCountLine ? (
             <p className="text-sm text-muted-foreground">
               + {total - 2} more
             </p>
-          )}
+          ) : null}
         </div>
       </section>
     );
