@@ -443,8 +443,7 @@ export default function GuestResponse() {
     const showCountLine = total > 2;
     return (
       <section
-        className="rounded-[10px] p-4"
-        style={{ background: "hsl(220 20% 97%)" }}
+        className="rounded-[10px] p-4 bg-muted/50"
       >
         <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground mb-3">
           {label}
@@ -477,8 +476,7 @@ export default function GuestResponse() {
     if (daysLeft <= 0) {
       return (
         <span
-          className="inline-flex items-center gap-1"
-          style={{ color: "hsl(32 80% 36%)" }}
+          className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400"
         >
           <Clock className="h-3 w-3" /> Closes today
         </span>
@@ -493,8 +491,8 @@ export default function GuestResponse() {
 
   const FooterBand = () => (
     <div
-      className="mt-10 -mx-4 px-5 py-4 text-center text-xs italic text-muted-foreground border-t border-border/60"
-      style={{ background: "hsl(220 20% 97%)", lineHeight: 1.55 }}
+      className="mt-10 -mx-4 px-5 py-4 text-center text-xs italic text-muted-foreground border-t border-border/60 bg-muted/50"
+      style={{ lineHeight: 1.55 }}
     >
       The best recommendations come from real people you trust — not algorithms or ads.
     </div>
@@ -517,8 +515,7 @@ export default function GuestResponse() {
         </button>
         {chainExpanded && (
           <div
-            className="mt-3 rounded-[10px] p-[14px]"
-            style={{ background: "hsl(220 20% 97%)" }}
+            className="mt-3 rounded-[10px] p-[14px] bg-muted/50"
           >
             <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-3">
               How this reached you
@@ -563,8 +560,7 @@ export default function GuestResponse() {
         <header className="space-y-3">
           {request.category && (
             <span
-              className="inline-flex items-center gap-1 rounded-full px-2.5 py-[3px] text-[11px] font-medium"
-              style={{ background: "hsl(220 20% 95%)", color: "hsl(220 10% 35%)" }}
+              className="inline-flex items-center gap-1 rounded-full px-2.5 py-[3px] text-[11px] font-medium bg-muted text-muted-foreground"
             >
               <CatIcon className="h-3 w-3" />
               <span className="capitalize">{request.category}</span>
@@ -612,11 +608,7 @@ export default function GuestResponse() {
           <div className="space-y-7 sm:space-y-10">
             {/* Success banner */}
             <div
-              className="flex items-center gap-3 rounded-[10px] px-[14px] py-3"
-              style={{
-                background: "hsl(150 60% 95%)",
-                color: "hsl(155 70% 26%)",
-              }}
+              className="flex items-center gap-3 rounded-[10px] px-[14px] py-3 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"
             >
               <CheckCircle2 className="h-5 w-5 shrink-0" aria-hidden />
               <div>
@@ -713,11 +705,7 @@ export default function GuestResponse() {
               ) : (
                 <div className="space-y-3">
                   <div
-                    className="inline-flex items-center gap-2 rounded-[10px] px-3 py-2 text-sm"
-                    style={{
-                      background: "hsl(150 60% 95%)",
-                      color: "hsl(155 70% 26%)",
-                    }}
+                    className="inline-flex items-center gap-2 rounded-[10px] px-3 py-2 text-sm bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"
                   >
                     <CheckCircle2 className="h-4 w-4" /> Your link is ready.
                   </div>
