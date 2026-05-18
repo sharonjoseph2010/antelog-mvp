@@ -337,7 +337,9 @@ export const NotificationCenter = () => {
                   <div className="flex-1 min-w-0">
                     <h4 className="font-medium text-sm">{notification.title}</h4>
                     <p className="text-sm text-muted-foreground">
-                      {notification.message}
+                      {notification.type === 'network_addition' && notification.related_profile
+                        ? `${notification.related_profile.full_name} added you to their 1st Network`
+                        : notification.message}
                     </p>
                     {notification.related_profile && (
                       <p className="text-xs text-muted-foreground mt-1">
