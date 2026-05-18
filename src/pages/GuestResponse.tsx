@@ -6,6 +6,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { differenceInDays } from "date-fns";
+import { MessageCircle, CornerUpRight } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export default function GuestResponse() {
   const { requestId, token } = useParams();
@@ -26,8 +28,9 @@ export default function GuestResponse() {
   ]);
 
   const [myShareLink, setMyShareLink] = useState<string | null>(null);
-  const [passAlongName, setPassAlongName] = useState("");
   const [isGeneratingPassAlong, setIsGeneratingPassAlong] = useState(false);
+  const [recActive, setRecActive] = useState(true);
+  const [passActive, setPassActive] = useState(false);
 
   const reconstructChainIterative = async (linkId: string): Promise<string[]> => {
     const chain: string[] = [];
@@ -175,14 +178,34 @@ export default function GuestResponse() {
       return;
     }
 
+    if (!recActive && !passActive) {
+      toast({
+        title: "Pick an action",
+        description: "Choose to share a recommendation or pass it along.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const validRecs = recommendations.filter((r) => r.text.trim());
 
-    if (validRecs.length === 0) {
+    if (recActive && validRecs.length === 0) {
       toast({
         title: "Recommendations Required",
         description: "Please add at least one recommendation",
         variant: "destructive",
       });
+      return;
+    }
+
+    // Pass-along only path: generate link and finish
+    if (!recActive && passActive) {
+      setIsSubmitting(true);
+      try {
+        await generateMyShareLink(contributorName.trim());
+      } finally {
+        setIsSubmitting(false);
+      }
       return;
     }
 
@@ -227,6 +250,11 @@ export default function GuestResponse() {
             updated_at: new Date().toISOString(),
           })
           .eq("id", shareLink.id);
+      }
+
+      // If user also wants a forward link, generate it now (don't navigate away)
+      if (passActive && !myShareLink) {
+        await generateMyShareLink(contributorName.trim());
       }
 
       setHasSubmitted(true);
@@ -304,7 +332,7 @@ export default function GuestResponse() {
   };
 
   const handlePassAlong = async () => {
-    if (!passAlongName.trim()) {
+    if (!contributorName.trim()) {
       toast({
         title: "Name Required",
         description: "Please enter your name",
@@ -313,7 +341,7 @@ export default function GuestResponse() {
       return;
     }
     setIsGeneratingPassAlong(true);
-    await generateMyShareLink(passAlongName.trim());
+    await generateMyShareLink(contributorName.trim());
     setIsGeneratingPassAlong(false);
   };
 
@@ -474,121 +502,166 @@ export default function GuestResponse() {
           <form onSubmit={handleSubmit} className="space-y-10">
             {renderPreview()}
 
-            {/* Composer */}
-            <section className="space-y-5">
-              <h2 className="text-lg font-semibold text-foreground">What do you recommend?</h2>
-              {recommendations.map((rec, idx) => (
-                <div key={idx} className="space-y-3">
-                  {idx > 0 && (
-                    <div className="flex items-center justify-between pt-2">
-                      <span className="text-xs text-muted-foreground uppercase tracking-wide">
-                        Recommendation {idx + 1}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveRecommendation(idx)}
-                        className="text-xs text-muted-foreground hover:text-destructive underline"
-                      >
-                        Remove
-                      </button>
+            {/* Action toggle */}
+            <section className="space-y-4">
+              <div className="space-y-1">
+                <h2 className="text-lg font-semibold text-foreground">What would you like to do?</h2>
+                <p className="text-sm text-muted-foreground">Pick one — or both.</p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {[
+                  { active: recActive, toggle: () => setRecActive(v => !v), Icon: MessageCircle, title: "Share a recommendation", subtitle: "You know a good place" },
+                  { active: passActive, toggle: () => setPassActive(v => !v), Icon: CornerUpRight, title: "Pass it along", subtitle: "You know someone who might" },
+                ].map(({ active, toggle, Icon, title, subtitle }) => (
+                  <button
+                    key={title}
+                    type="button"
+                    onClick={toggle}
+                    aria-pressed={active}
+                    className={cn(
+                      "text-left rounded-lg px-4 py-4 transition-colors flex items-start gap-3",
+                      active
+                        ? "bg-secondary border-foreground/60"
+                        : "bg-transparent border-border hover:bg-muted/40"
+                    )}
+                    style={{ borderWidth: active ? 1.5 : 0.5, borderStyle: "solid" }}
+                  >
+                    <Icon className="h-5 w-5 mt-0.5 text-foreground shrink-0" />
+                    <div className="space-y-0.5">
+                      <div className="text-sm font-medium text-foreground">{title}</div>
+                      <div className="text-xs text-muted-foreground">{subtitle}</div>
                     </div>
-                  )}
-                  <Input
-                    value={rec.text}
-                    onChange={(e) => updateRecommendation(idx, "text", e.target.value)}
-                    placeholder="What do you recommend?"
-                    required={idx === 0}
-                  />
-                  <Textarea
-                    value={rec.reason}
-                    onChange={(e) => updateRecommendation(idx, "reason", e.target.value)}
-                    placeholder="Why? (optional)"
-                    rows={2}
-                  />
-                  <Input
-                    value={rec.link}
-                    onChange={(e) => updateRecommendation(idx, "link", e.target.value)}
-                    placeholder="Link (optional)"
-                    type="url"
-                  />
-                </div>
-              ))}
-              {recommendations.length < 5 && (
-                <button
-                  type="button"
-                  onClick={handleAddRecommendation}
-                  className="text-sm text-foreground underline hover:text-primary"
-                >
-                  + Add another recommendation
-                </button>
-              )}
+                  </button>
+                ))}
+              </div>
             </section>
 
-            {/* Pass it along */}
-            <section className="space-y-3 pt-6 border-t border-border">
-              <h2 className="text-base font-medium text-muted-foreground">Don't have a recommendation?</h2>
-              <p className="text-sm text-muted-foreground">Pass this request to someone who might.</p>
-              {!myShareLink ? (
-                <div className="space-y-3">
-                  <div className="space-y-2">
-                    <label className="text-sm text-muted-foreground">Your name *</label>
+            {/* Recommendation composer */}
+            {recActive && (
+              <section className="space-y-5">
+                {recommendations.map((rec, idx) => (
+                  <div key={idx} className="space-y-3">
+                    {idx > 0 && (
+                      <div className="flex items-center justify-between pt-2">
+                        <span className="text-xs text-muted-foreground uppercase tracking-wide">
+                          Recommendation {idx + 1}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveRecommendation(idx)}
+                          className="text-xs text-muted-foreground hover:text-destructive underline"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    )}
                     <Input
-                      value={passAlongName || contributorName}
-                      onChange={(e) => setPassAlongName(e.target.value)}
-                      placeholder="Your full name"
+                      value={rec.text}
+                      onChange={(e) => updateRecommendation(idx, "text", e.target.value)}
+                      placeholder="What do you recommend? *"
+                      required={idx === 0}
+                    />
+                    <Textarea
+                      value={rec.reason}
+                      onChange={(e) => updateRecommendation(idx, "reason", e.target.value)}
+                      placeholder="Why? (optional)"
+                      rows={2}
+                    />
+                    <Input
+                      value={rec.link}
+                      onChange={(e) => updateRecommendation(idx, "link", e.target.value)}
+                      placeholder="Link (optional)"
+                      type="url"
                     />
                   </div>
-                  <Button
+                ))}
+                {recommendations.length < 5 && (
+                  <button
                     type="button"
-                    variant="outline"
-                    onClick={handlePassAlong}
-                    disabled={isGeneratingPassAlong}
+                    onClick={handleAddRecommendation}
+                    className="text-sm text-foreground underline hover:text-primary"
                   >
-                    {isGeneratingPassAlong ? "Generating..." : "Pass it along →"}
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <div className="flex gap-2">
-                    <Input value={myShareLink} readOnly className="text-xs" />
-                    <Button type="button" variant="outline" size="sm" onClick={copyShareLink}>
-                      Copy link
+                    + Add another recommendation
+                  </button>
+                )}
+              </section>
+            )}
+
+            {/* Pass-along panel */}
+            {passActive && (
+              <section className="space-y-3 rounded-lg bg-muted/30 p-4">
+                <p className="text-sm text-muted-foreground">
+                  Enter your name — we'll create a unique link to share on WhatsApp. Whoever responds via your link is traced back to you.
+                </p>
+                {!myShareLink ? (
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <Input
+                      value={contributorName}
+                      onChange={(e) => setContributorName(e.target.value)}
+                      placeholder="Your full name"
+                      className="bg-background"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handlePassAlong}
+                      disabled={isGeneratingPassAlong}
+                      className="whitespace-nowrap"
+                    >
+                      {isGeneratingPassAlong ? "Generating..." : "Get my link →"}
                     </Button>
                   </div>
-                  <Button type="button" variant="outline" size="sm" onClick={shareOnWhatsApp}>
-                    Share on WhatsApp
-                  </Button>
-                </div>
-              )}
-            </section>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="flex gap-2">
+                      <Input value={myShareLink} readOnly className="text-xs bg-background" />
+                      <Button type="button" variant="outline" size="sm" onClick={copyShareLink}>
+                        Copy
+                      </Button>
+                    </div>
+                    <Button type="button" variant="outline" size="sm" onClick={shareOnWhatsApp}>
+                      Share on WhatsApp
+                    </Button>
+                  </div>
+                )}
+              </section>
+            )}
 
             {/* Identity */}
-            <section className="space-y-4 pt-2 border-t border-border">
-              <h2 className="text-lg font-semibold text-foreground pt-4">Who are you?</h2>
-              <div className="space-y-2">
-                <label className="text-sm text-foreground">Your name *</label>
-                <Input
-                  value={contributorName}
-                  onChange={(e) => setContributorName(e.target.value)}
-                  placeholder="Your full name"
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm text-foreground">Phone or email (optional)</label>
-                <Input
-                  value={contributorContact}
-                  onChange={(e) => setContributorContact(e.target.value)}
-                  placeholder="Phone or email"
-                />
-                <p className="text-xs text-muted-foreground">
-                  We'll let you know when this request is finalized.
-                </p>
+            <section className="space-y-4 pt-6 border-t border-border">
+              <h2 className="text-lg font-semibold text-foreground">Who are you?</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm text-foreground">Your name *</label>
+                  <Input
+                    value={contributorName}
+                    onChange={(e) => setContributorName(e.target.value)}
+                    placeholder="Your full name"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm text-foreground">Phone or email (optional)</label>
+                  <Input
+                    value={contributorContact}
+                    onChange={(e) => setContributorContact(e.target.value)}
+                    placeholder="Phone or email"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    We'll let you know when this request is finalized.
+                  </p>
+                </div>
               </div>
             </section>
 
-            <Button type="submit" className="w-full" size="lg" disabled={isSubmitting || isAtCapacity}>
-              {isSubmitting ? "Submitting..." : "Share Recommendations"}
+            <Button type="submit" className="w-full" size="lg" disabled={isSubmitting || isAtCapacity || (!recActive && !passActive)}>
+              {isSubmitting
+                ? "Submitting..."
+                : recActive && passActive
+                ? "Share & get forward link →"
+                : passActive
+                ? "Get my share link →"
+                : "Share recommendations"}
             </Button>
 
             {isAtCapacity && (
