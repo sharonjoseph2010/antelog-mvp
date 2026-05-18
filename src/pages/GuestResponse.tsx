@@ -842,6 +842,7 @@ export default function GuestResponse() {
             )}
 
             {/* Identity */}
+            {(recActive || passActive) && (
             <section className="space-y-4 pt-6 border-t border-border">
               <h2 className="text-lg font-semibold text-foreground">Who's sharing this?</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -867,6 +868,7 @@ export default function GuestResponse() {
                 </div>
               </div>
             </section>
+            )}
 
             <Button
               type="submit"
