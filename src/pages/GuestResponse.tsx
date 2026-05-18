@@ -402,7 +402,7 @@ export default function GuestResponse() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-2xl mx-auto px-4 py-12 space-y-10">
+      <div className="max-w-2xl mx-auto px-4 py-8 sm:py-12 space-y-7 sm:space-y-10">
         {/* Header block */}
         <header className="space-y-4">
           <h1 className="text-3xl md:text-4xl font-bold text-foreground leading-tight">
@@ -422,7 +422,7 @@ export default function GuestResponse() {
         </header>
 
         {hasSubmitted ? (
-          <div className="space-y-10">
+          <div className="space-y-7 sm:space-y-10">
             {/* Confirmation */}
             <section className="space-y-2">
               <h2 className="text-2xl font-semibold text-foreground">Thanks {contributorName}.</h2>
@@ -499,7 +499,7 @@ export default function GuestResponse() {
             </section>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-10">
+          <form onSubmit={handleSubmit} className="space-y-7 sm:space-y-10">
             {renderPreview()}
 
             {/* Action toggle */}
@@ -508,7 +508,7 @@ export default function GuestResponse() {
                 <h2 className="text-lg font-semibold text-foreground">What would you like to do?</h2>
                 <p className="text-sm text-muted-foreground">Pick one — or both.</p>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2 sm:gap-3">
                 {[
                   { active: recActive, toggle: () => setRecActive(v => !v), Icon: MessageCircle, title: "Share a recommendation", subtitle: "You know a good place" },
                   { active: passActive, toggle: () => setPassActive(v => !v), Icon: CornerUpRight, title: "Pass it along", subtitle: "You know someone who might" },
@@ -519,17 +519,17 @@ export default function GuestResponse() {
                     onClick={toggle}
                     aria-pressed={active}
                     className={cn(
-                      "text-left rounded-lg px-4 py-4 transition-colors flex items-start gap-3",
+                      "text-left rounded-lg px-2.5 py-2.5 sm:px-4 sm:py-4 transition-colors flex items-start gap-2 sm:gap-3",
                       active
                         ? "bg-secondary border-foreground/60"
                         : "bg-transparent border-border hover:bg-muted/40"
                     )}
                     style={{ borderWidth: active ? 1.5 : 0.5, borderStyle: "solid" }}
                   >
-                    <Icon className="h-5 w-5 mt-0.5 text-foreground shrink-0" />
+                    <Icon className="h-3.5 w-3.5 sm:h-5 sm:w-5 mt-0.5 text-foreground shrink-0" />
                     <div className="space-y-0.5">
-                      <div className="text-sm font-medium text-foreground">{title}</div>
-                      <div className="text-xs text-muted-foreground">{subtitle}</div>
+                      <div className="text-[13px] sm:text-sm font-medium text-foreground leading-tight">{title}</div>
+                      <div className="text-[11px] sm:text-xs text-muted-foreground leading-tight">{subtitle}</div>
                     </div>
                   </button>
                 ))}
