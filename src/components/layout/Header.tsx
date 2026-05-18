@@ -248,7 +248,7 @@ const Header = ({ isAuthenticated, isAdmin, userType, onLogout }: HeaderProps) =
               Master Directory
             </Link>
           ) : (
-            <Link to="/guest-signup" className="hover:underline">
+            <Link to="/guest-signup" className="hidden sm:inline hover:underline">
               Master Directory
             </Link>
           )}
