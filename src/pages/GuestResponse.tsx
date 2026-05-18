@@ -26,6 +26,8 @@ export default function GuestResponse() {
   ]);
 
   const [myShareLink, setMyShareLink] = useState<string | null>(null);
+  const [passAlongName, setPassAlongName] = useState("");
+  const [isGeneratingPassAlong, setIsGeneratingPassAlong] = useState(false);
 
   const reconstructChainIterative = async (linkId: string): Promise<string[]> => {
     const chain: string[] = [];
@@ -245,7 +247,16 @@ export default function GuestResponse() {
     }
   };
 
-  const generateMyShareLink = async () => {
+  const generateMyShareLink = async (nameOverride?: string) => {
+    const nameToUse = (nameOverride ?? contributorName).trim();
+    if (!nameToUse) {
+      toast({
+        title: "Name Required",
+        description: "Please enter your name to generate a share link",
+        variant: "destructive",
+      });
+      return;
+    }
     try {
       const { data: tokenData, error: tokenError } = await supabase.rpc("generate_share_token");
 
@@ -257,7 +268,7 @@ export default function GuestResponse() {
           request_id: requestId!,
           parent_link_id: shareLink?.id,
           token: tokenData,
-          generated_by_name: contributorName,
+          generated_by_name: nameToUse,
           generated_by_contact: contributorContact || null,
           max_responses: 5,
           current_responses: 0,
@@ -290,6 +301,26 @@ export default function GuestResponse() {
         description: "Share link copied to clipboard",
       });
     }
+  };
+
+  const handlePassAlong = async () => {
+    if (!passAlongName.trim()) {
+      toast({
+        title: "Name Required",
+        description: "Please enter your name",
+        variant: "destructive",
+      });
+      return;
+    }
+    setIsGeneratingPassAlong(true);
+    await generateMyShareLink(passAlongName.trim());
+    setIsGeneratingPassAlong(false);
+  };
+
+  const shareOnWhatsApp = () => {
+    if (!myShareLink) return;
+    const text = `${requesterName} is looking for recommendations: ${request?.title}\n\n${myShareLink}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
   };
 
   if (isLoading) {
@@ -421,14 +452,19 @@ export default function GuestResponse() {
               <h2 className="text-lg font-semibold text-foreground">Know someone who might help?</h2>
               <p className="text-sm text-muted-foreground">Pass this request to someone you trust.</p>
               {!myShareLink ? (
-                <Button variant="outline" onClick={generateMyShareLink}>
-                  Generate Share Link
+                <Button variant="outline" onClick={() => generateMyShareLink(contributorName)}>
+                  Pass it along →
                 </Button>
               ) : (
-                <div className="flex gap-2">
-                  <Input value={myShareLink} readOnly className="text-xs" />
-                  <Button variant="outline" size="sm" onClick={copyShareLink}>
-                    Copy
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <Input value={myShareLink} readOnly className="text-xs" />
+                    <Button variant="outline" size="sm" onClick={copyShareLink}>
+                      Copy link
+                    </Button>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={shareOnWhatsApp}>
+                    Share on WhatsApp
                   </Button>
                 </div>
               )}
@@ -485,6 +521,44 @@ export default function GuestResponse() {
                 >
                   + Add another recommendation
                 </button>
+              )}
+            </section>
+
+            {/* Pass it along */}
+            <section className="space-y-3 pt-6 border-t border-border">
+              <h2 className="text-base font-medium text-muted-foreground">Don't have a recommendation?</h2>
+              <p className="text-sm text-muted-foreground">Pass this request to someone who might.</p>
+              {!myShareLink ? (
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <label className="text-sm text-muted-foreground">Your name *</label>
+                    <Input
+                      value={passAlongName || contributorName}
+                      onChange={(e) => setPassAlongName(e.target.value)}
+                      placeholder="Your full name"
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handlePassAlong}
+                    disabled={isGeneratingPassAlong}
+                  >
+                    {isGeneratingPassAlong ? "Generating..." : "Pass it along →"}
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <Input value={myShareLink} readOnly className="text-xs" />
+                    <Button type="button" variant="outline" size="sm" onClick={copyShareLink}>
+                      Copy link
+                    </Button>
+                  </div>
+                  <Button type="button" variant="outline" size="sm" onClick={shareOnWhatsApp}>
+                    Share on WhatsApp
+                  </Button>
+                </div>
               )}
             </section>
 
