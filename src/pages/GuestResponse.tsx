@@ -621,12 +621,14 @@ export default function GuestResponse() {
               <CheckCircle2 className="h-5 w-5 shrink-0" aria-hidden />
               <div>
                 <div className="text-sm font-medium">Thanks, {contributorName}.</div>
-                <div className="text-[13px] opacity-85">Your recommendations were added.</div>
+                <div className="text-[13px] opacity-85">
+                  {passOnly ? "Ready to pass this along." : "Your recommendations were added."}
+                </div>
               </div>
             </div>
 
-            {/* Conditional first-responder vs has-others */}
-            {preview.total === 0 ? (
+            {/* Conditional first-responder vs has-others (skipped for pass-only) */}
+            {passOnly ? null : preview.total === 0 ? (
               <section className="space-y-3">
                 <p className="text-base text-muted-foreground">
                   You're the first to answer this one.
@@ -641,11 +643,12 @@ export default function GuestResponse() {
                 <p className="text-sm text-muted-foreground">
                   {preview.total + 1} people answered. Here's a taste —
                 </p>
-                {renderPreview("A peek at what's in")}
+                {renderPreview("A peek at what's in", preview.items, preview.total, true)}
               </section>
             )}
 
-            {/* Join CTA */}
+            {/* Join CTA (skipped for pass-only) */}
+            {!passOnly && (
             <section className="space-y-4">
               <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
                 Join Antelog to —
@@ -684,9 +687,10 @@ export default function GuestResponse() {
                 </button>
               </p>
             </section>
+            )}
 
             {/* Pass-along section */}
-            <div className="h-px bg-border/60 my-2" />
+            {!passOnly && <div className="h-px bg-border/60 my-2" />}
             <section className="space-y-3">
               <h3 className="text-lg font-semibold text-foreground">
                 Know someone better placed to answer?
