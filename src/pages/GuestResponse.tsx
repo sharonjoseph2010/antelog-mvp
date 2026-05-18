@@ -848,12 +848,9 @@ export default function GuestResponse() {
                     <div className="flex gap-2">
                       <Input value={myShareLink} readOnly className="text-xs bg-background" />
                       <Button type="button" variant="outline" size="sm" onClick={copyShareLink}>
-                        Copy
+                        {copied ? "Copied" : "Copy"}
                       </Button>
                     </div>
-                    <Button type="button" variant="outline" size="sm" onClick={shareOnWhatsApp}>
-                      Share on WhatsApp
-                    </Button>
                   </div>
                 )}
               </section>
