@@ -239,11 +239,29 @@ export default function GuestResponse() {
       return;
     }
 
-    // Pass-along only path: generate link and finish
+    // Pass-along only path: insert empty contribution row, land on Page 2
     if (!recActive && passActive) {
       setIsSubmitting(true);
       try {
-        await generateMyShareLink(contributorName.trim());
+        const { error: contributionError } = await supabase
+          .from("guest_contributions")
+          .insert({
+            request_id: requestId!,
+            share_link_id: shareLink?.id,
+            contributor_name: contributorName.trim(),
+            contributor_contact: contributorContact.trim() || null,
+            recommendations: [],
+          });
+        if (contributionError) throw contributionError;
+        setPassOnly(true);
+        setHasSubmitted(true);
+      } catch (error) {
+        console.error("Error submitting pass-only:", error);
+        toast({
+          title: "Submission Failed",
+          description: "Please try again",
+          variant: "destructive",
+        });
       } finally {
         setIsSubmitting(false);
       }
@@ -291,11 +309,6 @@ export default function GuestResponse() {
             updated_at: new Date().toISOString(),
           })
           .eq("id", shareLink.id);
-      }
-
-      // If user also wants a forward link, generate it now (don't navigate away)
-      if (passActive && !myShareLink) {
-        await generateMyShareLink(contributorName.trim());
       }
 
       setHasSubmitted(true);
