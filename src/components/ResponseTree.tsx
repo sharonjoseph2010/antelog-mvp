@@ -1,29 +1,18 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-// Note: Request pages always show real names. Network-aware anonymization
-// is only applied in the Master Directory context.
 import { GitBranch, ChevronDown, ChevronRight } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
 
-interface ForwardNode {
-  id: string;
-  forwarded_by_user_id: string;
-  forwarded_to: string[];
-  network_depth: number;
-  network_path: string[];
-  created_at: string;
-  // resolved
-  forwarder_name: string;
-  recipients: { id: string; name: string }[];
-}
-
-interface TreeNode {
-  userId: string;
-  name: string;
-  timestamp: string;
+interface TreeRow {
+  link_id: string;
+  parent_link_id: string | null;
   depth: number;
-  children: TreeNode[];
+  person_name: string;
+  is_antelog_user: boolean;
+  has_responded: boolean;
+  recommendation_count: number;
+  forwarded_to_count: number;
+  is_root: boolean;
 }
 
 interface ResponseTreeProps {
@@ -32,210 +21,247 @@ interface ResponseTreeProps {
   viewerId: string;
 }
 
-export function ResponseTree({ requestId, creatorId, viewerId }: ResponseTreeProps) {
+type NodeStatus = "responded" | "forwarded" | "none";
+
+function getNodeStatus(node: TreeRow): NodeStatus {
+  if (node.has_responded) return "responded";
+  if (node.forwarded_to_count > 0) return "forwarded";
+  return "none";
+}
+
+export function ResponseTree({ requestId }: ResponseTreeProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [tree, setTree] = useState<TreeNode | null>(null);
-  const [totalReach, setTotalReach] = useState(0);
-  const [maxDepth, setMaxDepth] = useState(0);
+  const [rows, setRows] = useState<TreeRow[] | null>(null);
+  const [showAll, setShowAll] = useState(true);
 
-  const loadTree = async () => {
-    if (tree) {
-      setIsOpen(!isOpen);
-      return;
-    }
-
-    setIsLoading(true);
-    setIsOpen(true);
-
-    try {
-      const { data: forwards, error } = await supabase
-        .from("request_forwards")
-        .select("id, forwarded_by_user_id, forwarded_to, network_depth, network_path, created_at")
-        .eq("request_id", requestId)
-        .order("created_at", { ascending: true });
-
-      if (error) throw error;
-      if (!forwards || forwards.length === 0) {
-        setTree({ userId: creatorId, name: "You", timestamp: "", depth: 0, children: [] });
-        setIsLoading(false);
-        return;
-      }
-
-      // Collect all unique user IDs
-      const allUserIds = new Set<string>();
-      allUserIds.add(creatorId);
-      forwards.forEach(f => {
-        allUserIds.add(f.forwarded_by_user_id);
-        (f.forwarded_to || []).forEach((id: string) => allUserIds.add(id));
-      });
-
-      // Fetch profiles
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("id, full_name, handle")
-        .in("id", Array.from(allUserIds));
-
-      const profileMap = new Map((profiles || []).map(p => [p.id, p]));
-
-      // Always show real names on request pages
-      const nameMap = new Map<string, string>();
-      Array.from(allUserIds).forEach((uid) => {
-        if (uid === viewerId) {
-          nameMap.set(uid, "You");
-          return;
-        }
-        const profile = profileMap.get(uid);
-        nameMap.set(uid, profile?.full_name || profile?.handle || "Someone");
-      });
-
-      // Build tree: creator is root
-      const root: TreeNode = {
-        userId: creatorId,
-        name: nameMap.get(creatorId) || "You",
-        timestamp: "",
-        depth: 0,
-        children: [],
-      };
-
-      // Map: userId -> their TreeNode
-      const nodeMap = new Map<string, TreeNode>();
-      nodeMap.set(creatorId, root);
-
-      // Process forwards to build hierarchy
-      let deepest = 0;
-      const allRecipients = new Set<string>();
-
-      forwards.forEach(f => {
-        const forwarderId = f.forwarded_by_user_id;
-        const depth = f.network_depth || 1;
-        if (depth > deepest) deepest = depth;
-
-        // Ensure forwarder node exists
-        if (!nodeMap.has(forwarderId)) {
-          nodeMap.set(forwarderId, {
-            userId: forwarderId,
-            name: nameMap.get(forwarderId) || "Someone",
-            timestamp: f.created_at,
-            depth: depth - 1,
-            children: [],
-          });
-        }
-
-        const parentNode = nodeMap.get(forwarderId)!;
-
-        (f.forwarded_to || []).forEach((recipientId: string) => {
-          allRecipients.add(recipientId);
-          const childNode: TreeNode = {
-            userId: recipientId,
-            name: nameMap.get(recipientId) || "Someone",
-            timestamp: f.created_at,
-            depth,
-            children: [],
-          };
-          nodeMap.set(recipientId, childNode);
-          parentNode.children.push(childNode);
+  const toggle = async () => {
+    const next = !isOpen;
+    setIsOpen(next);
+    if (next && !rows) {
+      setIsLoading(true);
+      try {
+        const { data, error } = await supabase.rpc("get_response_tree", {
+          p_request_id: requestId,
         });
-      });
-
-      // Attach forwarder nodes that aren't already in tree
-      // (direct recipients of the creator who then forwarded)
-      forwards.forEach(f => {
-        const forwarderId = f.forwarded_by_user_id;
-        if (forwarderId !== creatorId && !root.children.some(c => c.userId === forwarderId)) {
-          // Check if this forwarder is a child of someone else
-          let isChild = false;
-          nodeMap.forEach((node, id) => {
-            if (id !== forwarderId && node.children.some(c => c.userId === forwarderId)) {
-              isChild = true;
-            }
-          });
-          if (!isChild) {
-            root.children.push(nodeMap.get(forwarderId)!);
-          }
-        }
-      });
-
-      setTree(root);
-      setTotalReach(allRecipients.size);
-      setMaxDepth(deepest);
-    } catch (err) {
-      console.error("Error loading response tree:", err);
-    } finally {
-      setIsLoading(false);
+        if (error) throw error;
+        setRows((data as unknown as TreeRow[]) || []);
+      } catch (e) {
+        console.error("get_response_tree failed", e);
+        setRows([]);
+      } finally {
+        setIsLoading(false);
+      }
     }
-  };
-
-  const renderNode = (node: TreeNode, isLast: boolean = false) => {
-    const indent = node.depth * 24;
-
-    return (
-      <div key={node.userId}>
-        <div
-          className="flex items-center gap-2 py-1.5"
-          style={{ paddingLeft: `${indent}px` }}
-        >
-          {node.depth > 0 && (
-            <span className="text-muted-foreground text-xs">
-              {isLast ? "└─" : "├─"}
-            </span>
-          )}
-          <span className="text-sm font-medium">{node.name}</span>
-          {node.timestamp && (
-            <span className="text-xs text-muted-foreground">
-              · {formatDistanceToNow(new Date(node.timestamp), { addSuffix: true })}
-            </span>
-          )}
-          {node.children.length > 0 && (
-            <span className="text-xs text-muted-foreground">
-              → forwarded to {node.children.length}
-            </span>
-          )}
-        </div>
-        {node.children.map((child, idx) =>
-          renderNode(child, idx === node.children.length - 1)
-        )}
-      </div>
-    );
+    if (next) {
+      setTimeout(() => {
+        document
+          .getElementById("response-tree-section")
+          ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 50);
+    }
   };
 
   return (
-    <div>
+    <>
       <Button
-        variant="ghost"
+        variant="outline"
         size="sm"
-        onClick={loadTree}
-        className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1.5"
+        onClick={toggle}
+        className="flex items-center gap-2"
       >
-        <GitBranch className="h-3.5 w-3.5" />
+        <GitBranch className="h-4 w-4" />
         Response Tree
-        {isOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+        {isOpen ? (
+          <ChevronDown className="h-3 w-3" />
+        ) : (
+          <ChevronRight className="h-3 w-3" />
+        )}
       </Button>
 
       {isOpen && (
-        <div className="mt-2 p-3 rounded-md border bg-muted/30 text-sm">
-          {isLoading ? (
-            <p className="text-muted-foreground text-xs">Loading tree...</p>
-          ) : tree ? (
-            <div>
-              {(totalReach > 0 || maxDepth > 0) && (
-                <p className="text-xs text-muted-foreground mb-2">
-                  Reached {totalReach} {totalReach === 1 ? "person" : "people"}
-                  {maxDepth > 0 && ` · ${maxDepth} degree${maxDepth > 1 ? "s" : ""} deep`}
-                </p>
-              )}
-              {renderNode(tree)}
-              {tree.children.length === 0 && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  No one has forwarded this request yet.
-                </p>
-              )}
-            </div>
-          ) : (
-            <p className="text-xs text-muted-foreground">No forwarding data available.</p>
-          )}
-        </div>
+        <ResponseTreeSection
+          rows={rows}
+          isLoading={isLoading}
+          showAll={showAll}
+          setShowAll={setShowAll}
+        />
       )}
+    </>
+  );
+}
+
+function ResponseTreeSection({
+  rows,
+  isLoading,
+  showAll,
+  setShowAll,
+}: {
+  rows: TreeRow[] | null;
+  isLoading: boolean;
+  showAll: boolean;
+  setShowAll: (v: boolean) => void;
+}) {
+  if (isLoading) {
+    return (
+      <section
+        id="response-tree-section"
+        className="basis-full mt-6 text-sm text-muted-foreground"
+      >
+        Loading response tree…
+      </section>
+    );
+  }
+  if (!rows || rows.length === 0) {
+    return (
+      <section
+        id="response-tree-section"
+        className="basis-full mt-6 text-sm text-muted-foreground"
+      >
+        No activity yet.
+      </section>
+    );
+  }
+
+  const respondedCount = rows.filter((r) => r.has_responded && !r.is_root).length;
+  const forwardCount = rows.filter((r) => r.forwarded_to_count > 0).length;
+  const maxDepth = rows.reduce((m, r) => Math.max(m, r.depth), 0);
+
+  const visible = showAll
+    ? rows
+    : rows.filter((r) => r.is_root || r.has_responded);
+
+  return (
+    <section id="response-tree-section" className="basis-full mt-6">
+      <header className="mb-4">
+        <h3 className="text-base font-medium m-0">Response tree</h3>
+        <p className="text-sm text-muted-foreground mt-1">
+          {respondedCount} responded · {forwardCount} forwards · {maxDepth}{" "}
+          {maxDepth === 1 ? "degree" : "degrees"} deep
+        </p>
+      </header>
+
+      {/* Legend row 1 — avatar colors */}
+      <div className="flex gap-4 mb-2 text-xs text-muted-foreground flex-wrap">
+        <span className="inline-flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded-full bg-blue-100 dark:bg-blue-900/50" />
+          Antelog user
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded-full bg-muted border border-border" />
+          Guest
+        </span>
+      </div>
+
+      {/* Legend row 2 — status pips */}
+      <div className="flex gap-4 pt-2 border-t border-dashed border-border text-xs text-muted-foreground flex-wrap">
+        <span className="inline-flex items-center gap-1.5">
+          <span className="w-[7px] h-[7px] rounded-full bg-emerald-600 dark:bg-emerald-400" />
+          Responded
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="w-[7px] h-[7px] rounded-full bg-amber-600 dark:bg-amber-400" />
+          Forwarded, didn't respond
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="w-[7px] h-[7px] rounded-full border border-border bg-transparent" />
+          No response yet
+        </span>
+      </div>
+
+      {/* Toggle row */}
+      <div className="py-3 my-3.5 border-t border-b border-border">
+        <label className="text-sm cursor-pointer inline-flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={showAll}
+            onChange={(e) => setShowAll(e.target.checked)}
+          />
+          Show everyone, including non-responders
+        </label>
+      </div>
+
+      {/* Tree */}
+      <div>
+        {visible.map((node) => (
+          <TreeNodeRow key={node.link_id} node={node} />
+        ))}
+      </div>
+
+      <p className="text-[11px] text-muted-foreground mt-4 italic">
+        Shows everyone who opened the link. People who saw it on WhatsApp but
+        never clicked aren't tracked.
+      </p>
+    </section>
+  );
+}
+
+function TreeNodeRow({ node }: { node: TreeRow }) {
+  const status = getNodeStatus(node);
+  const isMuted = status === "none";
+
+  return (
+    <div
+      className="flex items-center gap-3 py-2"
+      style={{ paddingLeft: `${node.depth * 22}px` }}
+    >
+      {/* Avatar */}
+      <div
+        className={`w-8 h-8 rounded-full flex items-center justify-center text-[13px] font-medium flex-shrink-0 ${
+          node.is_antelog_user
+            ? "bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-200"
+            : "bg-muted text-muted-foreground"
+        }`}
+      >
+        {node.person_name.charAt(0).toUpperCase()}
+      </div>
+
+      {/* Status pip */}
+      <span
+        title={
+          status === "responded"
+            ? "Submitted picks"
+            : status === "forwarded"
+            ? "Forwarded, didn't respond"
+            : "No response yet"
+        }
+        className={`w-[7px] h-[7px] rounded-full flex-shrink-0 ${
+          status === "responded"
+            ? "bg-emerald-600 dark:bg-emerald-400"
+            : status === "forwarded"
+            ? "bg-amber-600 dark:bg-amber-400"
+            : "border border-border bg-transparent"
+        }`}
+      />
+
+      {/* Name */}
+      <span
+        className={`text-sm font-medium ${
+          isMuted ? "text-muted-foreground" : "text-foreground"
+        }`}
+      >
+        {node.person_name}
+      </span>
+
+      {/* Meta */}
+      <span className="text-xs text-muted-foreground">
+        {node.is_root && "· asked the question"}
+        {!node.is_root &&
+          node.has_responded &&
+          ` · submitted ${node.recommendation_count} ${
+            node.recommendation_count === 1 ? "pick" : "picks"
+          }`}
+        {!node.is_root &&
+          !node.has_responded &&
+          status === "forwarded" &&
+          " · forwarded, didn't respond"}
+        {!node.is_root &&
+          !node.has_responded &&
+          status === "none" &&
+          " · no response yet"}
+        {node.forwarded_to_count > 0 &&
+          ` · forwarded to ${node.forwarded_to_count}`}
+      </span>
     </div>
   );
 }
