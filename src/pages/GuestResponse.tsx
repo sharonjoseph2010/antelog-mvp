@@ -719,7 +719,8 @@ export default function GuestResponse() {
             )}
 
             {/* Pass-along section */}
-            {!passOnly && <div className="h-px bg-border/60 my-2" />}
+            {!isClosed && !passOnly && <div className="h-px bg-border/60 my-2" />}
+            {!isClosed && (
             <section className="space-y-3">
               <h3 className="text-lg font-semibold text-foreground">
                 Know someone better placed to answer?
@@ -760,8 +761,31 @@ export default function GuestResponse() {
                 </div>
               )}
             </section>
+            )}
 
             <FooterBand />
+          </div>
+        ) : isClosed ? (
+          <div className="space-y-5">
+            <div className="rounded-[10px] p-4 bg-muted/50">
+              <div className="flex items-start gap-3 rounded-[10px] px-[14px] py-3 bg-muted text-foreground">
+                <CircleSlash className="h-5 w-5 shrink-0 mt-0.5" aria-hidden />
+                <div>
+                  <div className="text-sm font-medium">This request is closed.</div>
+                  <div className="text-[13px] opacity-85 mt-0.5">{closedCopy}</div>
+                </div>
+              </div>
+              <Button
+                className="w-full mt-4"
+                size="lg"
+                onClick={() => navigate("/master-directory")}
+              >
+                Browse the Master Directory
+              </Button>
+              <p className="text-center text-xs text-muted-foreground mt-2.5">
+                See community-ranked lists from verified people on Antelog.
+              </p>
+            </div>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-7 sm:space-y-10">
