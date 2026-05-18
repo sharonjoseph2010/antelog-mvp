@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { differenceInDays } from "date-fns";
+import { format } from "date-fns";
 import {
   MessageCircle,
   CornerUpRight,
@@ -18,6 +19,7 @@ import {
   ChevronUp,
   CheckCircle2,
   Link2,
+  CircleSlash,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -111,7 +113,7 @@ export default function GuestResponse() {
     try {
       const { data: requestData, error: requestError } = await supabase
         .from("requests")
-        .select("id, title, category, location, created_at, creator_id, expires_at")
+        .select("id, title, category, location, created_at, creator_id, expires_at, status")
         .eq("id", requestId!)
         .single();
 
@@ -410,6 +412,21 @@ export default function GuestResponse() {
     ? Math.max(0, differenceInDays(new Date(request.expires_at), new Date()))
     : null;
   const requesterName = request.creator_profile?.full_name || "Someone";
+
+  const isExpired = !!request.expires_at && new Date(request.expires_at) < new Date();
+  const isClosed = request.status !== "open" || isExpired;
+  const closedCopy = (() => {
+    if (request.status === "closed") {
+      return "The creator has closed this request. No new responses are being accepted.";
+    }
+    if (request.status === "reviewing" || request.status === "responded") {
+      return "The creator is reviewing the responses. New responses are not being accepted right now.";
+    }
+    if (isExpired && request.expires_at) {
+      return `This request expired on ${format(new Date(request.expires_at), "MMM d, yyyy")}. No new responses are being accepted.`;
+    }
+    return "No new responses are being accepted.";
+  })();
 
   // Chain-derived display: first link is original requester's. If chain has
   // more than one entry, the request was forwarded.
