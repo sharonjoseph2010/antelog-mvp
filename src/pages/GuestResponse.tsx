@@ -778,7 +778,7 @@ export default function GuestResponse() {
               <Button
                 className="w-full mt-4"
                 size="lg"
-                onClick={() => navigate("/master-directory")}
+                onClick={() => navigate("/directory")}
               >
                 Browse the Master Directory
               </Button>
