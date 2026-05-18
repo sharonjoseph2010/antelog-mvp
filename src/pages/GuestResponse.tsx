@@ -509,8 +509,25 @@ export default function GuestResponse() {
   };
 
   const closesNode = (() => {
-    if (daysLeft === null) return null;
-    if (daysLeft <= 0) {
+    if (!request.expires_at) return null;
+    const expiresDate = new Date(request.expires_at);
+    const isOpen = request.status === "open";
+
+    if (!isOpen) {
+      return (
+        <span className="inline-flex items-center gap-1 text-muted-foreground">
+          <CheckCircle2 className="h-3 w-3" /> Closed {format(expiresDate, "MMM d, yyyy")}
+        </span>
+      );
+    }
+    if (isExpired) {
+      return (
+        <span className="inline-flex items-center gap-1 text-muted-foreground">
+          Expired {format(expiresDate, "MMM d, yyyy")}
+        </span>
+      );
+    }
+    if (daysLeft !== null && daysLeft <= 0) {
       return (
         <span
           className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400"
