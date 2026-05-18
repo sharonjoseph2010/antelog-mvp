@@ -59,9 +59,9 @@ export default function GuestResponse() {
   ]);
 
   const [myShareLink, setMyShareLink] = useState<string | null>(null);
-  const [isGeneratingPassAlong, setIsGeneratingPassAlong] = useState(false);
   const [recActive, setRecActive] = useState(true);
   const [passActive, setPassActive] = useState(false);
+  const [passOnly, setPassOnly] = useState(false);
   const [chain, setChain] = useState<ChainLink[]>([]);
   const [chainExpanded, setChainExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -239,11 +239,29 @@ export default function GuestResponse() {
       return;
     }
 
-    // Pass-along only path: generate link and finish
+    // Pass-along only path: insert empty contribution row, land on Page 2
     if (!recActive && passActive) {
       setIsSubmitting(true);
       try {
-        await generateMyShareLink(contributorName.trim());
+        const { error: contributionError } = await supabase
+          .from("guest_contributions")
+          .insert({
+            request_id: requestId!,
+            share_link_id: shareLink?.id,
+            contributor_name: contributorName.trim(),
+            contributor_contact: contributorContact.trim() || null,
+            recommendations: [],
+          });
+        if (contributionError) throw contributionError;
+        setPassOnly(true);
+        setHasSubmitted(true);
+      } catch (error) {
+        console.error("Error submitting pass-only:", error);
+        toast({
+          title: "Submission Failed",
+          description: "Please try again",
+          variant: "destructive",
+        });
       } finally {
         setIsSubmitting(false);
       }
@@ -291,11 +309,6 @@ export default function GuestResponse() {
             updated_at: new Date().toISOString(),
           })
           .eq("id", shareLink.id);
-      }
-
-      // If user also wants a forward link, generate it now (don't navigate away)
-      if (passActive && !myShareLink) {
-        await generateMyShareLink(contributorName.trim());
       }
 
       setHasSubmitted(true);
@@ -369,19 +382,6 @@ export default function GuestResponse() {
     setTimeout(() => setCopied(false), 1500);
   };
 
-  const handlePassAlong = async () => {
-    if (!contributorName.trim()) {
-      toast({
-        title: "Name Required",
-        description: "Please enter your name",
-        variant: "destructive",
-      });
-      return;
-    }
-    setIsGeneratingPassAlong(true);
-    await generateMyShareLink(contributorName.trim());
-    setIsGeneratingPassAlong(false);
-  };
 
   if (isLoading) {
     return (
@@ -433,7 +433,12 @@ export default function GuestResponse() {
 
   const CatIcon = categoryIcon(request.category);
 
-  const renderPreview = (label: string, items = preview.items, total = preview.total) => {
+  const renderPreview = (
+    label: string,
+    items = preview.items,
+    total = preview.total,
+    linkable = false,
+  ) => {
     if (total === 0 || items.length === 0) return null;
     const showCountLine = total > 2;
     return (
@@ -450,11 +455,18 @@ export default function GuestResponse() {
               {it.recommendation_text}
             </p>
           ))}
-          {showCountLine && (
+          {showCountLine && linkable ? (
+            <a
+              href={`/signup?request_id=${encodeURIComponent(requestId!)}`}
+              className="block text-sm text-foreground underline py-1.5 cursor-pointer"
+            >
+              + {total - 2} more — join to see
+            </a>
+          ) : showCountLine ? (
             <p className="text-sm text-muted-foreground">
               + {total - 2} more
             </p>
-          )}
+          ) : null}
         </div>
       </section>
     );
@@ -609,12 +621,14 @@ export default function GuestResponse() {
               <CheckCircle2 className="h-5 w-5 shrink-0" aria-hidden />
               <div>
                 <div className="text-sm font-medium">Thanks, {contributorName}.</div>
-                <div className="text-[13px] opacity-85">Your recommendations were added.</div>
+                <div className="text-[13px] opacity-85">
+                  {passOnly ? "Ready to pass this along." : "Your recommendations were added."}
+                </div>
               </div>
             </div>
 
-            {/* Conditional first-responder vs has-others */}
-            {preview.total === 0 ? (
+            {/* Conditional first-responder vs has-others (skipped for pass-only) */}
+            {passOnly ? null : preview.total === 0 ? (
               <section className="space-y-3">
                 <p className="text-base text-muted-foreground">
                   You're the first to answer this one.
@@ -629,11 +643,12 @@ export default function GuestResponse() {
                 <p className="text-sm text-muted-foreground">
                   {preview.total + 1} people answered. Here's a taste —
                 </p>
-                {renderPreview("A peek at what's in")}
+                {renderPreview("A peek at what's in", preview.items, preview.total, true)}
               </section>
             )}
 
-            {/* Join CTA */}
+            {/* Join CTA (skipped for pass-only) */}
+            {!passOnly && (
             <section className="space-y-4">
               <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
                 Join Antelog to —
@@ -672,9 +687,10 @@ export default function GuestResponse() {
                 </button>
               </p>
             </section>
+            )}
 
             {/* Pass-along section */}
-            <div className="h-px bg-border/60 my-2" />
+            {!passOnly && <div className="h-px bg-border/60 my-2" />}
             <section className="space-y-3">
               <h3 className="text-lg font-semibold text-foreground">
                 Know someone better placed to answer?
@@ -769,7 +785,7 @@ export default function GuestResponse() {
             </section>
 
             {/* Recommendation composer */}
-            {recActive && (
+            {recActive ? (
               <section className="space-y-5">
                 {recommendations.map((rec, idx) => (
                   <div key={idx} className="space-y-3">
@@ -817,48 +833,17 @@ export default function GuestResponse() {
                   </button>
                 )}
               </section>
-            )}
-
-            {/* Pass-along panel */}
-            {passActive && (
-              <section className="space-y-3 rounded-lg bg-muted/30 p-4">
-                <p className="text-sm text-muted-foreground">
-                  Enter your name — we'll create a unique link to share on WhatsApp. Whoever responds via your link is traced back to you.
+            ) : (
+              <section className="rounded-lg bg-muted/30 p-4">
+                <p className="text-sm text-muted-foreground leading-[1.55]">
+                  Just pass this along — no recommendation needed. Your name below is used to track who forwarded.
                 </p>
-                {!myShareLink ? (
-                  <div className="flex flex-col sm:flex-row gap-2">
-                    <Input
-                      value={contributorName}
-                      onChange={(e) => setContributorName(e.target.value)}
-                      placeholder="Your full name"
-                      className="bg-background"
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={handlePassAlong}
-                      disabled={isGeneratingPassAlong}
-                      className="whitespace-nowrap"
-                    >
-                      {isGeneratingPassAlong ? "Generating..." : "Get my link →"}
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <div className="flex gap-2">
-                      <Input value={myShareLink} readOnly className="text-xs bg-background" />
-                      <Button type="button" variant="outline" size="sm" onClick={copyShareLink}>
-                        {copied ? "Copied" : "Copy"}
-                      </Button>
-                    </div>
-                  </div>
-                )}
               </section>
             )}
 
             {/* Identity */}
             <section className="space-y-4 pt-6 border-t border-border">
-              <h2 className="text-lg font-semibold text-foreground">Who are you?</h2>
+              <h2 className="text-lg font-semibold text-foreground">Who's sharing this?</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-sm text-foreground">Your name *</label>
@@ -883,13 +868,18 @@ export default function GuestResponse() {
               </div>
             </section>
 
-            <Button type="submit" className="w-full" size="lg" disabled={isSubmitting || isAtCapacity || (!recActive && !passActive)}>
+            <Button
+              type="submit"
+              className="w-full"
+              size="lg"
+              disabled={isSubmitting || isAtCapacity || (!recActive && !passActive)}
+            >
               {isSubmitting
                 ? "Submitting..."
-                : recActive && passActive
-                ? "Share & get forward link →"
-                : passActive
-                ? "Get my share link →"
+                : !recActive && !passActive
+                ? "Pick one to continue"
+                : !recActive && passActive
+                ? "Continue to share link"
                 : "Share recommendations"}
             </Button>
             <p className="text-center text-xs text-muted-foreground -mt-4">
