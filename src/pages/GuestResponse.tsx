@@ -6,6 +6,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { differenceInDays } from "date-fns";
+import { MessageCircle, CornerUpRight } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export default function GuestResponse() {
   const { requestId, token } = useParams();
@@ -26,8 +28,9 @@ export default function GuestResponse() {
   ]);
 
   const [myShareLink, setMyShareLink] = useState<string | null>(null);
-  const [passAlongName, setPassAlongName] = useState("");
   const [isGeneratingPassAlong, setIsGeneratingPassAlong] = useState(false);
+  const [recActive, setRecActive] = useState(true);
+  const [passActive, setPassActive] = useState(false);
 
   const reconstructChainIterative = async (linkId: string): Promise<string[]> => {
     const chain: string[] = [];
@@ -175,14 +178,34 @@ export default function GuestResponse() {
       return;
     }
 
+    if (!recActive && !passActive) {
+      toast({
+        title: "Pick an action",
+        description: "Choose to share a recommendation or pass it along.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const validRecs = recommendations.filter((r) => r.text.trim());
 
-    if (validRecs.length === 0) {
+    if (recActive && validRecs.length === 0) {
       toast({
         title: "Recommendations Required",
         description: "Please add at least one recommendation",
         variant: "destructive",
       });
+      return;
+    }
+
+    // Pass-along only path: generate link and finish
+    if (!recActive && passActive) {
+      setIsSubmitting(true);
+      try {
+        await generateMyShareLink(contributorName.trim());
+      } finally {
+        setIsSubmitting(false);
+      }
       return;
     }
 
@@ -227,6 +250,11 @@ export default function GuestResponse() {
             updated_at: new Date().toISOString(),
           })
           .eq("id", shareLink.id);
+      }
+
+      // If user also wants a forward link, generate it now (don't navigate away)
+      if (passActive && !myShareLink) {
+        await generateMyShareLink(contributorName.trim());
       }
 
       setHasSubmitted(true);
@@ -304,7 +332,7 @@ export default function GuestResponse() {
   };
 
   const handlePassAlong = async () => {
-    if (!passAlongName.trim()) {
+    if (!contributorName.trim()) {
       toast({
         title: "Name Required",
         description: "Please enter your name",
@@ -313,7 +341,7 @@ export default function GuestResponse() {
       return;
     }
     setIsGeneratingPassAlong(true);
-    await generateMyShareLink(passAlongName.trim());
+    await generateMyShareLink(contributorName.trim());
     setIsGeneratingPassAlong(false);
   };
 
