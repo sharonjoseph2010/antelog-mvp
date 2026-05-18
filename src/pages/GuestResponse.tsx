@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { differenceInDays } from "date-fns";
+import { format } from "date-fns";
 import {
   MessageCircle,
   CornerUpRight,
@@ -18,6 +19,7 @@ import {
   ChevronUp,
   CheckCircle2,
   Link2,
+  CircleSlash,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -111,7 +113,7 @@ export default function GuestResponse() {
     try {
       const { data: requestData, error: requestError } = await supabase
         .from("requests")
-        .select("id, title, category, location, created_at, creator_id, expires_at")
+        .select("id, title, category, location, created_at, creator_id, expires_at, status")
         .eq("id", requestId!)
         .single();
 
@@ -255,8 +257,18 @@ export default function GuestResponse() {
         if (contributionError) throw contributionError;
         setPassOnly(true);
         setHasSubmitted(true);
-      } catch (error) {
+    } catch (error: any) {
         console.error("Error submitting pass-only:", error);
+      const msg = String(error?.message || "");
+      if (/request is closed|request has expired/i.test(msg)) {
+        toast({
+          title: "This request was just closed.",
+          description: "Your response wasn't saved.",
+          variant: "destructive",
+        });
+        setTimeout(() => window.location.reload(), 1200);
+        return;
+      }
         toast({
           title: "Submission Failed",
           description: "Please try again",
@@ -317,8 +329,18 @@ export default function GuestResponse() {
         title: "Thanks for your input!",
         description: "Your recommendations have been saved.",
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error submitting:", error);
+      const msg = String(error?.message || "");
+      if (/request is closed|request has expired/i.test(msg)) {
+        toast({
+          title: "This request was just closed.",
+          description: "Your response wasn't saved.",
+          variant: "destructive",
+        });
+        setTimeout(() => window.location.reload(), 1200);
+        return;
+      }
       toast({
         title: "Submission Failed",
         description: "Please try again",
@@ -410,6 +432,21 @@ export default function GuestResponse() {
     ? Math.max(0, differenceInDays(new Date(request.expires_at), new Date()))
     : null;
   const requesterName = request.creator_profile?.full_name || "Someone";
+
+  const isExpired = !!request.expires_at && new Date(request.expires_at) < new Date();
+  const isClosed = request.status !== "open" || isExpired;
+  const closedCopy = (() => {
+    if (request.status === "closed") {
+      return "The creator has closed this request. No new responses are being accepted.";
+    }
+    if (request.status === "reviewing" || request.status === "responded") {
+      return "The creator is reviewing the responses. New responses are not being accepted right now.";
+    }
+    if (isExpired && request.expires_at) {
+      return `This request expired on ${format(new Date(request.expires_at), "MMM d, yyyy")}. No new responses are being accepted.`;
+    }
+    return "No new responses are being accepted.";
+  })();
 
   // Chain-derived display: first link is original requester's. If chain has
   // more than one entry, the request was forwarded.
@@ -682,7 +719,8 @@ export default function GuestResponse() {
             )}
 
             {/* Pass-along section */}
-            {!passOnly && <div className="h-px bg-border/60 my-2" />}
+            {!isClosed && !passOnly && <div className="h-px bg-border/60 my-2" />}
+            {!isClosed && (
             <section className="space-y-3">
               <h3 className="text-lg font-semibold text-foreground">
                 Know someone better placed to answer?
@@ -723,8 +761,31 @@ export default function GuestResponse() {
                 </div>
               )}
             </section>
+            )}
 
             <FooterBand />
+          </div>
+        ) : isClosed ? (
+          <div className="space-y-5">
+            <div className="rounded-[10px] p-4 bg-muted/50">
+              <div className="flex items-start gap-3 rounded-[10px] px-[14px] py-3 bg-muted text-foreground">
+                <CircleSlash className="h-5 w-5 shrink-0 mt-0.5" aria-hidden />
+                <div>
+                  <div className="text-sm font-medium">This request is closed.</div>
+                  <div className="text-[13px] opacity-85 mt-0.5">{closedCopy}</div>
+                </div>
+              </div>
+              <Button
+                className="w-full mt-4"
+                size="lg"
+                onClick={() => navigate("/directory")}
+              >
+                Browse the Master Directory
+              </Button>
+              <p className="text-center text-xs text-muted-foreground mt-2.5">
+                See community-ranked lists from verified people on Antelog.
+              </p>
+            </div>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-7 sm:space-y-10">
