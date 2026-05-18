@@ -6,8 +6,39 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { differenceInDays } from "date-fns";
-import { MessageCircle, CornerUpRight } from "lucide-react";
+import {
+  MessageCircle,
+  CornerUpRight,
+  MapPin,
+  ShoppingBag,
+  Briefcase,
+  Tag,
+  Clock,
+  ChevronDown,
+  ChevronUp,
+  CheckCircle2,
+  Link2,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
+
+type ChainLink = {
+  id: string;
+  parent_link_id: string | null;
+  generated_by_user_id: string | null;
+  generated_by_name: string | null;
+  user_full_name?: string | null;
+};
+
+const categoryIcon = (cat?: string | null) => {
+  const c = (cat || "").toLowerCase();
+  if (c.includes("place") || c.includes("location") || c.includes("travel")) return MapPin;
+  if (c.includes("product") || c.includes("shop")) return ShoppingBag;
+  if (c.includes("service")) return Briefcase;
+  return Tag;
+};
+
+const initialOf = (name?: string | null) =>
+  (name || "?").trim().charAt(0).toUpperCase() || "?";
 
 export default function GuestResponse() {
   const { requestId, token } = useParams();
@@ -31,30 +62,42 @@ export default function GuestResponse() {
   const [isGeneratingPassAlong, setIsGeneratingPassAlong] = useState(false);
   const [recActive, setRecActive] = useState(true);
   const [passActive, setPassActive] = useState(false);
+  const [chain, setChain] = useState<ChainLink[]>([]);
+  const [chainExpanded, setChainExpanded] = useState(false);
+  const [copied, setCopied] = useState(false);
 
-  const reconstructChainIterative = async (linkId: string): Promise<string[]> => {
-    const chain: string[] = [];
+  // Walk parent_link_id chain backwards; returns ordered list:
+  // [originalRequesterLink, ..., currentLink]
+  const reconstructFullChain = async (linkId: string): Promise<ChainLink[]> => {
+    const out: ChainLink[] = [];
     let currentId: string | null = linkId;
     let depth = 0;
 
     while (currentId && depth < 10) {
       const { data, error } = await supabase
         .from("share_links")
-        .select("generated_by_name, parent_link_id")
+        .select("id, parent_link_id, generated_by_user_id, generated_by_name")
         .eq("id", currentId)
         .single();
-
       if (error || !data) break;
-
-      if (data.generated_by_name) {
-        chain.unshift(data.generated_by_name);
-      }
-
+      out.unshift(data as ChainLink);
       currentId = data.parent_link_id;
       depth++;
     }
 
-    return chain;
+    // Resolve any user full names
+    const userIds = out.map((l) => l.generated_by_user_id).filter(Boolean) as string[];
+    if (userIds.length) {
+      const { data: profs } = await supabase
+        .from("profiles")
+        .select("id, full_name")
+        .in("id", userIds);
+      const map = new Map((profs || []).map((p: any) => [p.id, p.full_name]));
+      out.forEach((l) => {
+        if (l.generated_by_user_id) l.user_full_name = map.get(l.generated_by_user_id) || null;
+      });
+    }
+    return out;
   };
 
   useEffect(() => {
@@ -115,11 +158,9 @@ export default function GuestResponse() {
       }
 
       // Reconstruct full sharing chain
-      const chainNames = await reconstructChainIterative(linkData.id);
-      setShareLink({
-        ...linkData,
-        fullChain: chainNames,
-      });
+      const fullChain = await reconstructFullChain(linkData.id);
+      setChain(fullChain);
+      setShareLink(linkData);
 
       if ((linkData.current_responses ?? 0) >= (linkData.max_responses ?? 5)) {
         toast({
@@ -294,7 +335,7 @@ export default function GuestResponse() {
         .from("share_links")
         .insert({
           request_id: requestId!,
-          parent_link_id: shareLink?.id,
+          parent_link_id: shareLink?.id, // critical: chain new link off the current one
           token: tokenData,
           generated_by_name: nameToUse,
           generated_by_contact: contributorContact || null,
@@ -322,13 +363,10 @@ export default function GuestResponse() {
   };
 
   const copyShareLink = () => {
-    if (myShareLink) {
-      navigator.clipboard.writeText(myShareLink);
-      toast({
-        title: "Copied!",
-        description: "Share link copied to clipboard",
-      });
-    }
+    if (!myShareLink) return;
+    navigator.clipboard.writeText(myShareLink);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
   };
 
   const handlePassAlong = async () => {
@@ -343,12 +381,6 @@ export default function GuestResponse() {
     setIsGeneratingPassAlong(true);
     await generateMyShareLink(contributorName.trim());
     setIsGeneratingPassAlong(false);
-  };
-
-  const shareOnWhatsApp = () => {
-    if (!myShareLink) return;
-    const text = `${requesterName} is looking for recommendations: ${request?.title}\n\n${myShareLink}`;
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
   };
 
   if (isLoading) {
@@ -378,96 +410,262 @@ export default function GuestResponse() {
     ? Math.max(0, differenceInDays(new Date(request.expires_at), new Date()))
     : null;
   const requesterName = request.creator_profile?.full_name || "Someone";
-  const renderPreview = () =>
-    preview.items.length > 0 ? (
-      <section className="space-y-3">
-        <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-          Some recommendations already shared
-        </h2>
-        <div className="space-y-3">
-          {preview.items.map((it, i) => (
-            <div key={i} className="space-y-1">
-              <p className="font-semibold text-foreground">{it.recommendation_text}</p>
-              {it.reason && <p className="text-sm text-muted-foreground">{it.reason}</p>}
-            </div>
+
+  // Chain-derived display: first link is original requester's. If chain has
+  // more than one entry, the request was forwarded.
+  const isForwarded = chain.length > 1;
+  const lastForwarder = isForwarded ? chain[chain.length - 1] : null;
+  const lastForwarderName =
+    lastForwarder?.user_full_name || lastForwarder?.generated_by_name || "A friend";
+
+  // People in the chain (named rows): use requester as first, then any
+  // intermediate forwarders. The very first share_link is created by the
+  // requester (no generated_by_name needed there).
+  const chainPeople: { name: string; role: string }[] = chain.length
+    ? [
+        { name: requesterName, role: "Asked the question" },
+        ...chain.slice(1).map((l, i, arr) => ({
+          name: l.user_full_name || l.generated_by_name || "A friend",
+          role: i === arr.length - 1 ? "Passed it to you" : "Passed it on",
+        })),
+      ]
+    : [];
+
+  const CatIcon = categoryIcon(request.category);
+
+  const renderPreview = (label: string, items = preview.items, total = preview.total) => {
+    if (total === 0 || items.length === 0) return null;
+    const showCountLine = total > 2;
+    return (
+      <section
+        className="rounded-[10px] p-4"
+        style={{ background: "hsl(220 20% 97%)" }}
+      >
+        <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground mb-3">
+          {label}
+        </p>
+        <div className="space-y-2">
+          {items.slice(0, 2).map((it, i) => (
+            <p key={i} className="text-base font-medium text-foreground">
+              {it.recommendation_text}
+            </p>
           ))}
-          {preview.total > preview.items.length && (
+          {showCountLine && (
             <p className="text-sm text-muted-foreground">
-              + {preview.total - preview.items.length} more recommendation{preview.total - preview.items.length === 1 ? "" : "s"}
+              + {total - 2} more
             </p>
           )}
         </div>
       </section>
-    ) : null;
+    );
+  };
+
+  const closesNode = (() => {
+    if (daysLeft === null) return null;
+    if (daysLeft <= 0) {
+      return (
+        <span
+          className="inline-flex items-center gap-1"
+          style={{ color: "hsl(32 80% 36%)" }}
+        >
+          <Clock className="h-3 w-3" /> Closes today
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1">
+        Closes in {daysLeft} day{daysLeft === 1 ? "" : "s"}
+      </span>
+    );
+  })();
+
+  const FooterBand = () => (
+    <div
+      className="mt-10 -mx-4 px-5 py-4 text-center text-xs italic text-muted-foreground border-t border-border/60"
+      style={{ background: "hsl(220 20% 97%)", lineHeight: 1.55 }}
+    >
+      The best recommendations come from real people you trust — not algorithms or ads.
+    </div>
+  );
+
+  const ChainCard = () =>
+    !isForwarded ? null : (
+      <div>
+        <button
+          type="button"
+          onClick={() => setChainExpanded((v) => !v)}
+          className="inline-flex items-center gap-1 text-sm text-foreground underline-offset-2 hover:underline"
+        >
+          {chainExpanded ? "Hide full path" : "See full path"}
+          {chainExpanded ? (
+            <ChevronUp className="h-3.5 w-3.5" />
+          ) : (
+            <ChevronDown className="h-3.5 w-3.5" />
+          )}
+        </button>
+        {chainExpanded && (
+          <div
+            className="mt-3 rounded-[10px] p-[14px]"
+            style={{ background: "hsl(220 20% 97%)" }}
+          >
+            <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-3">
+              How this reached you
+            </p>
+            <div className="space-y-2">
+              {chainPeople.map((p, i) => (
+                <div key={i}>
+                  <div className="flex items-center gap-3">
+                    <div className="h-7 w-7 rounded-full flex items-center justify-center text-[11px] font-medium bg-muted text-muted-foreground shrink-0">
+                      {initialOf(p.name)}
+                    </div>
+                    <div className="leading-tight">
+                      <div className="text-sm font-medium text-foreground">{p.name}</div>
+                      <div className="text-[11px] text-muted-foreground">{p.role}</div>
+                    </div>
+                  </div>
+                  <div className="ml-3 my-1 h-2.5 w-px bg-border" />
+                </div>
+              ))}
+              {/* viewer row */}
+              <div className="flex items-center gap-3">
+                <div className="h-7 w-7 rounded-full flex items-center justify-center text-[11px] font-medium bg-foreground text-background shrink-0">
+                  {initialOf(contributorName || "You")}
+                </div>
+                <div className="leading-tight">
+                  <div className="text-sm font-medium text-foreground">You</div>
+                  <div className="text-[11px] text-muted-foreground">
+                    You're in {requesterName}'s extended network
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-2xl mx-auto px-4 py-8 sm:py-12 space-y-7 sm:space-y-10">
+      <div className="max-w-[640px] mx-auto px-4 py-8 sm:py-12 space-y-7 sm:space-y-10">
         {/* Header block */}
-        <header className="space-y-4">
+        <header className="space-y-3">
+          {request.category && (
+            <span
+              className="inline-flex items-center gap-1 rounded-full px-2.5 py-[3px] text-[11px] font-medium"
+              style={{ background: "hsl(220 20% 95%)", color: "hsl(220 10% 35%)" }}
+            >
+              <CatIcon className="h-3 w-3" />
+              <span className="capitalize">{request.category}</span>
+            </span>
+          )}
           <h1 className="text-3xl md:text-4xl font-bold text-foreground leading-tight">
             {request.title}
           </h1>
-          <div className="space-y-1">
-            <p className="text-base text-foreground">
-              {requesterName} asked people they trust for recommendations.
-            </p>
-            <p className="text-base text-muted-foreground">You were invited to contribute.</p>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            {preview.total} recommendation{preview.total === 1 ? "" : "s"} so far
-            {daysLeft !== null && <> · Closes in {daysLeft} day{daysLeft === 1 ? "" : "s"}</>}
-            {request.category && <> · {request.category}</>}
+          {!hasSubmitted && (
+            <div className="space-y-1">
+              {isForwarded ? (
+                <>
+                  <p className="text-base text-foreground">
+                    {requesterName} is asking their network. {lastForwarderName} passed this to you.
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    You're in {requesterName}'s extended network.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-base text-foreground">
+                    {requesterName} asked the people {requesterName.split(" ")[0] === requesterName ? "they" : "they"} trust.
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    You're in {requesterName}'s 1st network — you were invited directly.
+                  </p>
+                </>
+              )}
+              <div className="pt-1"><ChainCard /></div>
+            </div>
+          )}
+          <p className="text-sm text-muted-foreground inline-flex flex-wrap items-center gap-x-2">
+            <span>{preview.total} so far</span>
+            {closesNode && (
+              <>
+                <span aria-hidden>·</span>
+                {closesNode}
+              </>
+            )}
           </p>
         </header>
 
         {hasSubmitted ? (
           <div className="space-y-7 sm:space-y-10">
-            {/* Confirmation */}
-            <section className="space-y-2">
-              <h2 className="text-2xl font-semibold text-foreground">Thanks {contributorName}.</h2>
-              <p className="text-muted-foreground">Your recommendations were added.</p>
-            </section>
+            {/* Success banner */}
+            <div
+              className="flex items-center gap-3 rounded-[10px] px-[14px] py-3"
+              style={{
+                background: "hsl(150 60% 95%)",
+                color: "hsl(155 70% 26%)",
+              }}
+            >
+              <CheckCircle2 className="h-5 w-5 shrink-0" aria-hidden />
+              <div>
+                <div className="text-sm font-medium">Thanks, {contributorName}.</div>
+                <div className="text-[13px] opacity-85">Your recommendations were added.</div>
+              </div>
+            </div>
 
-            {/* Recommendation tease */}
-            {preview.items.length > 0 && (
+            {/* Conditional first-responder vs has-others */}
+            {preview.total === 0 ? (
               <section className="space-y-3">
-                <div className="space-y-3">
-                  {preview.items.map((it, i) => (
-                    <div key={i} className="space-y-1">
-                      <p className="font-semibold text-foreground">{it.recommendation_text}</p>
-                      {it.reason && <p className="text-sm text-muted-foreground">{it.reason}</p>}
-                    </div>
-                  ))}
-                  {preview.total > preview.items.length && (
-                    <p className="text-sm text-muted-foreground">
-                      + {preview.total - preview.items.length} more recommendation{preview.total - preview.items.length === 1 ? "" : "s"}
-                    </p>
-                  )}
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Join Antelog to see the full list and vote on the best suggestions.
+                <p className="text-base text-muted-foreground">
+                  You're the first to answer this one.
                 </p>
+                <p className="text-[15px] leading-[1.55] text-foreground">
+                  Want to see how {requesterName}'s network responds? Join to watch the
+                  final list build.
+                </p>
+              </section>
+            ) : (
+              <section className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  {preview.total + 1} people answered. Here's a taste —
+                </p>
+                {renderPreview("A peek at what's in")}
               </section>
             )}
 
-            {/* Signup CTA */}
+            {/* Join CTA */}
             <section className="space-y-4">
-              <p className="text-foreground font-medium">Join Antelog to:</p>
-              <ul className="space-y-1 text-sm text-muted-foreground list-none">
-                <li>• See all recommendations for this request</li>
-                <li>• Vote on the best suggestions</li>
-                <li>• Ask your own network for trusted answers</li>
-                <li>• Get 5 free requests when you join</li>
+              <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                Join Antelog to —
+              </p>
+              <ul className="space-y-2 text-sm text-foreground list-none pl-0">
+                {(preview.total === 0
+                  ? [
+                      "See every pick as it comes in",
+                      "Vote on the final list",
+                      "Ask your own network anything",
+                      "Get 5 free requests on us",
+                    ]
+                  : [
+                      `See all ${preview.total + 1} recommendations`,
+                      "Vote on the best suggestions",
+                      "Ask your own network for trusted answers",
+                      "Get 5 free requests when you join",
+                    ]
+                ).map((b) => (
+                  <li key={b}>{b}</li>
+                ))}
               </ul>
               <Button
                 className="w-full"
                 size="lg"
-                onClick={() => navigate(`/signup?request_id=${encodeURIComponent(requestId!)}`)}
+                onClick={() =>
+                  navigate(`/signup?request_id=${encodeURIComponent(requestId!)}`)
+                }
               >
                 Join Antelog — Free
               </Button>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-center text-xs text-muted-foreground">
                 Already have an account?{" "}
                 <button onClick={() => navigate("/login")} className="underline text-foreground">
                   Log in
@@ -475,32 +673,66 @@ export default function GuestResponse() {
               </p>
             </section>
 
-            {/* Share loop */}
-            <section className="space-y-3 pt-6 border-t border-border">
-              <h2 className="text-lg font-semibold text-foreground">Know someone who might help?</h2>
-              <p className="text-sm text-muted-foreground">Pass this request to someone you trust.</p>
+            {/* Pass-along section */}
+            <div className="h-px bg-border/60 my-2" />
+            <section className="space-y-3">
+              <h3 className="text-lg font-semibold text-foreground">
+                Know someone better placed to answer?
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                Generate a link to share with up to 5 people you trust.
+              </p>
               {!myShareLink ? (
-                <Button variant="outline" onClick={() => generateMyShareLink(contributorName)}>
-                  Pass it along →
-                </Button>
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={() => generateMyShareLink(contributorName)}
+                  >
+                    <Link2 className="h-4 w-4" /> Generate your link
+                  </Button>
+                  <p className="text-xs text-muted-foreground leading-[1.5]">
+                    Each link works for 5 responses. Antelog tracks who you forwarded to.
+                  </p>
+                </>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-3">
+                  <div
+                    className="inline-flex items-center gap-2 rounded-[10px] px-3 py-2 text-sm"
+                    style={{
+                      background: "hsl(150 60% 95%)",
+                      color: "hsl(155 70% 26%)",
+                    }}
+                  >
+                    <CheckCircle2 className="h-4 w-4" /> Your link is ready.
+                  </div>
                   <div className="flex gap-2">
                     <Input value={myShareLink} readOnly className="text-xs" />
                     <Button variant="outline" size="sm" onClick={copyShareLink}>
-                      Copy link
+                      {copied ? "Copied" : "Copy"}
                     </Button>
                   </div>
-                  <Button variant="outline" size="sm" onClick={shareOnWhatsApp}>
-                    Share on WhatsApp
-                  </Button>
+                  <p className="text-xs text-muted-foreground leading-[1.5]">
+                    <strong className="text-foreground">Share with up to 5 people you trust.</strong>{" "}
+                    Once 5 respond, the link stops accepting answers. Keeps the request from
+                    getting noisy.
+                  </p>
                 </div>
               )}
             </section>
+
+            <FooterBand />
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-7 sm:space-y-10">
-            {renderPreview()}
+            {preview.total === 0 ? (
+              <p className="text-base text-muted-foreground">
+                You're one of them — be the first to answer.
+              </p>
+            ) : (
+              renderPreview(
+                preview.total <= 2 ? "Here's what's in so far" : "A peek at what's in"
+              )
+            )}
 
             {/* Action toggle */}
             <section className="space-y-4">
@@ -663,6 +895,9 @@ export default function GuestResponse() {
                 ? "Get my share link →"
                 : "Share recommendations"}
             </Button>
+            <p className="text-center text-xs text-muted-foreground -mt-4">
+              No signup needed.
+            </p>
 
             {isAtCapacity && (
               <p className="text-sm text-destructive text-center">
@@ -671,6 +906,7 @@ export default function GuestResponse() {
             )}
           </form>
         )}
+        {!hasSubmitted && <FooterBand />}
       </div>
     </div>
   );
