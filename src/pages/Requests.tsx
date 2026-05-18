@@ -121,7 +121,9 @@ export default function Requests() {
 
       const formattedSentRequests = sentData?.map(request => ({
         ...request,
-        response_count: (request.request_responses?.length || 0) + (sentGuestCounts[request.id] || 0),
+        response_count:
+          (request.request_responses?.[0]?.count || 0) +
+          (sentGuestCounts[request.id] || 0),
         group_name: request.groups?.name,
         forwarding_chain: Array.isArray(request.forwarding_chain) 
           ? request.forwarding_chain as Array<{ user_id: string; user_name: string; user_handle: string; }>
@@ -281,7 +283,7 @@ export default function Requests() {
           }
 
           // Get guest contribution count for this request
-          const { data: guestCount } = await supabase
+          const { count: guestCount } = await supabase
             .from("guest_contributions")
             .select("id", { count: 'exact', head: true })
             .eq("request_id", request.id);
@@ -289,7 +291,8 @@ export default function Requests() {
           return {
             ...request,
             creator_profile: creatorProfile,
-            response_count: (request.request_responses?.length || 0) + (guestCount?.length || 0),
+            response_count:
+              (request.request_responses?.[0]?.count || 0) + (guestCount || 0),
             group_name: request.groups?.name,
             degree_of_separation: degreeOfSeparation,
             connection_path: connectionPath,
