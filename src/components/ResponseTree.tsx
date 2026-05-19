@@ -220,7 +220,7 @@ function TreeSection({ rows, isLoading }: { rows: TreeRow[] | null; isLoading: b
       const startY = pr.bottom - wrapRect.top;
       const endX = cr.left - wrapRect.left;
       const endY = cr.top - wrapRect.top + cr.height / 2;
-      const d = `M ${startX} ${startY} C ${startX} ${endY - 8}, ${startX} ${endY - 4}, ${endX} ${endY}`;
+      const d = `M ${startX} ${startY} L ${startX} ${endY} L ${endX} ${endY}`;
 
       const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
       path.setAttribute("d", d);
@@ -228,6 +228,8 @@ function TreeSection({ rows, isLoading }: { rows: TreeRow[] | null; isLoading: b
       path.setAttribute("data-to", node.node_id);
       path.setAttribute("fill", "none");
       path.setAttribute("stroke-width", "2");
+      path.setAttribute("stroke-linecap", "square");
+      path.setAttribute("stroke-linejoin", "round");
       const isDark =
         typeof document !== "undefined" &&
         document.documentElement.classList.contains("dark");
@@ -330,16 +332,19 @@ function TreeSection({ rows, isLoading }: { rows: TreeRow[] | null; isLoading: b
               {m === "all" ? "All" : m === "antelog" ? "Antelog" : "Guests"}
             </button>
           ))}
-          {selected && (
+        </div>
+        {selected && (
+          <div className="mb-3">
             <button
               type="button"
               onClick={() => setSelected(null)}
-              className="ml-3 self-center text-[11px] text-primary underline bg-transparent border-0 cursor-pointer"
+              className="text-[11px] underline bg-transparent border-0 cursor-pointer p-0"
+              style={{ color: "var(--color-text-info)" }}
             >
               Reset view
             </button>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Legend rows */}
         <div className="flex gap-4 mb-2 text-xs text-muted-foreground flex-wrap">
