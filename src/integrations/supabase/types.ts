@@ -1702,13 +1702,14 @@ export type Database = {
       get_response_tree: {
         Args: { p_request_id: string }
         Returns: {
-          depth: number
+          earliest_action_at: string
           forwarded_to_count: number
+          has_forwarded: boolean
           has_responded: boolean
           is_antelog_user: boolean
           is_root: boolean
-          link_id: string
-          parent_link_id: string
+          node_id: string
+          parent_node_id: string
           person_name: string
           recommendation_count: number
         }[]
