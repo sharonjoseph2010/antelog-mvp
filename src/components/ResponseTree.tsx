@@ -228,20 +228,17 @@ function TreeSection({ rows, isLoading }: { rows: TreeRow[] | null; isLoading: b
       path.setAttribute("data-to", node.node_id);
       path.setAttribute("fill", "none");
       path.setAttribute("stroke-width", "2");
+      const isDark =
+        typeof document !== "undefined" &&
+        document.documentElement.classList.contains("dark");
       path.setAttribute(
         "stroke",
         node.has_responded
-          ? "hsl(var(--success, 142 71% 45%))"
+          ? isDark
+            ? "rgb(52 211 153)" // emerald-400
+            : "rgb(5 150 105)"  // emerald-600
           : "hsl(var(--border))"
       );
-      // Use currentColor via class for theme awareness
-      path.setAttribute(
-        "class",
-        node.has_responded
-          ? "stroke-emerald-600 dark:stroke-emerald-400"
-          : "stroke-border"
-      );
-      path.removeAttribute("stroke");
       path.style.transition = "opacity 0.2s, stroke-width 0.2s";
 
       if (lineageSet) {
