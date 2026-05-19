@@ -25,14 +25,14 @@ const Index = () => {
 
       <main className="min-h-screen bg-background text-foreground">
         {/* Hero */}
-        <section className="mx-auto max-w-[720px] px-6 pt-12 pb-11 text-center md:pt-16">
+        <section className="mx-auto max-w-[760px] px-6 pt-12 pb-11 text-center md:pt-16">
           <p className="mb-4 text-[11px] uppercase tracking-[0.1em] text-muted-foreground">
             Recommendations · text only · network-powered
           </p>
-          <h1 className="mx-auto mb-4 max-w-[580px] text-[26px] font-medium leading-[1.15] md:text-[34px]">
+          <h1 className="mx-auto mb-4 max-w-[580px] text-[32px] font-bold leading-[1.15] md:text-[40px]">
             Some things the internet just can't tell you.
           </h1>
-          <p className="mx-auto mb-6 max-w-[500px] text-base leading-relaxed text-muted-foreground">
+          <p className="mx-auto mb-6 max-w-[500px] text-[18px] leading-relaxed text-muted-foreground">
             For everything else, there's your network. Antelog is where verified people share real recommendations — with the people they know, and the people they don't.
           </p>
           <div className="inline-flex flex-wrap justify-center gap-2.5">
@@ -46,16 +46,16 @@ const Index = () => {
         </section>
 
         {/* Two paths */}
-        <section className="mx-auto max-w-[1040px] px-6 pb-12">
+        <section className="mx-auto max-w-[1120px] px-6 pb-12">
           <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
             <div className="rounded-lg bg-muted p-6">
               <p className="mb-2.5 text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
                 Your network
               </p>
-              <h3 className="mb-2.5 text-[19px] font-medium">
+              <h3 className="mb-2.5 text-[22px] font-medium">
                 Ask the people who'd actually know.
               </h3>
-              <p className="text-sm leading-[1.55] text-muted-foreground">
+              <p className="text-[15px] leading-[1.55] text-muted-foreground">
                 Send a niche question to your friends and their extended network. Get answers from people who've been there, tried that, done it. Every recommendation traceable to a real person.
               </p>
             </div>
@@ -63,10 +63,10 @@ const Index = () => {
               <p className="mb-2.5 text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
                 Master Directory
               </p>
-              <h3 className="mb-2.5 text-[19px] font-medium">
+              <h3 className="mb-2.5 text-[22px] font-medium">
                 Browse what verified people use.
               </h3>
-              <p className="text-sm leading-[1.55] text-muted-foreground">
+              <p className="text-[15px] leading-[1.55] text-muted-foreground">
                 A growing library of community-ranked lists across categories — cafes, gear, services, doctors, anything. Free to read. Subscribe to vote and contribute.
               </p>
             </div>
@@ -74,7 +74,7 @@ const Index = () => {
         </section>
 
         {/* Pillars */}
-        <section className="mx-auto max-w-[1040px] border-t border-border px-6 py-11">
+        <section className="mx-auto max-w-[1120px] border-t border-border px-6 py-11">
           <div className="grid grid-cols-1 gap-7 md:grid-cols-3">
             {[
               {
@@ -91,16 +91,16 @@ const Index = () => {
               },
             ].map((p) => (
               <div key={p.title}>
-                <h4 className="mb-1.5 text-sm font-medium">{p.title}</h4>
-                <p className="text-[13px] leading-[1.55] text-muted-foreground">{p.body}</p>
+                <h4 className="mb-1.5 text-base font-medium">{p.title}</h4>
+                <p className="text-sm leading-[1.55] text-muted-foreground">{p.body}</p>
               </div>
             ))}
           </div>
         </section>
 
         {/* How it works */}
-        <section className="mx-auto max-w-[1040px] border-t border-border px-6 py-11">
-          <h3 className="mb-7 text-center text-[19px] font-medium">How Antelog works</h3>
+        <section className="mx-auto max-w-[1120px] border-t border-border px-6 py-11">
+          <h3 className="mb-7 text-center text-[22px] font-medium">How Antelog works</h3>
           <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
             {[
               {
@@ -121,8 +121,8 @@ const Index = () => {
             ].map((s) => (
               <div key={s.n}>
                 <p className="mb-1.5 text-[11px] tracking-[0.04em] text-muted-foreground">{s.n}</p>
-                <p className="mb-1.5 text-sm font-medium">{s.title}</p>
-                <p className="text-[13px] leading-[1.55] text-muted-foreground">{s.body}</p>
+                <p className="mb-1.5 text-base font-medium">{s.title}</p>
+                <p className="text-sm leading-[1.55] text-muted-foreground">{s.body}</p>
               </div>
             ))}
           </div>
@@ -130,7 +130,7 @@ const Index = () => {
 
         {/* Bottom CTA */}
         <section className="border-t border-border px-6 py-12 text-center">
-          <h3 className="mx-auto mb-[18px] max-w-[460px] text-[22px] font-medium leading-[1.3]">
+          <h3 className="mx-auto mb-[18px] max-w-[460px] text-[26px] font-medium leading-[1.3]">
             Your network knows more than you think.
           </h3>
           <Button asChild size="lg">
