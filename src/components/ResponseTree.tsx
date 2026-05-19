@@ -144,12 +144,16 @@ function ResponseTreeSection({
       {/* Legend row 1 — avatar colors */}
       <div className="flex gap-4 mb-2 text-xs text-muted-foreground flex-wrap">
         <span className="inline-flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-full bg-blue-100 dark:bg-blue-900/50" />
-          Antelog user
+          <span className="px-1.5 py-px rounded-full text-[9px] font-semibold uppercase tracking-wider bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-200">
+            Antelog
+          </span>
+          Verified user
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-full bg-muted border border-border" />
-          Guest
+          <span className="px-1.5 py-px rounded-full text-[9px] font-semibold uppercase tracking-wider bg-muted text-muted-foreground">
+            Guest
+          </span>
+          Not on Antelog
         </span>
       </div>
 
@@ -207,11 +211,7 @@ function TreeNodeRow({ node }: { node: TreeRow }) {
     >
       {/* Avatar */}
       <div
-        className={`w-8 h-8 rounded-full flex items-center justify-center text-[13px] font-medium flex-shrink-0 ${
-          node.is_antelog_user
-            ? "bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-200"
-            : "bg-muted text-muted-foreground"
-        }`}
+        className="w-8 h-8 rounded-full flex items-center justify-center text-[13px] font-medium flex-shrink-0 bg-muted text-muted-foreground"
       >
         {node.person_name.charAt(0).toUpperCase()}
       </div>
@@ -241,6 +241,17 @@ function TreeNodeRow({ node }: { node: TreeRow }) {
         }`}
       >
         {node.person_name}
+      </span>
+
+      {/* Type pill */}
+      <span
+        className={`inline-flex items-center px-1.5 py-px rounded-full text-[10px] font-semibold uppercase tracking-wider flex-shrink-0 ${
+          node.is_antelog_user
+            ? "bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-200"
+            : "bg-muted text-muted-foreground"
+        }`}
+      >
+        {node.is_antelog_user ? "Antelog" : "Guest"}
       </span>
 
       {/* Meta */}
