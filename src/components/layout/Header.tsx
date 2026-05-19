@@ -243,6 +243,7 @@ const Header = ({ isAuthenticated, isAdmin, userType, onLogout }: HeaderProps) =
         </Link>
         
         <div className="flex items-center gap-4">
+          <ThemeToggle />
           {/* Master Directory requires authentication */}
           {isAuthenticated ? (
             <Link to="/directory" className="hover:underline">

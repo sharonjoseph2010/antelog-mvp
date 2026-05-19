@@ -25,14 +25,14 @@ const Index = () => {
 
       <main className="min-h-screen bg-background text-foreground">
         {/* Hero */}
-        <section className="mx-auto max-w-[760px] px-6 pt-12 pb-11 text-center md:pt-16">
-          <p className="mb-4 text-[11px] uppercase tracking-[0.1em] text-muted-foreground">
-            Recommendations · text only · network-powered
+        <section className="mx-auto max-w-[760px] px-5 pt-12 pb-11 text-center sm:px-6 md:pt-16">
+          <p className="mb-4 text-[11px] uppercase tracking-[0.06em] text-muted-foreground sm:tracking-[0.1em]">
+            Recommendations · text only · network powered
           </p>
-          <h1 className="mx-auto mb-4 max-w-[580px] text-[32px] font-bold leading-[1.15] md:text-[40px]">
+          <h1 className="mx-auto mb-4 max-w-[580px] text-[28px] font-bold leading-[1.15] sm:text-[32px] md:text-[40px]">
             Some things the internet just can't tell you.
           </h1>
-          <p className="mx-auto mb-6 max-w-[500px] text-[18px] leading-relaxed text-muted-foreground">
+          <p className="mx-auto mb-6 max-w-[500px] text-[16px] leading-relaxed text-muted-foreground sm:text-[18px]">
             For everything else, there's your network. Antelog is where verified people share real recommendations — with the people they know, and the people they don't.
           </p>
           <div className="inline-flex flex-wrap justify-center gap-2.5">
@@ -46,8 +46,8 @@ const Index = () => {
         </section>
 
         {/* Two paths */}
-        <section className="mx-auto max-w-[1120px] px-6 pb-12">
-          <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
+        <section className="mx-auto max-w-[1120px] px-5 pb-12 sm:px-6">
+          <div className="grid grid-cols-1 gap-3.5 min-[900px]:grid-cols-2">
             <div className="rounded-lg bg-muted p-6">
               <p className="mb-2.5 text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
                 Your network
@@ -74,8 +74,8 @@ const Index = () => {
         </section>
 
         {/* Pillars */}
-        <section className="mx-auto max-w-[1120px] border-t border-border px-6 py-11">
-          <div className="grid grid-cols-1 gap-7 md:grid-cols-3">
+        <section className="mx-auto max-w-[1120px] border-t border-border px-5 py-11 sm:px-6">
+          <div className="grid grid-cols-1 gap-7 sm:grid-cols-2 lg:grid-cols-3">
             {[
               {
                 title: "Real people, verified once",
@@ -99,9 +99,9 @@ const Index = () => {
         </section>
 
         {/* How it works */}
-        <section className="mx-auto max-w-[1120px] border-t border-border px-6 py-11">
+        <section className="mx-auto max-w-[1120px] border-t border-border px-5 py-11 sm:px-6">
           <h3 className="mb-7 text-center text-[22px] font-medium">How Antelog works</h3>
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {[
               {
                 n: "01",
@@ -129,7 +129,7 @@ const Index = () => {
         </section>
 
         {/* Bottom CTA */}
-        <section className="border-t border-border px-6 py-12 text-center">
+        <section className="border-t border-border px-5 py-12 text-center sm:px-6">
           <h3 className="mx-auto mb-[18px] max-w-[460px] text-[26px] font-medium leading-[1.3]">
             Your network knows more than you think.
           </h3>
