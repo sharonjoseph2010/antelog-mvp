@@ -22,6 +22,7 @@ interface ResponseTreeProps {
 }
 
 type NodeStatus = "responded" | "forwarded" | "none";
+type FilterMode = "all" | "antelog" | "guests";
 
 function getNodeStatus(node: TreeRow): NodeStatus {
   if (node.has_responded) return "responded";
@@ -29,11 +30,79 @@ function getNodeStatus(node: TreeRow): NodeStatus {
   return "none";
 }
 
+interface OrderedNode extends TreeRow {
+  renderDepth: number;
+}
+
+function buildOrdered(rows: TreeRow[]): OrderedNode[] {
+  const byParent = new Map<string | null, TreeRow[]>();
+  let root: TreeRow | null = null;
+  for (const row of rows) {
+    if (row.is_root) {
+      root = row;
+    } else {
+      const key = row.parent_link_id;
+      if (!byParent.has(key)) byParent.set(key, []);
+      byParent.get(key)!.push(row);
+    }
+  }
+  for (const children of byParent.values()) {
+    children.sort((a, b) => {
+      if (a.has_responded && !b.has_responded) return -1;
+      if (!a.has_responded && b.has_responded) return 1;
+      return a.person_name.localeCompare(b.person_name);
+    });
+  }
+  const ordered: OrderedNode[] = [];
+  function walk(node: TreeRow, depth: number) {
+    ordered.push({ ...node, renderDepth: depth });
+    const children = byParent.get(node.link_id) || [];
+    for (const child of children) walk(child, depth + 1);
+  }
+  if (root) walk(root, 0);
+  return ordered;
+}
+
+function reindentFiltered(
+  allRows: TreeRow[],
+  keep: (n: TreeRow) => boolean
+): OrderedNode[] {
+  const byId = new Map(allRows.map((r) => [r.link_id, r]));
+  const byParent = new Map<string | null, TreeRow[]>();
+  let root: TreeRow | null = null;
+  for (const row of allRows) {
+    if (row.is_root) root = row;
+    else {
+      const key = row.parent_link_id;
+      if (!byParent.has(key)) byParent.set(key, []);
+      byParent.get(key)!.push(row);
+    }
+  }
+  for (const children of byParent.values()) {
+    children.sort((a, b) => {
+      if (a.has_responded && !b.has_responded) return -1;
+      if (!a.has_responded && b.has_responded) return 1;
+      return a.person_name.localeCompare(b.person_name);
+    });
+  }
+  const ordered: OrderedNode[] = [];
+  function walk(node: TreeRow, depth: number) {
+    const visible = keep(node);
+    if (visible) ordered.push({ ...node, renderDepth: depth });
+    const nextDepth = visible ? depth + 1 : depth;
+    const children = byParent.get(node.link_id) || [];
+    for (const child of children) walk(child, nextDepth);
+  }
+  if (root) walk(root, 0);
+  return ordered;
+}
+
 export function ResponseTree({ requestId }: ResponseTreeProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [rows, setRows] = useState<TreeRow[] | null>(null);
   const [showAll, setShowAll] = useState(true);
+  const [filter, setFilter] = useState<FilterMode>("all");
 
   const toggle = async () => {
     const next = !isOpen;
@@ -85,6 +154,8 @@ export function ResponseTree({ requestId }: ResponseTreeProps) {
           isLoading={isLoading}
           showAll={showAll}
           setShowAll={setShowAll}
+          filter={filter}
+          setFilter={setFilter}
         />
       )}
     </>
@@ -96,11 +167,15 @@ function ResponseTreeSection({
   isLoading,
   showAll,
   setShowAll,
+  filter,
+  setFilter,
 }: {
   rows: TreeRow[] | null;
   isLoading: boolean;
   showAll: boolean;
   setShowAll: (v: boolean) => void;
+  filter: FilterMode;
+  setFilter: (v: FilterMode) => void;
 }) {
   if (isLoading) {
     return (
@@ -124,22 +199,54 @@ function ResponseTreeSection({
   }
 
   const respondedCount = rows.filter((r) => r.has_responded && !r.is_root).length;
+  const antelogResponded = rows.filter(
+    (r) => r.has_responded && !r.is_root && r.is_antelog_user
+  ).length;
+  const guestResponded = rows.filter(
+    (r) => r.has_responded && !r.is_root && !r.is_antelog_user
+  ).length;
   const forwardCount = rows.filter((r) => r.forwarded_to_count > 0).length;
   const maxDepth = rows.reduce((m, r) => Math.max(m, r.depth), 0);
 
-  const visible = showAll
-    ? rows
-    : rows.filter((r) => r.is_root || r.has_responded);
+  const keep = (n: TreeRow): boolean => {
+    if (!showAll && !n.is_root && !n.has_responded) return false;
+    if (filter === "all") return true;
+    if (n.is_root) return true;
+    return filter === "antelog" ? n.is_antelog_user : !n.is_antelog_user;
+  };
+  const visible = reindentFiltered(rows, keep);
 
   return (
     <section id="response-tree-section" className="basis-full mt-6">
       <header className="mb-4">
         <h3 className="text-base font-medium m-0">Response tree</h3>
         <p className="text-sm text-muted-foreground mt-1">
-          {respondedCount} responded · {forwardCount} forwards · {maxDepth}{" "}
+          {respondedCount} responded ({antelogResponded} Antelog ·{" "}
+          {guestResponded} {guestResponded === 1 ? "guest" : "guests"}) ·{" "}
+          {forwardCount} forwards · {maxDepth}{" "}
           {maxDepth === 1 ? "degree" : "degrees"} deep
         </p>
       </header>
+
+      {/* Filter segmented control */}
+      <div className="inline-flex rounded-md border border-border overflow-hidden mb-3">
+        {(["all", "antelog", "guests"] as const).map((m, i) => (
+          <button
+            key={m}
+            type="button"
+            onClick={() => setFilter(m)}
+            className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+              i > 0 ? "border-l border-border" : ""
+            } ${
+              filter === m
+                ? "bg-primary text-primary-foreground"
+                : "bg-transparent text-muted-foreground hover:bg-muted"
+            }`}
+          >
+            {m === "all" ? "All" : m === "antelog" ? "Antelog" : "Guests"}
+          </button>
+        ))}
+      </div>
 
       {/* Legend row 1 — avatar colors */}
       <div className="flex gap-4 mb-2 text-xs text-muted-foreground flex-wrap">
@@ -200,14 +307,14 @@ function ResponseTreeSection({
   );
 }
 
-function TreeNodeRow({ node }: { node: TreeRow }) {
+function TreeNodeRow({ node }: { node: OrderedNode }) {
   const status = getNodeStatus(node);
   const isMuted = status === "none";
 
   return (
     <div
       className="flex items-center gap-3 py-2"
-      style={{ paddingLeft: `${node.depth * 22}px` }}
+      style={{ paddingLeft: `${node.renderDepth * 22}px` }}
     >
       {/* Avatar */}
       <div
