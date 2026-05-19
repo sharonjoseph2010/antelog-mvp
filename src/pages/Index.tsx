@@ -137,11 +137,6 @@ const Index = () => {
             <Link to="/waitlist">Join Waitlist</Link>
           </Button>
         </section>
-
-        {/* Footer principle band */}
-        <div className="border-t border-border bg-muted px-6 py-[18px] text-center text-xs italic leading-[1.5] text-muted-foreground">
-          Antelog is built on the principle that real recommendations come from people you trust — not algorithms or influencers.
-        </div>
       </main>
     </>
   );
