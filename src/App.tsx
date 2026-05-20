@@ -37,6 +37,7 @@ import RequestReview from "./pages/RequestReview";
 import { supabase } from "@/integrations/supabase/client";
 import type { Session, User } from "@supabase/supabase-js";
 import { ProtectedRoute, AdminRoute, InternalRoute, VerifiedRoute } from "@/components/routes/RouteGuards";
+import { AppShell } from "@/layouts/AppShell";
 import Directory from "./pages/Directory";
 import DirectoryListDetail from "./pages/DirectoryListDetail";
 import GuestSignup from "./pages/GuestSignup";
@@ -198,6 +199,24 @@ function AppContent({
   const location = useLocation();
   const isGuestPage = location.pathname.startsWith("/r/");
 
+  // Routes that live inside the authenticated app shell (sidebar nav).
+  // Landing, auth, guest, and onboarding pages keep the top Header.
+  const SHELL_ROUTES = [
+    "/dashboard",
+    "/lists",
+    "/for-you",
+    "/friends",
+    "/contacts",
+    "/network",
+    "/groups",
+    "/requests",
+    "/directory",
+    "/profile",
+    "/admin",
+  ];
+  const isShellRoute =
+    isAuthenticatedShellPath(location.pathname, SHELL_ROUTES);
+
   // Handle navigation after authentication state is set
   useEffect(() => {
     console.log("[Auth] Navigation effect triggered:", { initializing, hasSession: !!session?.user, pathname: window.location.pathname });
@@ -319,15 +338,10 @@ function AppContent({
     }
   };
 
-  return (
-    <>
-      <Header 
-        isAuthenticated={isAuthenticated} 
-        isAdmin={isAdmin} 
-        userType={userType}
-        onLogout={handleLogout} 
-      />
-      <Routes>
+  const useShell = isShellRoute && isAuthenticated && userType === "verified";
+
+  const routesNode = (
+    <Routes>
         <Route path="/" element={initializing ? <div className="min-h-screen flex items-center justify-center">Loading...</div> : <Index />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/guest-signup" element={<GuestSignup />} />
@@ -573,9 +587,34 @@ function AppContent({
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
         <Route path="*" element={<NotFound />} />
       </Routes>
+  );
+
+  if (useShell) {
+    return (
+      <>
+        {routesNode && (
+          <AppShell onLogout={handleLogout}>{routesNode}</AppShell>
+        )}
+      </>
+    );
+  }
+
+  return (
+    <>
+      <Header
+        isAuthenticated={isAuthenticated}
+        isAdmin={isAdmin}
+        userType={userType}
+        onLogout={handleLogout}
+      />
+      {routesNode}
       {!isGuestPage && <Footer isAuthenticated={isAuthenticated} />}
     </>
   );
+}
+
+function isAuthenticatedShellPath(pathname: string, prefixes: string[]) {
+  return prefixes.some((p) => pathname === p || pathname.startsWith(p + "/"));
 }
 
 export default App;
