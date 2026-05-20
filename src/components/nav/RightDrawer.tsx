@@ -76,6 +76,7 @@ export function RightDrawer({ open, onOpenChange }: RightDrawerProps) {
   const initial = (profile?.fullName || profile?.handle || "?").trim().charAt(0).toUpperCase();
 
   return (
+    <>
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
