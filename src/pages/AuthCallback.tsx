@@ -86,11 +86,11 @@ useEffect(() => {
               <div className="text-left space-y-3">
                 <div>
                   <label className="block text-sm mb-1">New password</label>
-                  <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
+                  <PasswordInput value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
                 </div>
                 <div>
                   <label className="block text-sm mb-1">Confirm password</label>
-                  <Input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="••••••••" />
+                  <PasswordInput value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="••••••••" />
                 </div>
                 <Button className="w-full" onClick={handleReset} disabled={submitting}>{submitting ? "Saving…" : "Save new password"}</Button>
               </div>
