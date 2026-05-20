@@ -219,7 +219,7 @@ const Dashboard = () => {
         <link rel="canonical" href={window.location.href} />
       </Helmet>
 
-      <div className="mx-auto w-full max-w-[860px] px-6 py-10 lg:px-10 lg:py-12">
+      <div className="mx-auto w-full max-w-[1240px] px-6 py-10 lg:px-10 lg:py-12">
         {loading ? (
           <p className="text-sm text-muted-foreground">Loading…</p>
         ) : (
@@ -258,14 +258,16 @@ const Dashboard = () => {
             </Link>
 
             {/* 3. Three softened stat cards */}
-            <div className="grid gap-3 sm:grid-cols-3">
-              <StatCard icon={ListIcon} label="Lists" value={listCount} to="/lists" />
-              <StatCard icon={Inbox} label="Open Requests" value={openRequestCount} to="/requests" />
-              <StatCard icon={Users} label="Network" value={networkCount} to="/friends" />
+            <div className="grid grid-cols-3 gap-3">
+              <StatCard icon={MessageSquare} label="New Responses" value={newResponses} to="/requests?status=open" />
+              <StatCard icon={Inbox} label="Open Requests" value={openRequestCount} to="/requests?status=open" />
+              <StatCard icon={Users} label="Your Network" value={networkCount} to="/friends" />
             </div>
 
-            {/* 4. Recent activity */}
-            <section className="space-y-5">
+            {/* 4 + 5 + 6. Two-column body grid */}
+            <div className="grid gap-8 lg:grid-cols-[1.6fr_1fr]">
+              {/* Left: Recent activity */}
+              <section className="space-y-5">
               <h2 className="text-[15px] font-medium text-foreground">Recent activity</h2>
               {activity.length === 0 ? (
                 <p className="text-[13px] text-muted-foreground">Nothing yet. When your network responds to a request, it'll show up here.</p>
@@ -308,9 +310,10 @@ const Dashboard = () => {
               )}
             </section>
 
-            {/* 5. Continue where you left off — black panel */}
-            {openRequests.length > 0 && (
-              <section className="rounded-lg bg-foreground p-6 text-background">
+              {/* Right column: stack of two panels */}
+              <div className="space-y-6">
+              {openRequests.length > 0 && (
+                <section className="rounded-lg bg-foreground p-6 text-background">
                 <h2 className="text-[15px] font-medium">Continue where you left off</h2>
                 <ul className="mt-4 divide-y divide-background/10">
                   {openRequests.map((r) => (
@@ -330,12 +333,11 @@ const Dashboard = () => {
                     </li>
                   ))}
                 </ul>
-              </section>
-            )}
+                </section>
+              )}
 
-            {/* 6. People you may know */}
-            {suggestions.length > 0 && (
-              <section className="space-y-4">
+              {suggestions.length > 0 && (
+                <section className="space-y-4">
                 <h2 className="text-[15px] font-medium text-foreground">People you may know</h2>
                 <ul className="space-y-2">
                   {suggestions.map((s) => (
@@ -363,8 +365,10 @@ const Dashboard = () => {
                     </li>
                   ))}
                 </ul>
-              </section>
-            )}
+                </section>
+              )}
+              </div>
+            </div>
 
             {/* 7. Trust foundation footer band */}
             <section className="rounded-lg border border-border bg-muted/30 p-6">
