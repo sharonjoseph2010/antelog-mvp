@@ -31,6 +31,7 @@ interface ProfileSummary {
 export function RightDrawer({ open, onOpenChange }: RightDrawerProps) {
   const navigate = useNavigate();
   const [profile, setProfile] = useState<ProfileSummary | null>(null);
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -60,11 +61,17 @@ export function RightDrawer({ open, onOpenChange }: RightDrawerProps) {
 
   const close = () => onOpenChange(false);
   const go = (path: string) => { close(); navigate(path); };
-  const logout = async () => {
+
+  const openLogoutDialog = () => setShowLogoutDialog(true);
+
+  const confirmLogout = async () => {
+    setShowLogoutDialog(false);
     close();
     await supabase.auth.signOut();
     navigate("/", { replace: true });
   };
+
+  const cancelLogout = () => setShowLogoutDialog(false);
 
   const initial = (profile?.fullName || profile?.handle || "?").trim().charAt(0).toUpperCase();
 
