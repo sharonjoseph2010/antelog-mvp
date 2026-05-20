@@ -5,11 +5,11 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   ArrowRight,
   Inbox,
-  List as ListIcon,
   MessageSquare,
   Shield,
   UserPlus,
   Users,
+  type LucideIcon,
 } from "lucide-react";
 
 interface ActivityItem {
@@ -415,7 +415,7 @@ function StatCard({
   value,
   to,
 }: {
-  icon: typeof ListIcon;
+  icon: LucideIcon;
   label: string;
   value: number;
   to: string;
@@ -423,10 +423,10 @@ function StatCard({
   return (
     <Link
       to={to}
-      className="flex items-center gap-3 rounded-lg border border-border bg-background p-4 transition-colors hover:bg-muted/40"
+      className="flex items-center gap-4 rounded-lg border border-border bg-background p-5 transition-colors hover:bg-muted/60"
     >
-      <span className="flex h-9 w-9 items-center justify-center rounded-md border border-border text-muted-foreground">
-        <Icon className="h-4 w-4" strokeWidth={1.5} />
+      <span className="flex h-11 w-11 items-center justify-center rounded-[10px] border border-border bg-background text-muted-foreground">
+        <Icon className="h-5 w-5" strokeWidth={1.5} />
       </span>
       <span className="flex flex-col">
         <span className="text-[10px] font-normal uppercase tracking-wider text-muted-foreground">
