@@ -191,8 +191,8 @@ export default function ContactsImportHub() {
       // Dispatch event to notify contacts page to reload
       window.dispatchEvent(new Event('contacts-updated'));
 
-      // Navigate to contacts page after successful import
-      navigate('/contacts');
+      // Navigate to network page after successful import
+      navigate('/network');
     } catch (error: any) {
       console.error('Error saving contacts:', error);
       
@@ -392,9 +392,9 @@ export default function ContactsImportHub() {
           </p>
           <Button
             variant="outline"
-            onClick={() => navigate('/dashboard')}
+            onClick={() => navigate('/network')}
           >
-            Skip for now
+            Back to Network
           </Button>
         </div>
       </div>

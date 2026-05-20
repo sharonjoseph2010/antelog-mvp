@@ -22,9 +22,7 @@ import ListsNew from "./pages/ListsNew";
 import ListDetail from "./pages/ListDetail";
 import ListEdit from "./pages/ListEdit";
 import Friends from "./pages/Friends";
-import ContactsImport from "./pages/ContactsImport";
 import ContactsImportHub from "./pages/ContactsImportHub";
-import ContactsOverview from "./pages/ContactsOverview";
 import ExtendedNetwork from "./pages/ExtendedNetwork";
 import Groups from "./pages/Groups";
 import GroupsNew from "./pages/GroupsNew";
@@ -430,9 +428,7 @@ function AppContent({
         <Route
           path="/contacts"
           element={
-            <ProtectedRoute isAuthenticated={isAuthenticated}>
-              <ContactsOverview />
-            </ProtectedRoute>
+            <Navigate to="/network" replace />
           }
         />
 
@@ -441,15 +437,6 @@ function AppContent({
           element={
             <ProtectedRoute isAuthenticated={isAuthenticated}>
               <ContactsImportHub />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/contacts/legacy"
-          element={
-            <ProtectedRoute isAuthenticated={isAuthenticated}>
-              <ContactsImport />
             </ProtectedRoute>
           }
         />
