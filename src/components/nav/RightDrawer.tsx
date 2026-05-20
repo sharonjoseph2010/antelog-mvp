@@ -156,6 +156,7 @@ export function RightDrawer({ open, onOpenChange }: RightDrawerProps) {
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
+    </>
   );
 }
 
