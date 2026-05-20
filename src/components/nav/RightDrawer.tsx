@@ -130,11 +130,31 @@ export function RightDrawer({ open, onOpenChange }: RightDrawerProps) {
           <Divider />
 
           <nav className="flex flex-col gap-0.5">
-            <Item icon={LogOut} label="Log out" onClick={logout} danger />
+            <Item icon={LogOut} label="Log out" onClick={openLogoutDialog} danger />
           </nav>
         </div>
       </SheetContent>
     </Sheet>
+
+    <AlertDialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Log out?</AlertDialogTitle>
+          <AlertDialogDescription>
+            You'll need to sign in again to see your network and requests.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel onClick={cancelLogout}>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={confirmLogout}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            Log out
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
 
