@@ -95,7 +95,7 @@ export function RightDrawer({ open, onOpenChange }: RightDrawerProps) {
           <SectionLabel>Your stuff</SectionLabel>
           <nav className="flex flex-col gap-0.5">
             <Item icon={ListIcon} label="My Lists" count={profile?.listCount} onClick={() => go("/lists")} />
-            <Item icon={Share2} label="Network" count={profile?.networkCount} onClick={() => go("/friends")} />
+            <Item icon={Share2} label="Network" count={profile?.networkCount} onClick={() => go("/network")} />
             <Item icon={UsersRound} label="My Groups" onClick={() => go("/groups")} />
             <Item icon={BookUser} label="Contacts" onClick={() => go("/contacts")} />
           </nav>
@@ -105,7 +105,7 @@ export function RightDrawer({ open, onOpenChange }: RightDrawerProps) {
           <SectionLabel>Account</SectionLabel>
           <nav className="flex flex-col gap-0.5">
             <Item icon={User} label="Profile" onClick={() => go("/profile")} />
-            <Item icon={Settings} label="Settings" onClick={() => go("/profile")} />
+            <Item icon={Settings} label="Settings" onClick={() => go("/settings")} />
           </nav>
 
           <div className="flex-1" />
