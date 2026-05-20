@@ -2,6 +2,16 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { BookUser, List as ListIcon, LogOut, Settings, Share2, User, UsersRound, X } from "lucide-react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 
@@ -21,6 +31,7 @@ interface ProfileSummary {
 export function RightDrawer({ open, onOpenChange }: RightDrawerProps) {
   const navigate = useNavigate();
   const [profile, setProfile] = useState<ProfileSummary | null>(null);
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -50,15 +61,22 @@ export function RightDrawer({ open, onOpenChange }: RightDrawerProps) {
 
   const close = () => onOpenChange(false);
   const go = (path: string) => { close(); navigate(path); };
-  const logout = async () => {
+
+  const openLogoutDialog = () => setShowLogoutDialog(true);
+
+  const confirmLogout = async () => {
+    setShowLogoutDialog(false);
     close();
     await supabase.auth.signOut();
     navigate("/", { replace: true });
   };
 
+  const cancelLogout = () => setShowLogoutDialog(false);
+
   const initial = (profile?.fullName || profile?.handle || "?").trim().charAt(0).toUpperCase();
 
   return (
+    <>
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
@@ -113,11 +131,32 @@ export function RightDrawer({ open, onOpenChange }: RightDrawerProps) {
           <Divider />
 
           <nav className="flex flex-col gap-0.5">
-            <Item icon={LogOut} label="Log out" onClick={logout} danger />
+            <Item icon={LogOut} label="Log out" onClick={openLogoutDialog} danger />
           </nav>
         </div>
       </SheetContent>
     </Sheet>
+
+    <AlertDialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Log out?</AlertDialogTitle>
+          <AlertDialogDescription>
+            You'll need to sign in again to see your network and requests.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel onClick={cancelLogout}>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={confirmLogout}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            Log out
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
 
