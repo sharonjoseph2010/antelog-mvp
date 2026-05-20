@@ -332,7 +332,7 @@ const Dashboard = () => {
             <div className="grid grid-cols-3 gap-3">
               <StatCard icon={MessageSquare} label="New Responses" value={newResponses} to="/requests?status=open" />
               <StatCard icon={Inbox} label="Open Requests" value={openRequestCount} to="/requests?status=open" />
-              <StatCard icon={Users} label="Your Network" value={networkCount} to="/network" />
+              <StatCard icon={Users} label="Your Network" value={networkCount} to="/friends" />
             </div>
 
             {/* Two-column body */}
