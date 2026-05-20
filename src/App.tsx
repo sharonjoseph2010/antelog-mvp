@@ -21,9 +21,7 @@ import Lists from "./pages/Lists";
 import ListsNew from "./pages/ListsNew";
 import ListDetail from "./pages/ListDetail";
 import ListEdit from "./pages/ListEdit";
-import Friends from "./pages/Friends";
 import ContactsImportHub from "./pages/ContactsImportHub";
-import ExtendedNetwork from "./pages/ExtendedNetwork";
 import Groups from "./pages/Groups";
 import GroupsNew from "./pages/GroupsNew";
 import GroupDetail from "./pages/GroupDetail";
@@ -418,11 +416,7 @@ function AppContent({
 
         <Route
           path="/friends"
-          element={
-            <ProtectedRoute isAuthenticated={isAuthenticated}>
-              <Friends />
-            </ProtectedRoute>
-          }
+          element={<Navigate to="/network" replace />}
         />
 
         <Route
@@ -443,11 +437,7 @@ function AppContent({
 
         <Route
           path="/network/extended"
-          element={
-            <ProtectedRoute isAuthenticated={isAuthenticated}>
-              <ExtendedNetwork />
-            </ProtectedRoute>
-          }
+          element={<Navigate to="/network" replace />}
         />
 
         <Route
