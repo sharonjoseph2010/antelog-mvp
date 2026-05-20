@@ -47,6 +47,10 @@ import PublicProfile from "./pages/PublicProfile";
 import Waitlist from "./pages/Waitlist";
 import GuestResponse from "./pages/GuestResponse";
 import Welcome from "./pages/Welcome";
+import Notifications from "./pages/Notifications";
+import Network from "./pages/Network";
+import Settings from "./pages/Settings";
+import RequestDetail from "./pages/RequestDetail";
 
 const queryClient = new QueryClient();
 
@@ -212,6 +216,8 @@ function AppContent({
     "/requests",
     "/directory",
     "/profile",
+    "/notifications",
+    "/settings",
     "/admin",
   ];
   const isShellRoute =
@@ -576,6 +582,30 @@ function AppContent({
 
         <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/r/:requestId/:token" element={<GuestResponse />} />
+        <Route
+          path="/notifications"
+          element={
+            <ProtectedRoute isAuthenticated={isAuthenticated}>
+              <Notifications />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/network"
+          element={
+            <ProtectedRoute isAuthenticated={isAuthenticated}>
+              <Network />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute isAuthenticated={isAuthenticated}>
+              <Settings />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/welcome"
           element={
