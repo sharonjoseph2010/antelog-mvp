@@ -536,6 +536,15 @@ function AppContent({
         />
 
         <Route
+          path="/requests/:id"
+          element={
+            <ProtectedRoute isAuthenticated={isAuthenticated}>
+              <RequestDetail />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
           path="/admin"
           element={
             <AdminRoute isAuthenticated={isAuthenticated} isAdmin={isAdmin}>
