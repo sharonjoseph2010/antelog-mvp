@@ -42,6 +42,8 @@ interface ProfileSummary {
 
 export function Sidebar({ onNavigate, onLogout }: SidebarProps) {
   const { theme, resolvedTheme, setTheme } = useTheme();
+  const [themeMounted, setThemeMounted] = useState(false);
+  useEffect(() => { setThemeMounted(true); }, []);
   const [profile, setProfile] = useState<ProfileSummary | null>(null);
   const [counts, setCounts] = useState<SidebarCounts>({
     requestsAlert: 0,
@@ -119,7 +121,7 @@ export function Sidebar({ onNavigate, onLogout }: SidebarProps) {
     setOnboardingDismissed(true);
   };
 
-  const isDark = (resolvedTheme || theme) === "dark";
+  const isDark = themeMounted && (resolvedTheme || theme) === "dark";
 
   return (
     <aside
