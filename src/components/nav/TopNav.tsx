@@ -50,10 +50,10 @@ export function TopNav() {
     <>
       <header className="sticky top-0 z-30 border-b border-border bg-background">
         <div className="flex items-center justify-between px-7 py-[14px]">
-          <div className="flex items-center gap-6">
+          <div className="flex items-baseline gap-6">
             <Link
               to="/dashboard"
-              className="text-[17px] font-semibold tracking-[-0.01em] text-foreground"
+              className="text-[20px] font-semibold tracking-[-0.02em] text-foreground leading-none"
             >
               Antelog
             </Link>
@@ -68,8 +68,8 @@ export function TopNav() {
             >
               Master Directory
             </NavLink>
-            <span className="h-[18px] w-px bg-border" />
-            <nav className="flex items-center gap-5">
+            <span className="self-center h-[14px] w-px bg-border" />
+            <nav className="flex items-baseline gap-5">
               <NavLink to="/dashboard" className={navLinkCls} end>Dashboard</NavLink>
               <NavLink to="/for-you" className={navLinkCls}>For You</NavLink>
               <NavLink to="/requests" className={navLinkCls}>Requests</NavLink>
@@ -78,7 +78,7 @@ export function TopNav() {
 
           <div className="flex items-center gap-3">
             <Link
-              to="/dashboard"
+              to="/notifications"
               aria-label="Notifications"
               className="relative inline-flex h-8 w-8 items-center justify-center rounded-md text-foreground/70 hover:bg-muted hover:text-foreground"
             >
