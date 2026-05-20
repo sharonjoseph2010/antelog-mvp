@@ -5,20 +5,21 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   ArrowRight,
   Inbox,
+  List as ListIcon,
   MessageSquare,
   Shield,
-  UserPlus,
   Users,
   type LucideIcon,
 } from "lucide-react";
 
 interface ActivityItem {
   id: string;
-  kind: "response" | "request" | "friend" | "notification";
+  kind: "response" | "notification";
   title: string;
   subtitle?: string;
   href: string;
   at: Date;
+  isRead: boolean;
 }
 
 interface OpenRequest {
@@ -28,11 +29,45 @@ interface OpenRequest {
   response_count: number;
 }
 
-interface Suggestion {
+interface PendingRequest {
   id: string;
-  suggested_user_id: string;
-  full_name: string;
-  handle: string;
+  title: string;
+  asker_name: string;
+  response_count: number;
+}
+
+interface RecentList {
+  id: string;
+  title: string;
+  updated_at: string;
+}
+
+function getNotifLink(type: string, metadata: any, relatedUserId: string | null): string {
+  const meta = metadata || {};
+  switch (type) {
+    case "request_response":
+    case "response":
+    case "vote":
+    case "recommendation_voted":
+    case "forwarded_request":
+    case "request_forwarded":
+    case "forward":
+    case "new_request":
+    case "endorsement":
+    case "forward_suggestion":
+      return meta.request_id ? `/requests/${meta.request_id}/respond` : "/requests";
+    case "friend_request":
+    case "friend_request_accepted":
+    case "connection_request":
+    case "connection_accepted":
+      return relatedUserId ? `/profile/${relatedUserId}` : "/friends";
+    case "contact_joined":
+    case "network_addition":
+    case "friend_suggestion":
+      return "/friends";
+    default:
+      return "/notifications";
+  }
 }
 
 const Dashboard = () => {
@@ -45,7 +80,8 @@ const Dashboard = () => {
   const [networkCount, setNetworkCount] = useState(0);
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [openRequests, setOpenRequests] = useState<OpenRequest[]>([]);
-  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [pendingRequests, setPendingRequests] = useState<PendingRequest[]>([]);
+  const [recentLists, setRecentLists] = useState<RecentList[]>([]);
 
   useEffect(() => {
     let mounted = true;
@@ -57,16 +93,9 @@ const Dashboard = () => {
         return;
       }
       const userId = session.user.id;
-
       const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString();
 
-      const [
-        profRes,
-        openReqRes,
-        listCountRes,
-        friendsRes,
-        suggestionRes,
-      ] = await Promise.all([
+      const [profRes, openReqRes, listCountRes, friendsRes, recentListsRes] = await Promise.all([
         supabase.from("profiles").select("full_name, handle").eq("id", userId).maybeSingle(),
         supabase
           .from("requests")
@@ -77,14 +106,13 @@ const Dashboard = () => {
         supabase.from("lists").select("id", { count: "exact", head: true }).eq("owner_id", userId),
         supabase
           .from("friendships")
-          .select("id", { count: "exact", head: true })
+          .select("id, user1_id, user2_id")
           .or(`user1_id.eq.${userId},user2_id.eq.${userId}`),
         supabase
-          .from("friend_suggestions")
-          .select("id, suggested_user_id, created_at")
-          .eq("user_id", userId)
-          .eq("is_dismissed", false)
-          .order("created_at", { ascending: false })
+          .from("lists")
+          .select("id, title, updated_at")
+          .eq("owner_id", userId)
+          .order("updated_at", { ascending: false })
           .limit(3),
       ]);
 
@@ -111,7 +139,6 @@ const Dashboard = () => {
       }
       setNewResponses(recentResponses.length);
 
-      // Response counts per open request (top 3 most recent)
       const top3 = allOpen.slice(0, 3);
       const responseCounts: Record<string, number> = {};
       if (top3.length) {
@@ -124,40 +151,74 @@ const Dashboard = () => {
           responseCounts[r.request_id] = (responseCounts[r.request_id] || 0) + 1;
         });
       }
-      setOpenRequests(
-        top3.map((r) => ({ ...r, response_count: responseCounts[r.id] || 0 }))
-      );
+      setOpenRequests(top3.map((r) => ({ ...r, response_count: responseCounts[r.id] || 0 })));
 
       setListCount(listCountRes.count || 0);
-      setNetworkCount(friendsRes.count || 0);
 
-      // Suggestions: enrich with profile
-      const sList = (suggestionRes.data || []) as Array<{ id: string; suggested_user_id: string }>;
-      if (sList.length > 0) {
-        const ids = sList.map((s) => s.suggested_user_id);
-        const { data: sp } = await supabase
-          .from("profiles")
-          .select("id, full_name, handle")
-          .in("id", ids);
-        setSuggestions(
-          sList.map((s) => {
-            const p = sp?.find((x: any) => x.id === s.suggested_user_id);
-            return {
-              id: s.id,
-              suggested_user_id: s.suggested_user_id,
-              full_name: (p?.full_name as string) || "Someone",
-              handle: (p?.handle as string) || "",
-            };
-          })
-        );
+      // Friend ids
+      const friendships = (friendsRes.data || []) as Array<{ user1_id: string; user2_id: string }>;
+      setNetworkCount(friendships.length);
+      const friendIds = friendships.map((f) => (f.user1_id === userId ? f.user2_id : f.user1_id));
+
+      // Recent lists
+      setRecentLists((recentListsRes.data || []) as RecentList[]);
+
+      // Requests waiting on you: from friends, status open, not responded, not own
+      if (friendIds.length > 0) {
+        const { data: networkReqs } = await supabase
+          .from("requests")
+          .select("id, title, creator_id, created_at")
+          .in("creator_id", friendIds)
+          .eq("status", "open")
+          .order("created_at", { ascending: false })
+          .limit(15);
+
+        const reqIds = (networkReqs || []).map((r: any) => r.id);
+        let respondedSet = new Set<string>();
+        if (reqIds.length) {
+          const { data: myResps } = await supabase
+            .from("request_responses")
+            .select("request_id")
+            .eq("responder_id", userId)
+            .in("request_id", reqIds);
+          respondedSet = new Set((myResps || []).map((r: any) => r.request_id));
+        }
+        const pending = (networkReqs || []).filter((r: any) => !respondedSet.has(r.id)).slice(0, 3);
+
+        if (pending.length) {
+          const creatorIds = Array.from(new Set(pending.map((r: any) => r.creator_id)));
+          const { data: creatorProfiles } = await supabase
+            .from("profiles")
+            .select("id, full_name, handle")
+            .in("id", creatorIds);
+          const nameMap: Record<string, string> = {};
+          (creatorProfiles || []).forEach((p: any) => {
+            nameMap[p.id] = (p.full_name as string) || (p.handle as string) || "Someone";
+          });
+          const { data: respCounts } = await supabase
+            .from("request_responses")
+            .select("request_id")
+            .in("request_id", pending.map((r: any) => r.id));
+          const countMap: Record<string, number> = {};
+          (respCounts || []).forEach((r: any) => {
+            countMap[r.request_id] = (countMap[r.request_id] || 0) + 1;
+          });
+          setPendingRequests(
+            pending.map((r: any) => ({
+              id: r.id,
+              title: r.title,
+              asker_name: nameMap[r.creator_id] || "Someone",
+              response_count: countMap[r.id] || 0,
+            }))
+          );
+        }
       }
 
-      // Build activity stream from responses + recent notifications
+      // Activity stream
       const activityItems: ActivityItem[] = [];
 
-      // Get responder names
       const responderIds = Array.from(new Set(recentResponses.map((r) => r.responder_id)));
-      let responderMap: Record<string, string> = {};
+      const responderMap: Record<string, string> = {};
       if (responderIds.length) {
         const { data: rp } = await supabase
           .from("profiles")
@@ -176,31 +237,33 @@ const Dashboard = () => {
           kind: "response",
           title: `${responderMap[r.responder_id] || "Someone"} responded`,
           subtitle: reqTitleMap[r.request_id],
-          href: `/requests/${r.request_id}`,
+          href: `/requests/${r.request_id}/respond`,
           at: new Date(r.created_at),
+          isRead: false,
         });
       });
 
       const { data: notifs } = await supabase
         .from("notifications")
-        .select("id, title, message, created_at, type, metadata")
+        .select("id, title, message, created_at, type, metadata, related_user_id, is_read")
         .eq("user_id", userId)
         .gte("created_at", new Date(Date.now() - 30 * 86400000).toISOString())
         .order("created_at", { ascending: false })
-        .limit(20);
+        .limit(30);
       (notifs || []).forEach((n: any) => {
         activityItems.push({
           id: `notif-${n.id}`,
           kind: "notification",
           title: n.title,
           subtitle: n.message,
-          href: "/dashboard",
+          href: getNotifLink(n.type, n.metadata, n.related_user_id),
           at: new Date(n.created_at),
+          isRead: !!n.is_read,
         });
       });
 
       activityItems.sort((a, b) => b.at.getTime() - a.at.getTime());
-      setActivity(activityItems.slice(0, 20));
+      setActivity(activityItems.slice(0, 30));
 
       setLoading(false);
     })();
@@ -209,7 +272,8 @@ const Dashboard = () => {
     };
   }, [navigate]);
 
-  const groupedActivity = groupActivityByDate(activity);
+  const newItems = activity.filter((a) => !a.isRead);
+  const earlierItems = activity.filter((a) => a.isRead);
 
   return (
     <>
@@ -219,14 +283,21 @@ const Dashboard = () => {
         <link rel="canonical" href={window.location.href} />
       </Helmet>
 
+      <style>{`
+        .activity-scroll::-webkit-scrollbar { width: 8px; }
+        .activity-scroll::-webkit-scrollbar-track { background: transparent; }
+        .activity-scroll::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 4px; }
+        .activity-scroll::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground) / 0.4); }
+      `}</style>
+
       <div className="mx-auto w-full max-w-[1240px] px-6 py-10 lg:px-10 lg:py-12">
         {loading ? (
           <p className="text-sm text-muted-foreground">Loading…</p>
         ) : (
           <div className="space-y-10">
-            {/* 1. Welcome header */}
+            {/* Welcome header */}
             <header className="space-y-2">
-              <h1 className="text-[32px] font-semibold tracking-tight text-foreground">
+              <h1 className="text-[26px] font-medium tracking-tight text-foreground">
                 Welcome back, {firstName}.
               </h1>
               <p className="text-[14px] text-muted-foreground">
@@ -240,7 +311,7 @@ const Dashboard = () => {
               </p>
             </header>
 
-            {/* 2. Black summary bar */}
+            {/* Black summary bar */}
             <Link
               to="/requests/new"
               className="group flex items-center justify-between rounded-lg bg-foreground px-5 py-4 text-background transition-opacity hover:opacity-90"
@@ -257,120 +328,141 @@ const Dashboard = () => {
               </span>
             </Link>
 
-            {/* 3. Three softened stat cards */}
+            {/* Stat cards */}
             <div className="grid grid-cols-3 gap-3">
               <StatCard icon={MessageSquare} label="New Responses" value={newResponses} to="/requests?status=open" />
               <StatCard icon={Inbox} label="Open Requests" value={openRequestCount} to="/requests?status=open" />
               <StatCard icon={Users} label="Your Network" value={networkCount} to="/friends" />
             </div>
 
-            {/* 4 + 5 + 6. Two-column body grid */}
+            {/* Two-column body */}
             <div className="grid gap-8 lg:grid-cols-[1.6fr_1fr]">
               {/* Left: Recent activity */}
               <section className="space-y-5">
-              <h2 className="text-[15px] font-medium text-foreground">Recent activity</h2>
-              {activity.length === 0 ? (
-                <p className="text-[13px] text-muted-foreground">Nothing yet. When your network responds to a request, it'll show up here.</p>
-              ) : (
-                <div className="space-y-6">
-                  {(["TODAY", "EARLIER THIS WEEK", "EARLIER THIS MONTH"] as const).map((bucket) =>
-                    groupedActivity[bucket].length > 0 ? (
-                      <div key={bucket} className="space-y-3">
-                        <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-                          {bucket.replace(/_/g, " ")}
-                        </div>
-                        <ul className="space-y-2">
-                          {groupedActivity[bucket].map((a) => (
-                            <li key={a.id}>
-                              <Link
-                                to={a.href}
-                                className="-mx-2 flex items-start gap-3 rounded-md px-2 py-2 transition-colors hover:bg-muted/60"
-                              >
-                                <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground">
-                                  {a.kind === "response" ? (
-                                    <MessageSquare className="h-3.5 w-3.5" strokeWidth={1.5} />
-                                  ) : (
-                                    <Inbox className="h-3.5 w-3.5" strokeWidth={1.5} />
-                                  )}
-                                </span>
-                                <span className="min-w-0 flex-1">
-                                  <span className="block truncate text-[14px] text-foreground">{a.title}</span>
-                                  {a.subtitle && (
-                                    <span className="block truncate text-[13px] text-muted-foreground">{a.subtitle}</span>
-                                  )}
-                                </span>
-                              </Link>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    ) : null
-                  )}
-                </div>
-              )}
-            </section>
+                <h2 className="text-[15px] font-medium text-foreground">Recent activity</h2>
+                {activity.length === 0 ? (
+                  <p className="text-[13px] text-muted-foreground">
+                    Nothing yet. When your network responds to a request, it'll show up here.
+                  </p>
+                ) : (
+                  <div
+                    className="activity-scroll space-y-6 overflow-y-auto pr-1"
+                    style={{ maxHeight: 440 }}
+                  >
+                    {newItems.length > 0 && (
+                      <ActivityGroup label="NEW" items={newItems} />
+                    )}
+                    {earlierItems.length > 0 && (
+                      <ActivityGroup label="EARLIER" items={earlierItems} />
+                    )}
+                  </div>
+                )}
+              </section>
 
-              {/* Right column: stack of two panels */}
+              {/* Right column */}
               <div className="space-y-6">
-              {openRequests.length > 0 && (
-                <section className="rounded-lg bg-foreground p-6 text-background">
-                <h2 className="text-[15px] font-medium">Continue where you left off</h2>
-                <ul className="mt-4 divide-y divide-background/10">
-                  {openRequests.map((r) => (
-                    <li key={r.id}>
-                      <Link
-                        to={`/requests/${r.id}`}
-                        className="group flex items-center justify-between gap-4 py-3 transition-opacity hover:opacity-80"
-                      >
-                        <span className="min-w-0 flex-1 truncate text-[14px]">{r.title}</span>
-                        <span className="flex items-center gap-3 text-[12px] text-background/70">
-                          <span>
-                            {r.response_count} {r.response_count === 1 ? "response" : "responses"}
-                          </span>
-                          <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" strokeWidth={1.5} />
-                        </span>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-                </section>
-              )}
-
-              {suggestions.length > 0 && (
-                <section className="space-y-4">
-                <h2 className="text-[15px] font-medium text-foreground">People you may know</h2>
-                <ul className="space-y-2">
-                  {suggestions.map((s) => (
-                    <li
-                      key={s.id}
-                      className="flex items-center justify-between gap-4 rounded-md border border-border px-4 py-3"
+                {openRequests.length > 0 && (
+                  <section className="rounded-lg bg-foreground p-6 text-background">
+                    <h2 className="text-[15px] font-medium">Continue where you left off</h2>
+                    <ul className="mt-4 divide-y divide-background/10">
+                      {openRequests.map((r) => (
+                        <li key={r.id}>
+                          <Link
+                            to={`/requests/${r.id}/respond`}
+                            className="group flex items-center justify-between gap-4 py-3 transition-opacity hover:opacity-80"
+                          >
+                            <span className="min-w-0 flex-1 truncate text-[14px]">{r.title}</span>
+                            <span className="flex items-center gap-3 text-[12px] text-background/70">
+                              <span>
+                                {r.response_count} {r.response_count === 1 ? "response" : "responses"}
+                              </span>
+                              <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" strokeWidth={1.5} />
+                            </span>
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                    <Link
+                      to="/requests"
+                      className="mt-4 inline-flex items-center gap-1 text-[12px] text-background/80 hover:text-background"
                     >
-                      <div className="flex min-w-0 items-center gap-3">
-                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted text-[12px] font-medium text-foreground">
-                          {(s.full_name || s.handle || "?").trim().charAt(0).toUpperCase()}
-                        </span>
-                        <div className="min-w-0">
-                          <div className="truncate text-[14px] text-foreground">{s.full_name}</div>
-                          <div className="truncate text-[12px] text-muted-foreground">@{s.handle}</div>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => connect(s.suggested_user_id, s.id, setSuggestions)}
-                        className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-[12px] text-foreground transition-colors hover:bg-muted"
-                      >
-                        <UserPlus className="h-3.5 w-3.5" strokeWidth={1.5} />
-                        Connect
-                      </button>
-                    </li>
-                  ))}
-                </ul>
+                      View all requests
+                      <ArrowRight className="h-3 w-3" strokeWidth={1.5} />
+                    </Link>
+                  </section>
+                )}
+
+                {/* Requests waiting on you */}
+                <section className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                      Requests waiting on you
+                    </h2>
+                    <Link to="/requests" className="text-[12px] text-muted-foreground hover:text-foreground">
+                      View all →
+                    </Link>
+                  </div>
+                  {pendingRequests.length === 0 ? (
+                    <p className="text-[13px] text-muted-foreground">
+                      All caught up. No requests waiting for your input.
+                    </p>
+                  ) : (
+                    <ul className="divide-y divide-border rounded-lg border border-border">
+                      {pendingRequests.map((r) => (
+                        <li key={r.id}>
+                          <Link
+                            to={`/requests/${r.id}/respond`}
+                            className="group flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-muted/40"
+                          >
+                            <span className="min-w-0 flex-1 truncate text-[14px] text-foreground">{r.title}</span>
+                            <span className="flex shrink-0 items-center gap-3 text-[12px] text-muted-foreground">
+                              <span>{r.asker_name} · {r.response_count} {r.response_count === 1 ? "response" : "responses"}</span>
+                              <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" strokeWidth={1.5} />
+                            </span>
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </section>
-              )}
+
+                {/* Your recent lists */}
+                <section className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                      Your recent lists
+                    </h2>
+                    <Link to="/lists" className="text-[12px] text-muted-foreground hover:text-foreground">
+                      All {listCount} →
+                    </Link>
+                  </div>
+                  {recentLists.length === 0 ? (
+                    <p className="text-[13px] text-muted-foreground">
+                      No lists yet. <Link to="/lists/new" className="underline underline-offset-2 hover:text-foreground">Create one</Link>.
+                    </p>
+                  ) : (
+                    <ul className="divide-y divide-border rounded-lg border border-border">
+                      {recentLists.map((l) => (
+                        <li key={l.id}>
+                          <Link
+                            to={`/lists/${l.id}`}
+                            className="group flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-muted/40"
+                          >
+                            <span className="min-w-0 flex-1 truncate text-[14px] text-foreground">{l.title}</span>
+                            <span className="flex shrink-0 items-center gap-3 text-[12px] text-muted-foreground">
+                              <span>{formatShortDate(l.updated_at)}</span>
+                              <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" strokeWidth={1.5} />
+                            </span>
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </section>
               </div>
             </div>
 
-            {/* 7. Trust foundation footer band */}
+            {/* Trust band */}
             <section className="rounded-lg border border-border bg-muted/30 p-6">
               <div className="flex items-start gap-4">
                 <Shield className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" strokeWidth={1.5} />
@@ -392,7 +484,6 @@ const Dashboard = () => {
               </div>
             </section>
 
-            {/* 8. Page footer */}
             <footer className="flex flex-col items-start justify-between gap-2 border-t border-border pt-6 text-[12px] text-muted-foreground sm:flex-row sm:items-center">
               <span>© 2026 Antelog · network powered</span>
               <nav className="flex items-center gap-4">
@@ -408,6 +499,43 @@ const Dashboard = () => {
     </>
   );
 };
+
+function ActivityGroup({ label, items }: { label: string; items: ActivityItem[] }) {
+  return (
+    <div className="space-y-3">
+      <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+        {label}
+      </div>
+      <ul className="space-y-2">
+        {items.map((a) => (
+          <li key={a.id}>
+            <Link
+              to={a.href}
+              className="-mx-2 flex items-start gap-3 rounded-md px-2 py-2 transition-colors hover:bg-muted/60"
+            >
+              <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground">
+                {a.kind === "response" ? (
+                  <MessageSquare className="h-3.5 w-3.5" strokeWidth={1.5} />
+                ) : (
+                  <Inbox className="h-3.5 w-3.5" strokeWidth={1.5} />
+                )}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[14px] text-foreground">{a.title}</span>
+                {a.subtitle && (
+                  <span className="block truncate text-[13px] text-muted-foreground">{a.subtitle}</span>
+                )}
+                <span className="mt-0.5 block text-[11px] text-muted-foreground">
+                  {formatRelative(a.at)}
+                </span>
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
 
 function StatCard({
   icon: Icon,
@@ -438,42 +566,21 @@ function StatCard({
   );
 }
 
-async function connect(
-  targetId: string,
-  suggestionId: string,
-  setSuggestions: React.Dispatch<React.SetStateAction<Suggestion[]>>
-) {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return;
-  await supabase.from("friend_requests").insert({
-    requester_id: user.id,
-    addressee_id: targetId,
-    status: "pending",
-  });
-  await supabase
-    .from("friend_suggestions")
-    .update({ is_dismissed: true })
-    .eq("id", suggestionId);
-  setSuggestions((prev) => prev.filter((s) => s.id !== suggestionId));
+function formatShortDate(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-function groupActivityByDate(items: ActivityItem[]) {
-  const now = new Date();
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-  const sevenAgo = now.getTime() - 7 * 86400000;
-  const thirtyAgo = now.getTime() - 30 * 86400000;
-  const groups: Record<"TODAY" | "EARLIER THIS WEEK" | "EARLIER THIS MONTH", ActivityItem[]> = {
-    TODAY: [],
-    "EARLIER THIS WEEK": [],
-    "EARLIER THIS MONTH": [],
-  };
-  for (const it of items) {
-    const t = it.at.getTime();
-    if (t >= startOfToday) groups.TODAY.push(it);
-    else if (t >= sevenAgo) groups["EARLIER THIS WEEK"].push(it);
-    else if (t >= thirtyAgo) groups["EARLIER THIS MONTH"].push(it);
-  }
-  return groups;
+function formatRelative(d: Date): string {
+  const diff = Date.now() - d.getTime();
+  const min = Math.floor(diff / 60000);
+  if (min < 1) return "just now";
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}h ago`;
+  const day = Math.floor(hr / 24);
+  if (day < 7) return `${day}d ago`;
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
 export default Dashboard;
