@@ -428,7 +428,9 @@ function AppContent({
         <Route
           path="/contacts"
           element={
-            <Navigate to="/network" replace />
+            <ProtectedRoute isAuthenticated={isAuthenticated}>
+              <Network />
+            </ProtectedRoute>
           }
         />
 
@@ -590,7 +592,7 @@ function AppContent({
           path="/network"
           element={
             <ProtectedRoute isAuthenticated={isAuthenticated}>
-              <Network />
+              <Friends />
             </ProtectedRoute>
           }
         />

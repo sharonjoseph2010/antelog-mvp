@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { List as ListIcon, LogOut, Settings, Share2, User, UsersRound, X } from "lucide-react";
+import { BookUser, List as ListIcon, LogOut, Settings, Share2, User, UsersRound, X } from "lucide-react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import {
   AlertDialog,
@@ -115,6 +115,7 @@ export function RightDrawer({ open, onOpenChange }: RightDrawerProps) {
             <Item icon={ListIcon} label="My Lists" count={profile?.listCount} onClick={() => go("/lists")} />
             <Item icon={Share2} label="Network" count={profile?.networkCount} onClick={() => go("/network")} />
             <Item icon={UsersRound} label="My Groups" onClick={() => go("/groups")} />
+            <Item icon={BookUser} label="Contacts" onClick={() => go("/contacts")} />
           </nav>
 
           <Divider />
