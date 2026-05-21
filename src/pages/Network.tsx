@@ -303,7 +303,7 @@ const Network = () => {
     return (
       <>
         <Helmet>
-          <title>Network — Antelog</title>
+        <title>Contacts — Antelog</title>
         </Helmet>
         <div className="mx-auto w-full max-w-[1240px] px-6 py-10">
           <PageHeader showImport={false} onImport={() => navigate("/contacts/import")} subtitle="Build your trusted network. Import your contacts to find who's already on Antelog." />
@@ -332,14 +332,14 @@ const Network = () => {
   return (
     <>
       <Helmet>
-        <title>Network — Antelog</title>
-        <meta name="description" content="People you've connected with, contacts on Antelog, and those waiting to join." />
+        <title>Contacts — Antelog</title>
+        <meta name="description" content="Manage your imported contacts and grow your network." />
       </Helmet>
       <div className="mx-auto w-full max-w-[1240px] px-6 py-10">
         <PageHeader
           showImport
           onImport={() => navigate("/contacts/import")}
-          subtitle="People you've connected with, contacts on Antelog, and those waiting to join."
+          subtitle="Manage your imported contacts and grow your network."
         />
 
         {/* Tabs */}
@@ -421,7 +421,7 @@ function PageHeader({
           className="text-foreground"
           style={{ fontSize: 26, fontWeight: 500, letterSpacing: "-0.01em" }}
         >
-          Network
+          Contacts
         </h1>
         <p
           className="mt-2 text-muted-foreground"
