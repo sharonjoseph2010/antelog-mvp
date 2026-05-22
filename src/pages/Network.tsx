@@ -422,7 +422,7 @@ const Network = () => {
 
         {/* Tab contents */}
         <div className="mt-6">
-          {loading ? (
+          {loading && tab !== "groups" ? (
             <p className="py-10 text-center text-[13px] text-muted-foreground">Loading…</p>
           ) : tab === "friends" ? (
             <FriendsList rows={filteredFriends} onRemove={(row) => setRemoving(row)} />
@@ -433,8 +433,10 @@ const Network = () => {
               onConnect={handleConnect}
               onDismiss={handleDismiss}
             />
-          ) : (
+          ) : tab === "to_invite" ? (
             <ToInviteList rows={filteredToInvite} buildInviteUrl={buildInviteUrl} />
+          ) : (
+            <GroupsList groups={filteredGroups} loading={groupsLoading} />
           )}
         </div>
       </div>
