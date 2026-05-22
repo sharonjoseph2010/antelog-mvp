@@ -381,7 +381,9 @@ const Network = () => {
       ? "Search your friends"
       : tab === "to_add"
       ? "Search contacts on Antelog"
-      : "Search contacts to invite";
+      : tab === "to_invite"
+      ? "Search contacts to invite"
+      : "Search your groups";
 
   return (
     <>
