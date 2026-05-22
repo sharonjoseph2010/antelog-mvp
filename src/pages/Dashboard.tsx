@@ -485,7 +485,7 @@ const Dashboard = () => {
             </section>
 
             <footer className="flex flex-col items-start justify-between gap-2 border-t border-border pt-6 text-[12px] text-muted-foreground sm:flex-row sm:items-center">
-              <span>© 2026 Antelog · network powered</span>
+              <span>© 2026 Antelog · People powered</span>
               <nav className="flex items-center gap-4">
                 <Link to="/" className="hover:text-foreground">About</Link>
                 <Link to="/" className="hover:text-foreground">Privacy</Link>
