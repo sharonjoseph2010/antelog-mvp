@@ -94,6 +94,42 @@ const Network = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    if (!userId) return;
+    (async () => {
+      setGroupsLoading(true);
+      try {
+        const { data: groupsData } = await supabase
+          .from("groups")
+          .select("*")
+          .eq("creator_id", userId)
+          .order("created_at", { ascending: false });
+        if (groupsData && groupsData.length > 0) {
+          const groupIds = groupsData.map((g: any) => g.id);
+          const { data: memberCounts } = await supabase
+            .from("group_members")
+            .select("group_id")
+            .in("group_id", groupIds);
+          const countsByGroup = (memberCounts || []).reduce((acc: Record<string, number>, member: any) => {
+            acc[member.group_id] = (acc[member.group_id] || 0) + 1;
+            return acc;
+          }, {} as Record<string, number>);
+          const groupsWithCounts = groupsData.map((group: any) => ({
+            ...group,
+            member_count: countsByGroup[group.id] || 0,
+          }));
+          setGroups(groupsWithCounts);
+        } else {
+          setGroups([]);
+        }
+      } catch (err) {
+        console.error("[Network] groups fetch error", err);
+      } finally {
+        setGroupsLoading(false);
+      }
+    })();
+  }, [userId]);
+
   const loadAll = async (uid: string) => {
     setLoading(true);
     try {
