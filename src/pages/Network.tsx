@@ -508,25 +508,38 @@ function TabBtn({
   onClick,
   label,
   count,
+  icon: Icon,
 }: {
   active: boolean;
   onClick: () => void;
   label: string;
   count: number;
+  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
       className={cn(
-        "relative flex items-center gap-2 px-4 py-3 text-[13px] transition-colors",
+        "relative flex items-center gap-2.5 px-4 py-3 text-[13px] transition-colors",
         active ? "text-foreground" : "text-muted-foreground hover:text-foreground"
       )}
       style={active ? { fontWeight: 500 } : undefined}
     >
+      <span
+        className={cn(
+          "flex h-8 w-8 items-center justify-center rounded-full transition-colors",
+          active ? "bg-foreground text-background" : "bg-muted text-muted-foreground"
+        )}
+      >
+        <Icon className="h-[15px] w-[15px]" strokeWidth={1.5} />
+      </span>
       <span>{label}</span>
       <span
-        className="rounded-full bg-muted px-[7px] py-[1px] text-[11px] text-muted-foreground"
+        className={cn(
+          "rounded-full px-[7px] py-[1px] text-[11px]",
+          active ? "bg-muted text-foreground" : "bg-muted text-muted-foreground"
+        )}
       >
         {count}
       </span>
