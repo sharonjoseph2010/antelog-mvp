@@ -25,7 +25,7 @@ import { cn } from "@/lib/utils";
  * Button text:       12-13px / 500
  */
 
-type TabKey = "friends" | "to_add" | "to_invite";
+type TabKey = "friends" | "to_add" | "to_invite" | "groups";
 
 interface FriendRow {
   friendshipId: string;
