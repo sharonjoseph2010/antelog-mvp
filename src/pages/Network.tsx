@@ -514,7 +514,7 @@ function TabBtn({
   onClick: () => void;
   label: string;
   count: number;
-  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+  icon: React.ElementType;
 }) {
   return (
     <button
