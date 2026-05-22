@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Users, Upload, Trash2 } from "lucide-react";
+import { Users, Upload, Trash2, GitMerge, Network as NetworkIcon, UsersRound } from "lucide-react";
 import { FriendRequestButton } from "@/components/FriendRequestButton";
 
 // Custom icon for 2nd degree - two people connected
@@ -394,7 +394,7 @@ const Friends = () => {
                   value="second-degree" 
                   className="flex items-center justify-center gap-2 px-4 py-3 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none bg-transparent text-muted-foreground data-[state=active]:text-foreground hover:text-foreground transition-colors"
                 >
-                  <TwoPersonChain className="h-4 w-4" />
+                  <GitMerge className="h-4 w-4" />
                   <span className="hidden xs:inline">2nd Degree</span>
                   <Badge variant="secondary" className="ml-1 text-xs">
                     {extendedNetwork.length}
@@ -405,7 +405,7 @@ const Friends = () => {
                   value="third-plus" 
                   className="flex items-center justify-center gap-2 px-4 py-3 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none bg-transparent text-muted-foreground data-[state=active]:text-foreground hover:text-foreground transition-colors"
                 >
-                  <ThreePersonChain className="h-4 w-4" />
+                  <NetworkIcon className="h-4 w-4" />
                   <span className="hidden xs:inline">3rd+ Degree</span>
                   <Badge variant="secondary" className="ml-1 text-xs">
                     {thirdPlusNetwork.length}
@@ -416,7 +416,7 @@ const Friends = () => {
                   value="contacts" 
                   className="flex items-center justify-center gap-2 px-4 py-3 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none bg-transparent text-muted-foreground data-[state=active]:text-foreground hover:text-foreground transition-colors"
                 >
-                  <Users className="h-4 w-4" />
+                  <UsersRound className="h-4 w-4" />
                   <span className="hidden xs:inline">All Contacts</span>
                   <Badge variant="secondary" className="ml-1 text-xs">
                     {allContacts.length}
