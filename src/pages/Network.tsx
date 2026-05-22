@@ -50,6 +50,15 @@ interface ToInviteRow {
   phone: string | null;
 }
 
+interface Group {
+  id: string;
+  creator_id: string;
+  name: string;
+  description: string | null;
+  created_at: string;
+  member_count: number;
+}
+
 const Network = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
