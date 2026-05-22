@@ -718,6 +718,60 @@ function ToInviteList({
   );
 }
 
+function GroupsList({
+  groups,
+  loading,
+}: {
+  groups: Group[];
+  loading: boolean;
+}) {
+  if (loading) {
+    return <EmptyTab message="Loading groups…" />;
+  }
+  if (groups.length === 0) {
+    return <EmptyTab message="No groups yet. Create your first group to organize your friends." />;
+  }
+  return (
+    <>
+      <ul className="divide-y divide-border/60">
+        {groups.map((group) => (
+          <li key={group.id} className="flex items-center gap-3 py-3">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border bg-muted text-[12px] font-medium text-foreground">
+              {(group.name || "?").trim().charAt(0).toUpperCase()}
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <Link
+                  to={`/groups/${group.id}`}
+                  className="truncate text-[14px] font-medium text-foreground hover:underline"
+                >
+                  {group.name}
+                </Link>
+              </div>
+              <div className="text-[11px] text-muted-foreground">
+                {group.member_count} member{group.member_count === 1 ? "" : "s"} · Created {new Date(group.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+              </div>
+            </div>
+          </li>
+        ))}
+      </ul>
+      <div className="mt-4 rounded-md bg-muted px-4 py-3">
+        <div className="flex items-center justify-between gap-4">
+          <span className="text-[12px] text-muted-foreground">
+            Create, edit, or manage your groups in the dedicated Groups page.
+          </span>
+          <Link
+            to="/groups"
+            className="inline-flex items-center gap-1 text-[12px] font-medium text-foreground transition-colors hover:text-muted-foreground"
+          >
+            Go to Groups <ArrowRight className="h-3 w-3" strokeWidth={1.5} />
+          </Link>
+        </div>
+      </div>
+    </>
+  );
+}
+
 function EmptyTab({ message }: { message: string }) {
   return (
     <div className="py-10 text-center text-[13px] text-muted-foreground">{message}</div>
