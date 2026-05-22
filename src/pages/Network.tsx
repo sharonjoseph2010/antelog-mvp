@@ -373,6 +373,7 @@ const Network = () => {
     friends: friends.length,
     to_add: toAdd.filter((r) => !dismissed.has(r.contactId)).length,
     to_invite: toInvite.length,
+    groups: groups.length,
   };
 
   const placeholder =
