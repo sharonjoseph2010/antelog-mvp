@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 
 const Index = () => {
   const metaDescription =
-    "Antelog is where verified people share real recommendations — with the people they know, and the people they don't.";
+    "Antelog is where verified people share real recommendations - with the people they know, and the people they don't.";
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -17,7 +17,7 @@ const Index = () => {
   return (
     <>
       <Helmet>
-        <title>Some things the internet just can't tell you — Antelog</title>
+        <title>Your network is more powerful than you think. — Antelog</title>
         <meta name="description" content={metaDescription} />
         <link rel="canonical" href={window.location.href} />
         <script type="application/ld+json">{JSON.stringify(jsonLd)}</script>
@@ -27,13 +27,13 @@ const Index = () => {
         {/* Hero */}
         <section className="mx-auto max-w-[760px] px-5 pt-12 pb-11 text-center sm:px-6 md:pt-16">
           <p className="mb-4 text-[11px] uppercase tracking-[0.06em] text-muted-foreground sm:tracking-[0.1em]">
-            Recommendations · text only · network powered
+            Recommendations · text only · people powered
           </p>
           <h1 className="mx-auto mb-4 max-w-[580px] text-[28px] font-bold leading-[1.15] sm:text-[32px] md:text-[40px]">
-            Some things the internet just can't tell you.
+            Your network is more powerful than you think.
           </h1>
           <p className="mx-auto mb-6 max-w-[500px] text-[16px] leading-relaxed text-muted-foreground sm:text-[18px]">
-            For everything else, there's your network. Antelog is where verified people share real recommendations — with the people they know, and the people they don't.
+            Antelog is where verified people share real recommendations - with the people they know, and the people they don't.
           </p>
           <div className="inline-flex flex-wrap justify-center gap-2.5">
             <Button asChild size="lg">
@@ -50,13 +50,13 @@ const Index = () => {
           <div className="grid grid-cols-1 gap-3.5 min-[900px]:grid-cols-2">
             <div className="rounded-lg bg-muted p-6">
               <p className="mb-2.5 text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
-                Your network
+                Your network and extended network
               </p>
               <h3 className="mb-2.5 text-[22px] font-medium">
                 Ask the people who'd actually know.
               </h3>
               <p className="text-[15px] leading-[1.55] text-muted-foreground">
-                Send a niche question to your friends and their extended network. Get answers from people who've been there, tried that, done it. Every recommendation traceable to a real person.
+                Send a niche question to your friends and their extended network. Get answers from people who've been there, tried that, done it. Every recommendation traceable to a real person. Every answer is organic and SEO based.
               </p>
             </div>
             <div className="rounded-lg bg-muted p-6">
@@ -67,7 +67,7 @@ const Index = () => {
                 Browse what verified people use.
               </h3>
               <p className="text-[15px] leading-[1.55] text-muted-foreground">
-                A growing library of community-ranked lists across categories — cafes, gear, services, doctors, anything. Free to read. Subscribe to vote and contribute.
+                A growing library of community-ranked lists across categories — cafes, gear, services, doctors, anything. Free to read. Verify to vote and contribute. No burner accounts. One person - one account.
               </p>
             </div>
           </div>
@@ -83,7 +83,7 @@ const Index = () => {
               },
               {
                 title: "Quiet by design",
-                body: "Text only. No infinite feed. No follower counts. No likes. Just recommendations, plainly.",
+                body: "See exactly how every recommendation reached you - who asked, who passed it on, who answered.",
               },
               {
                 title: "Trust, traceable",
@@ -130,8 +130,8 @@ const Index = () => {
 
         {/* Bottom CTA */}
         <section className="border-t border-border px-5 py-12 text-center sm:px-6">
-          <h3 className="mx-auto mb-[18px] max-w-[460px] text-[26px] font-medium leading-[1.3]">
-            Your network knows more than you think.
+          <h3 className="mx-auto mb-[18px] max-w-[460px] font-medium leading-[1.3] text-xl">
+            ​For the things the internet cannot help you with
           </h3>
           <Button asChild size="lg">
             <Link to="/waitlist">Join Waitlist</Link>
