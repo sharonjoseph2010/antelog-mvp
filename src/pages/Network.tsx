@@ -75,6 +75,8 @@ const Network = () => {
   const [hasAnyContacts, setHasAnyContacts] = useState(true);
 
   const [removing, setRemoving] = useState<FriendRow | null>(null);
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [groupsLoading, setGroupsLoading] = useState(false);
 
   useEffect(() => {
     (async () => {
