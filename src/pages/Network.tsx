@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { Link, useNavigate } from "react-router-dom";
-import { Mail, Plus, Search, Send, Trash2, Upload, X } from "lucide-react";
+import { ArrowRight, GitMerge, Mail, Network as NetworkIcon, Plus, Search, Send, Trash2, Upload, Users, UsersRound, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -25,7 +25,7 @@ import { cn } from "@/lib/utils";
  * Button text:       12-13px / 500
  */
 
-type TabKey = "friends" | "to_add" | "to_invite";
+type TabKey = "friends" | "to_add" | "to_invite" | "groups";
 
 interface FriendRow {
   friendshipId: string;
@@ -50,6 +50,15 @@ interface ToInviteRow {
   phone: string | null;
 }
 
+interface Group {
+  id: string;
+  creator_id: string;
+  name: string;
+  description: string | null;
+  created_at: string;
+  member_count: number;
+}
+
 const Network = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -66,6 +75,8 @@ const Network = () => {
   const [hasAnyContacts, setHasAnyContacts] = useState(true);
 
   const [removing, setRemoving] = useState<FriendRow | null>(null);
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [groupsLoading, setGroupsLoading] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -82,6 +93,42 @@ const Network = () => {
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!userId) return;
+    (async () => {
+      setGroupsLoading(true);
+      try {
+        const { data: groupsData } = await supabase
+          .from("groups")
+          .select("*")
+          .eq("creator_id", userId)
+          .order("created_at", { ascending: false });
+        if (groupsData && groupsData.length > 0) {
+          const groupIds = groupsData.map((g: any) => g.id);
+          const { data: memberCounts } = await supabase
+            .from("group_members")
+            .select("group_id")
+            .in("group_id", groupIds);
+          const countsByGroup = (memberCounts || []).reduce((acc: Record<string, number>, member: any) => {
+            acc[member.group_id] = (acc[member.group_id] || 0) + 1;
+            return acc;
+          }, {} as Record<string, number>);
+          const groupsWithCounts = groupsData.map((group: any) => ({
+            ...group,
+            member_count: countsByGroup[group.id] || 0,
+          }));
+          setGroups(groupsWithCounts);
+        } else {
+          setGroups([]);
+        }
+      } catch (err) {
+        console.error("[Network] groups fetch error", err);
+      } finally {
+        setGroupsLoading(false);
+      }
+    })();
+  }, [userId]);
 
   const loadAll = async (uid: string) => {
     setLoading(true);
@@ -218,6 +265,12 @@ const Network = () => {
     );
   }, [toInvite, search]);
 
+  const filteredGroups = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return groups;
+    return groups.filter((g) => g.name.toLowerCase().includes(q));
+  }, [groups, search]);
+
   const confirmRemove = async () => {
     if (!removing) return;
     const target = removing;
@@ -320,6 +373,7 @@ const Network = () => {
     friends: friends.length,
     to_add: toAdd.filter((r) => !dismissed.has(r.contactId)).length,
     to_invite: toInvite.length,
+    groups: groups.length,
   };
 
   const placeholder =
@@ -327,7 +381,9 @@ const Network = () => {
       ? "Search your friends"
       : tab === "to_add"
       ? "Search contacts on Antelog"
-      : "Search contacts to invite";
+      : tab === "to_invite"
+      ? "Search contacts to invite"
+      : "Search your groups";
 
   return (
     <>
@@ -345,9 +401,10 @@ const Network = () => {
         {/* Tabs */}
         <div className="mt-7 border-b border-border/70">
           <div className="flex items-center gap-1">
-            <TabBtn active={tab === "friends"} onClick={() => setTab("friends")} label="Friends" count={counts.friends} />
-            <TabBtn active={tab === "to_add"} onClick={() => setTab("to_add")} label="To add" count={counts.to_add} />
-            <TabBtn active={tab === "to_invite"} onClick={() => setTab("to_invite")} label="To invite" count={counts.to_invite} />
+            <TabBtn active={tab === "friends"} onClick={() => setTab("friends")} label="1st network" count={counts.friends} icon={Users} />
+            <TabBtn active={tab === "to_add"} onClick={() => setTab("to_add")} label="2nd network" count={counts.to_add} icon={GitMerge} />
+            <TabBtn active={tab === "to_invite"} onClick={() => setTab("to_invite")} label="3rd+ network" count={counts.to_invite} icon={NetworkIcon} />
+            <TabBtn active={tab === "groups"} onClick={() => setTab("groups")} label="Groups" count={counts.groups} icon={UsersRound} />
           </div>
         </div>
 
@@ -365,7 +422,7 @@ const Network = () => {
 
         {/* Tab contents */}
         <div className="mt-6">
-          {loading ? (
+          {loading && tab !== "groups" ? (
             <p className="py-10 text-center text-[13px] text-muted-foreground">Loading…</p>
           ) : tab === "friends" ? (
             <FriendsList rows={filteredFriends} onRemove={(row) => setRemoving(row)} />
@@ -376,8 +433,10 @@ const Network = () => {
               onConnect={handleConnect}
               onDismiss={handleDismiss}
             />
-          ) : (
+          ) : tab === "to_invite" ? (
             <ToInviteList rows={filteredToInvite} buildInviteUrl={buildInviteUrl} />
+          ) : (
+            <GroupsList groups={filteredGroups} loading={groupsLoading} />
           )}
         </div>
       </div>
@@ -449,25 +508,38 @@ function TabBtn({
   onClick,
   label,
   count,
+  icon: Icon,
 }: {
   active: boolean;
   onClick: () => void;
   label: string;
   count: number;
+  icon: React.ElementType;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
       className={cn(
-        "relative flex items-center gap-2 px-4 py-3 text-[13px] transition-colors",
+        "relative flex items-center gap-2.5 px-4 py-3 text-[13px] transition-colors",
         active ? "text-foreground" : "text-muted-foreground hover:text-foreground"
       )}
       style={active ? { fontWeight: 500 } : undefined}
     >
+      <span
+        className={cn(
+          "flex h-8 w-8 items-center justify-center rounded-full transition-colors",
+          active ? "bg-foreground text-background" : "bg-muted text-muted-foreground"
+        )}
+      >
+        <Icon className="h-[15px] w-[15px]" strokeWidth={1.5} />
+      </span>
       <span>{label}</span>
       <span
-        className="rounded-full bg-muted px-[7px] py-[1px] text-[11px] text-muted-foreground"
+        className={cn(
+          "rounded-full px-[7px] py-[1px] text-[11px]",
+          active ? "bg-muted text-foreground" : "bg-muted text-muted-foreground"
+        )}
       >
         {count}
       </span>
@@ -642,6 +714,60 @@ function ToInviteList({
           </li>
         ))}
       </ul>
+    </>
+  );
+}
+
+function GroupsList({
+  groups,
+  loading,
+}: {
+  groups: Group[];
+  loading: boolean;
+}) {
+  if (loading) {
+    return <EmptyTab message="Loading groups…" />;
+  }
+  if (groups.length === 0) {
+    return <EmptyTab message="No groups yet. Create your first group to organize your friends." />;
+  }
+  return (
+    <>
+      <ul className="divide-y divide-border/60">
+        {groups.map((group) => (
+          <li key={group.id} className="flex items-center gap-3 py-3">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border bg-muted text-[12px] font-medium text-foreground">
+              {(group.name || "?").trim().charAt(0).toUpperCase()}
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <Link
+                  to={`/groups/${group.id}`}
+                  className="truncate text-[14px] font-medium text-foreground hover:underline"
+                >
+                  {group.name}
+                </Link>
+              </div>
+              <div className="text-[11px] text-muted-foreground">
+                {group.member_count} member{group.member_count === 1 ? "" : "s"} · Created {new Date(group.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+              </div>
+            </div>
+          </li>
+        ))}
+      </ul>
+      <div className="mt-4 rounded-md bg-muted px-4 py-3">
+        <div className="flex items-center justify-between gap-4">
+          <span className="text-[12px] text-muted-foreground">
+            Create, edit, or manage your groups in the dedicated Groups page.
+          </span>
+          <Link
+            to="/groups"
+            className="inline-flex items-center gap-1 text-[12px] font-medium text-foreground transition-colors hover:text-muted-foreground"
+          >
+            Go to Groups <ArrowRight className="h-3 w-3" strokeWidth={1.5} />
+          </Link>
+        </div>
+      </div>
     </>
   );
 }
