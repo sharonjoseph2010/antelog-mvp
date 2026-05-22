@@ -20,7 +20,7 @@ const ListItemRow = ({ number, name, url }: ListItemRowProps) => {
         "group flex items-center gap-2.5 px-2 -mx-2 py-[11px]",
         "border-b border-border/60 last:border-b-0 rounded-md",
         "transition-colors duration-150",
-        hasLink && "cursor-pointer hover:bg-muted/60"
+        hasLink && "cursor-pointer hover:bg-muted"
       )}
       onClick={hasLink ? open : undefined}
       role={hasLink ? "link" : undefined}
@@ -41,9 +41,9 @@ const ListItemRow = ({ number, name, url }: ListItemRowProps) => {
       </span>
       <span
         className={cn(
-          "text-sm text-foreground flex-1 break-words",
+          "text-sm text-foreground flex-1 break-words transition-colors duration-150",
           hasLink &&
-            "group-hover:underline underline-offset-[3px] decoration-muted-foreground"
+            "underline underline-offset-[3px] decoration-border group-hover:decoration-foreground"
         )}
       >
         {name}
@@ -51,7 +51,7 @@ const ListItemRow = ({ number, name, url }: ListItemRowProps) => {
       {hasLink && (
         <ExternalLink
           strokeWidth={1.5}
-          className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-150 [@media(hover:none)]:opacity-60"
+          className="h-[13px] w-[13px] text-muted-foreground flex-shrink-0 group-hover:text-foreground transition-colors duration-150"
         />
       )}
     </div>
