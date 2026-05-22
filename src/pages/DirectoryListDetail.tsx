@@ -466,17 +466,27 @@ export default function DirectoryListDetail() {
                           <span className="font-medium text-sm">{r.item_name}</span>
                           <span className="text-xs text-muted-foreground ml-2">— {r.vote_count} votes</span>
                         </div>
-                        {!userVotes.has(r.id) && (
+                        {isVerified && (
                           <Button
-                            variant="outline"
+                            variant={userVotes.has(r.id) ? "default" : "outline"}
                             size="sm"
-                            onClick={() => handleVote(r.id)}
+                            onClick={() => handleToggleVote(r.id)}
                             disabled={votingItemId === r.id}
                           >
-                            <ThumbsUp className="h-3 w-3" /> +1
+                            {votingItemId === r.id ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : userVotes.has(r.id) ? (
+                              <>
+                                <Check className="h-3 w-3" /> Voted
+                              </>
+                            ) : (
+                              <>
+                                <ThumbsUp className="h-3 w-3" /> +1
+                              </>
+                            )}
                           </Button>
                         )}
-                        {userVotes.has(r.id) && (
+                        {!isVerified && userVotes.has(r.id) && (
                           <Badge variant="default" className="text-xs">Voted ✓</Badge>
                         )}
                       </div>
