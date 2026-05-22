@@ -320,15 +320,20 @@ export default function DirectoryListDetail() {
           <Badge variant="secondary" className="text-xs">
             {item.vote_count} {item.vote_count === 1 ? "vote" : "votes"}
           </Badge>
-          {isVerified && !isOwnItem && !hasVoted && (
+          {isVerified && !isOwnItem && (
             <Button
-              variant="outline"
+              variant={hasVoted ? "default" : "outline"}
               size="sm"
-              onClick={() => handleVote(item.id)}
+              onClick={() => handleToggleVote(item.id)}
               disabled={votingItemId === item.id}
             >
               {votingItemId === item.id ? (
                 <Loader2 className="h-3 w-3 animate-spin" />
+              ) : hasVoted ? (
+                <>
+                  <Check className="h-3 w-3" />
+                  Voted
+                </>
               ) : (
                 <>
                   <ThumbsUp className="h-3 w-3" />
@@ -337,7 +342,7 @@ export default function DirectoryListDetail() {
               )}
             </Button>
           )}
-          {hasVoted && (
+          {!isVerified && hasVoted && (
             <Badge variant="default" className="text-xs flex items-center gap-1">
               <Check className="h-3 w-3" /> Voted
             </Badge>
