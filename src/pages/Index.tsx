@@ -87,7 +87,7 @@ const Index = () => {
               },
               {
                 title: "Trust, traceable",
-                body: "See exactly how every recommendation reached you — who asked, who passed it on, who answered.",
+                body: "See exactly how every recommendation reached you - who asked, who passed it on, who answered.",
               },
             ].map((p) => (
               <div key={p.title}>
