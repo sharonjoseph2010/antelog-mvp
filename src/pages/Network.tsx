@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { Link, useNavigate } from "react-router-dom";
-import { Mail, Plus, Search, Send, Trash2, Upload, X } from "lucide-react";
+import { ArrowRight, GitMerge, Mail, Network as NetworkIcon, Plus, Search, Send, Trash2, Upload, Users, UsersRound, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import {
