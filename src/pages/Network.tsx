@@ -401,9 +401,10 @@ const Network = () => {
         {/* Tabs */}
         <div className="mt-7 border-b border-border/70">
           <div className="flex items-center gap-1">
-            <TabBtn active={tab === "friends"} onClick={() => setTab("friends")} label="Friends" count={counts.friends} />
-            <TabBtn active={tab === "to_add"} onClick={() => setTab("to_add")} label="To add" count={counts.to_add} />
-            <TabBtn active={tab === "to_invite"} onClick={() => setTab("to_invite")} label="To invite" count={counts.to_invite} />
+            <TabBtn active={tab === "friends"} onClick={() => setTab("friends")} label="1st network" count={counts.friends} icon={Users} />
+            <TabBtn active={tab === "to_add"} onClick={() => setTab("to_add")} label="2nd network" count={counts.to_add} icon={GitMerge} />
+            <TabBtn active={tab === "to_invite"} onClick={() => setTab("to_invite")} label="3rd+ network" count={counts.to_invite} icon={NetworkIcon} />
+            <TabBtn active={tab === "groups"} onClick={() => setTab("groups")} label="Groups" count={counts.groups} icon={UsersRound} />
           </div>
         </div>
 
