@@ -152,31 +152,57 @@ export default function DirectoryListDetail() {
     return () => { supabase.removeChannel(channel); };
   }, [id]);
 
-  const handleVote = async (itemId: string) => {
+  const handleToggleVote = async (itemId: string) => {
     if (!userId || !isVerified) return;
     setVotingItemId(itemId);
 
+    const hasVoted = userVotes.has(itemId);
+
     try {
-      const { error } = await supabase
-        .from("master_directory_votes")
-        .insert({ item_id: itemId, user_id: userId });
+      if (hasVoted) {
+        // Unvote: delete the vote row
+        const { error } = await supabase
+          .from("master_directory_votes")
+          .delete()
+          .eq("item_id", itemId)
+          .eq("user_id", userId);
 
-      if (error) {
-        if (error.code === "23505") {
-          toast({ title: "You've already voted for this" });
-        } else {
-          throw error;
+        if (error) throw error;
+
+        setUserVotes((prev) => {
+          const next = new Set(prev);
+          next.delete(itemId);
+          return next;
+        });
+        // Optimistic decrement
+        setItems((prev) =>
+          prev.map((i) => (i.id === itemId ? { ...i, vote_count: Math.max(0, i.vote_count - 1) } : i))
+            .sort((a, b) => b.vote_count - a.vote_count)
+        );
+        toast({ title: "Vote removed" });
+      } else {
+        // Vote: insert new row
+        const { error } = await supabase
+          .from("master_directory_votes")
+          .insert({ item_id: itemId, user_id: userId });
+
+        if (error) {
+          if (error.code === "23505") {
+            toast({ title: "You've already voted for this" });
+          } else {
+            throw error;
+          }
+          return;
         }
-        return;
-      }
 
-      setUserVotes((prev) => new Set([...prev, itemId]));
-      // Optimistic update
-      setItems((prev) =>
-        prev.map((i) => (i.id === itemId ? { ...i, vote_count: i.vote_count + 1 } : i))
-          .sort((a, b) => b.vote_count - a.vote_count)
-      );
-      toast({ title: "Vote recorded!" });
+        setUserVotes((prev) => new Set([...prev, itemId]));
+        // Optimistic update
+        setItems((prev) =>
+          prev.map((i) => (i.id === itemId ? { ...i, vote_count: i.vote_count + 1 } : i))
+            .sort((a, b) => b.vote_count - a.vote_count)
+        );
+        toast({ title: "Vote recorded!" });
+      }
     } catch (err: any) {
       toast({ title: "Vote failed", description: err.message, variant: "destructive" });
     } finally {
