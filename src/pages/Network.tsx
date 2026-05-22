@@ -265,6 +265,12 @@ const Network = () => {
     );
   }, [toInvite, search]);
 
+  const filteredGroups = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return groups;
+    return groups.filter((g) => g.name.toLowerCase().includes(q));
+  }, [groups, search]);
+
   const confirmRemove = async () => {
     if (!removing) return;
     const target = removing;
