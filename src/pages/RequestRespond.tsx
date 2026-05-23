@@ -2326,99 +2326,116 @@ export default function RequestRespond() {
 
         {/* Guest Contributions */}
         {guestContributions.length > 0 && (
-          <div className="space-y-4 mt-6">
+          <div className="space-y-3 mt-6">
             <h3 className="text-lg font-semibold text-muted-foreground">
               Guest Responses ({guestContributions.length})
             </h3>
 
-            {guestContributions.map((contribution) => {
-              const recs = Array.isArray(contribution.recommendations)
-                ? contribution.recommendations
-                : [];
-
-              return (
-                <Card key={contribution.id} className="border-dashed">
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <CardTitle className="text-base flex items-center gap-2">
-                          <User className="h-4 w-4" />
-                          {contribution.contributor_name} (Guest)
-                        </CardTitle>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {contribution.share_links?.generated_by_name
-                            ? `via ${contribution.share_links.generated_by_name}`
-                            : 'via your share link'}
-                        </p>
+            <div
+              style={{
+                overflowX: "auto",
+                paddingBottom: 8,
+                scrollbarWidth: "thin",
+              }}
+            >
+              <div style={{ display: "flex", gap: 10, width: "max-content" }}>
+                {guestContributions.map((contribution) => {
+                  const recs = Array.isArray(contribution.recommendations)
+                    ? contribution.recommendations
+                    : [];
+                  const forwarder = contribution.share_links?.generated_by_name;
+                  return (
+                    <div
+                      key={contribution.id}
+                      style={{
+                        width: 180,
+                        flexShrink: 0,
+                        border: "0.5px solid hsl(var(--border))",
+                        borderRadius: "calc(var(--radius) + 2px)",
+                        padding: 12,
+                        background: "hsl(var(--card))",
+                      }}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <span
+                          style={{ fontSize: 13, fontWeight: 500 }}
+                          className="truncate"
+                          title={contribution.contributor_name}
+                        >
+                          {contribution.contributor_name}
+                        </span>
+                        <span
+                          style={{
+                            fontSize: 10,
+                            border: "0.5px solid hsl(var(--border))",
+                            borderRadius: 999,
+                            padding: "1px 6px",
+                            color: "hsl(var(--muted-foreground))",
+                            flexShrink: 0,
+                          }}
+                        >
+                          guest
+                        </span>
                       </div>
-                      <Badge variant="outline">Guest</Badge>
+                      <div
+                        style={{
+                          fontSize: 11,
+                          color: "hsl(var(--muted-foreground))",
+                          marginTop: 2,
+                        }}
+                        className="truncate"
+                      >
+                        {forwarder ? `via ${forwarder}` : "via your share link"}
+                      </div>
+
+                      <div
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 5,
+                          marginTop: 10,
+                        }}
+                      >
+                        {recs.map((rec: any, idx: number) => {
+                          if (!rec) return null;
+                          return (
+                            <div
+                              key={rec.id || idx}
+                              className="flex items-start justify-between gap-2"
+                              style={{ fontSize: 12 }}
+                            >
+                              <span className="min-w-0 truncate">
+                                <span style={{ fontWeight: 500 }}>#{idx + 1}</span>{" "}
+                                <span>{rec.text}</span>
+                              </span>
+                              <span
+                                style={{
+                                  fontSize: 11,
+                                  color: "hsl(var(--muted-foreground))",
+                                  flexShrink: 0,
+                                }}
+                              >
+                                {rec.vote_count || 0}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      <div
+                        style={{
+                          fontSize: 11,
+                          color: "hsl(var(--muted-foreground))",
+                          marginTop: 10,
+                        }}
+                      >
+                        {formatDistanceToNow(new Date(contribution.created_at), { addSuffix: true })}
+                      </div>
                     </div>
-                  </CardHeader>
-
-                  <CardContent className="space-y-3">
-                    {recs.map((rec: any, idx: number) => {
-                      if (!rec) return null;
-                      const canVote = !isOwnRequest && currentUserId;
-                      const recId = rec.id;
-                      const hasVoted = recId && guestVotes[recId];
-                      
-                      return (
-                        <div key={recId || idx} className="p-3 border rounded-lg">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className="text-sm font-bold text-primary">#{idx + 1}</span>
-                                <span className="font-medium">{rec.text}</span>
-                              </div>
-                              {rec.reason && (
-                                <p className="text-sm text-muted-foreground mt-1">
-                                  {rec.reason}
-                                </p>
-                              )}
-                              {rec.link && (
-                                <a
-                                  href={rec.link}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-sm text-primary hover:underline mt-1 inline-flex items-center gap-1"
-                                >
-                                  <LinkIcon className="h-3 w-3" />
-                                  View link
-                                </a>
-                              )}
-                            </div>
-                            <div className="flex flex-col items-end gap-2">
-                              {canVote && recId ? (
-                                <Button
-                                  variant={hasVoted ? "default" : "outline"}
-                                  size="sm"
-                                  onClick={() => handleGuestVote(contribution.id, recId, idx, !!hasVoted)}
-                                  className="flex items-center gap-1"
-                                >
-                                  <ThumbsUp className="h-3 w-3" />
-                                  {hasVoted ? "Voted" : "+1"}
-                                  {(rec.vote_count || 0) > 0 && (
-                                    <span className="ml-1">({rec.vote_count})</span>
-                                  )}
-                                </Button>
-                              ) : (
-                                <Badge variant="secondary">
-                                  {rec.vote_count || 0} {(rec.vote_count || 0) === 1 ? 'vote' : 'votes'}
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-
-                    <p className="text-xs text-muted-foreground mt-2">
-                      Responded {formatDistanceToNow(new Date(contribution.created_at), { addSuffix: true })}
-                    </p>
-                  </CardContent>
-                </Card>
-              );
-            })}
+                  );
+                })}
+              </div>
+            </div>
           </div>
         )}
       </div>
