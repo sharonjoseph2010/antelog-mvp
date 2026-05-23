@@ -2290,11 +2290,12 @@ export default function RequestRespond() {
           <div
             style={{
               overflowX: "auto",
+              width: "100%",
               paddingBottom: 8,
               scrollbarWidth: "thin",
             }}
           >
-            <div style={{ display: "flex", gap: 10, width: "max-content" }}>
+            <div style={{ display: "flex", flexDirection: "row", flexWrap: "nowrap", gap: 10, width: "max-content" }}>
               {items}
             </div>
           </div>
