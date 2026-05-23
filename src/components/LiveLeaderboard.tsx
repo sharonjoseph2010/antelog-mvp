@@ -60,6 +60,7 @@ interface LiveLeaderboardProps {
     currentlyVoted: boolean
   ) => Promise<void> | void;
   onAfterMerge?: () => void | Promise<void>;
+  isClosed?: boolean;
 }
 
 export function LiveLeaderboard({
@@ -70,6 +71,7 @@ export function LiveLeaderboard({
   onVoteNetwork,
   onVoteGuest,
   onAfterMerge,
+  isClosed = false,
 }: LiveLeaderboardProps) {
   const { toast } = useToast();
   const [expanded, setExpanded] = useState(false);
@@ -203,17 +205,26 @@ export function LiveLeaderboard({
       <CardHeader
         className="pb-3"
         style={{
-          backgroundColor: "rgba(34,197,94,0.06)",
-          borderBottom: "1px solid rgba(34,197,94,0.2)",
+          backgroundColor: isClosed ? "rgba(148,163,184,0.08)" : "rgba(34,197,94,0.06)",
+          borderBottom: isClosed
+            ? "1px solid rgba(148,163,184,0.25)"
+            : "1px solid rgba(34,197,94,0.2)",
         }}
       >
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <CardTitle className="text-lg flex items-center gap-2">
-            <span className="relative flex h-2.5 w-2.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500" />
-            </span>
-            Live Rankings
+            {isClosed ? (
+              <span
+                className="inline-flex rounded-full h-2.5 w-2.5"
+                style={{ backgroundColor: "#94a3b8" }}
+              />
+            ) : (
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500" />
+              </span>
+            )}
+            {isClosed ? "Final Rankings" : "Live Rankings"}
           </CardTitle>
           <span className="text-xs text-muted-foreground">
             {sorted.length} recommendation{sorted.length === 1 ? "" : "s"}
