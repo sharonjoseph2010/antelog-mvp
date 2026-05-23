@@ -1503,6 +1503,22 @@ export default function RequestRespond() {
             {(request as any).expires_at && (
               <ExpiryBadge expiresAt={(request as any).expires_at} status={request.status} />
             )}
+            {request.status === 'closed' && (
+              <span
+                className="text-xs inline-flex items-center gap-1"
+                style={{
+                  backgroundColor: "rgba(34,197,94,0.08)",
+                  border: "0.5px solid rgba(34,197,94,0.35)",
+                  borderRadius: 999,
+                  color: "rgb(15,110,60)",
+                  padding: "2px 10px",
+                  lineHeight: 1.4,
+                }}
+              >
+                <CheckCircle className="h-3 w-3" />
+                Closed
+              </span>
+            )}
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -1522,12 +1538,14 @@ export default function RequestRespond() {
           <div className="flex flex-wrap gap-2 pt-2 border-t">
             {isOwnRequest ? (
               <>
-                <Button asChild variant="outline" className="flex items-center gap-2">
-                  <Link to={`/requests/${request.id}/edit`}>
-                    <Edit className="h-4 w-4" />
-                    Edit Request
-                  </Link>
-                </Button>
+                {request.status !== 'closed' && (
+                  <Button asChild variant="outline" className="flex items-center gap-2">
+                    <Link to={`/requests/${request.id}/edit`}>
+                      <Edit className="h-4 w-4" />
+                      Edit Request
+                    </Link>
+                  </Button>
+                )}
                 {/* Tier 2: Response Tree - only for request creator */}
                 {currentUserId && (
                   <ResponseTree
@@ -1582,6 +1600,7 @@ export default function RequestRespond() {
         onVoteNetwork={(recId, voted) => handleVoteRecommendation(recId, voted)}
         onVoteGuest={(cId, recId, idx, voted) => handleGuestVote(cId, recId, idx, voted)}
         onAfterMerge={loadRequestData}
+        isClosed={request.status === 'closed'}
       />
       {isOwnRequest && (
         <p className="-mt-6 mb-8 text-sm text-muted-foreground">
@@ -1662,31 +1681,42 @@ export default function RequestRespond() {
 
 
       {request.status === 'closed' && (
-        <Card className="mb-8 border-green-500/30 bg-green-500/5">
-          <CardContent className="py-6">
-            <div className="flex items-center gap-4">
-              <div className="flex-shrink-0 w-12 h-12 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center">
-                <CheckCircle className="h-6 w-6 text-green-600 dark:text-green-400" />
+        <div
+          className="mb-8 flex items-center justify-between gap-4 flex-wrap"
+          style={{
+            backgroundColor: "rgba(34,197,94,0.06)",
+            border: "0.5px solid rgba(34,197,94,0.25)",
+            borderRadius: "var(--radius)",
+            padding: "12px 16px",
+          }}
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <CheckCircle style={{ width: 20, height: 20, color: "rgb(15,110,60)", flexShrink: 0 }} />
+            <div className="min-w-0">
+              <div style={{ fontSize: 13, fontWeight: 500, color: "rgb(15,110,60)" }}>
+                Request closed
               </div>
-              <div className="flex-1">
-                <h3 className="font-medium text-green-800 dark:text-green-200">Request Closed</h3>
-                <p className="text-sm text-green-600 dark:text-green-400">
-                  This request is closed. No new responses will be accepted.
-                </p>
+              <div style={{ fontSize: 12, color: "rgba(15,110,60,0.7)" }}>
+                No new responses will be accepted
               </div>
-              {isOwnRequest && (
-                <Button 
-                  variant="outline" 
-                  onClick={() => navigate('/lists')}
-                  className="flex items-center gap-2"
-                >
-                  <Save className="h-4 w-4" />
-                  View in My Lists
-                </Button>
-              )}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+          {isOwnRequest && (
+            <Button
+              variant="outline"
+              onClick={() => navigate('/lists')}
+              className="flex items-center gap-2"
+              style={{
+                border: "0.5px solid rgba(34,197,94,0.4)",
+                color: "rgb(15,110,60)",
+                backgroundColor: "transparent",
+              }}
+            >
+              <Save className="h-4 w-4" />
+              View in My Lists
+            </Button>
+          )}
+        </div>
       )}
 
 
@@ -1719,6 +1749,7 @@ export default function RequestRespond() {
       )}
 
       {/* Share and Close & Review - side by side grid */}
+      {request.status !== 'closed' && (
       <div
         className="mb-8"
         style={{
@@ -1894,6 +1925,7 @@ export default function RequestRespond() {
           );
         })()}
       </div>
+      )}
 
       {/* Response Section - Conditional UI based on user's response status */}
       {forwardSuggestion && !isOwnRequest && (
