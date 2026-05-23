@@ -1689,38 +1689,6 @@ export default function RequestRespond() {
         </Card>
       )}
 
-      {/* Close & Review Button - Only for request creator when open */}
-      {isOwnRequest && request.status === 'open' && (responses.length > 0 || guestContributions.length > 0) && (
-        <Card className="mb-8 border-primary/30 bg-primary/5">
-          <CardContent className="py-6">
-            <div className="flex items-center gap-4">
-              <div className="flex-shrink-0 w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
-                <Save className="h-6 w-6 text-primary" />
-              </div>
-              <div className="flex-1">
-                <h3 className="font-medium">Ready to close this request?</h3>
-                <p className="text-sm text-muted-foreground">
-                  Review and save the best recommendations to your list
-                </p>
-              </div>
-              <Button 
-                onClick={handleStartReview}
-                disabled={isStartingReview}
-                className="flex items-center gap-2"
-              >
-                {isStartingReview ? (
-                  <>Processing...</>
-                ) : (
-                  <>
-                    <CheckCircle className="h-4 w-4" />
-                    Close & Review
-                  </>
-                )}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Review in Progress State */}
       {request.status === 'reviewing' && (
