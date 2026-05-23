@@ -1826,23 +1826,59 @@ export default function RequestRespond() {
         )}
 
         {/* Close & Review Button - Right column */}
-        {isOwnRequest && request.status === 'open' && (responses.length > 0 || guestContributions.length > 0) && (
-          <Card className="border-primary/30 bg-primary/5">
-            <CardContent className="py-6">
-              <div className="flex items-center gap-4">
-                <div className="flex-shrink-0 w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
-                  <Save className="h-6 w-6 text-primary" />
+        {isOwnRequest && request.status === 'open' && (responses.length > 0 || guestContributions.length > 0) && (() => {
+          const uniqueRecsCount = buildLeaderboardEntries().filter(
+            (e) => e.text && e.text.trim().length > 0
+          ).length;
+          const totalResponsesCount = responses.length + guestContributions.length;
+          return (
+            <Card className="border-primary/30 bg-primary/5">
+              <CardContent className="py-6 flex flex-col gap-4 h-full">
+                <div className="flex items-center gap-3">
+                  <div className="flex-shrink-0 w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
+                    <Save className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-medium">Ready to close this request?</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Review and save the best recommendations to your list
+                    </p>
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <h3 className="font-medium">Ready to close this request?</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Review and save the best recommendations to your list
-                  </p>
+                <div style={{ display: "flex", gap: 12 }}>
+                  <div
+                    style={{
+                      flex: 1,
+                      backgroundColor: "hsl(var(--secondary))",
+                      borderRadius: "var(--radius)",
+                      padding: "8px 10px",
+                      textAlign: "center",
+                    }}
+                  >
+                    <div style={{ fontSize: 18, fontWeight: 500 }}>{uniqueRecsCount}</div>
+                    <div style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}>
+                      Unique recommendations
+                    </div>
+                  </div>
+                  <div
+                    style={{
+                      flex: 1,
+                      backgroundColor: "hsl(var(--secondary))",
+                      borderRadius: "var(--radius)",
+                      padding: "8px 10px",
+                      textAlign: "center",
+                    }}
+                  >
+                    <div style={{ fontSize: 18, fontWeight: 500 }}>{totalResponsesCount}</div>
+                    <div style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}>
+                      Total responses
+                    </div>
+                  </div>
                 </div>
                 <Button
                   onClick={handleStartReview}
                   disabled={isStartingReview}
-                  className="flex items-center gap-2"
+                  className="flex items-center gap-2 w-full mt-auto"
                 >
                   {isStartingReview ? (
                     <>Processing...</>
@@ -1853,10 +1889,10 @@ export default function RequestRespond() {
                     </>
                   )}
                 </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+              </CardContent>
+            </Card>
+          );
+        })()}
       </div>
 
       {/* Response Section - Conditional UI based on user's response status */}
