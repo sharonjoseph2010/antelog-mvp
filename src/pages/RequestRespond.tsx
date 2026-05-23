@@ -2161,91 +2161,107 @@ export default function RequestRespond() {
       {(() => {
         const directResponses = responses.filter((r) => r.origin !== 'anonymous');
         const anonymousResponses = responses.filter((r) => r.origin === 'anonymous');
-        const renderResponseCard = (response: RequestResponse) => (
-          <Card
-            key={response.id}
-            className={response.origin === 'anonymous' ? 'border-dashed' : ''}
-          >
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <div>
-                      <p className="font-medium">{response.responder_profile.full_name}</p>
-                      {response.origin === 'anonymous' && (
-                        <p className="text-xs text-muted-foreground">
-                          Routed via anonymous expertise — identity withheld
-                        </p>
-                      )}
-                    </div>
+        const renderResponseCard = (response: RequestResponse) => {
+          const isAnon = response.origin === 'anonymous';
+          return (
+            <div
+              key={response.id}
+              style={{
+                width: 180,
+                flexShrink: 0,
+                border: "0.5px solid hsl(var(--border))",
+                borderRadius: "calc(var(--radius) + 2px)",
+                padding: 12,
+                background: "hsl(var(--card))",
+              }}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <span
+                  style={{ fontSize: 13, fontWeight: 500 }}
+                  className="truncate"
+                  title={response.responder_profile.full_name}
+                >
+                  {response.responder_profile.full_name}
+                </span>
+                <span
+                  style={{
+                    fontSize: 10,
+                    border: "0.5px solid hsl(var(--border))",
+                    borderRadius: 999,
+                    padding: "1px 6px",
+                    color: "hsl(var(--muted-foreground))",
+                    flexShrink: 0,
+                  }}
+                >
+                  {isAnon ? "anonymous" : "network"}
+                </span>
+              </div>
+              <div
+                style={{
+                  fontSize: 11,
+                  color: "hsl(var(--muted-foreground))",
+                  marginTop: 2,
+                }}
+              >
+                {isAnon ? "Identity withheld" : "Direct"}
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 5,
+                  marginTop: 10,
+                }}
+              >
+                {response.recommendations.map((rec, index) => (
+                  <div
+                    key={rec.id}
+                    className="flex items-start justify-between gap-2"
+                    style={{ fontSize: 12 }}
+                  >
+                    <span className="min-w-0 truncate">
+                      <span style={{ fontWeight: 500 }}>#{index + 1}</span>{" "}
+                      <span>{rec.recommendation_text}</span>
+                    </span>
+                    <span
+                      style={{
+                        fontSize: 11,
+                        color: "hsl(var(--muted-foreground))",
+                        flexShrink: 0,
+                      }}
+                    >
+                      {rec.vote_count}
+                    </span>
                   </div>
-                  <span className="text-sm text-muted-foreground">
-                    {formatDistanceToNow(new Date(response.created_at), { addSuffix: true })}
-                  </span>
-                </div>
-              </CardHeader>
-              
-              <CardContent className="space-y-4">
-                {response.overall_notes && (
-                  <p className="text-sm text-muted-foreground italic">{response.overall_notes}</p>
-                )}
-                
-                <div className="space-y-3">
-                  {response.recommendations.map((rec, index) => {
-                    const isOwnRecommendation = response.responder_id === currentUserId;
-                    const canVote = !isOwnRequest && !isOwnRecommendation;
-                    
-                    return (
-                      <div key={rec.id} className="p-3 border rounded-lg">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="text-sm font-bold text-primary">#{index + 1}</span>
-                              <span className="font-medium">{rec.recommendation_text}</span>
-                            </div>
-                            {rec.link && (
-                              <a 
-                                href={rec.link} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="text-sm text-primary hover:underline flex items-center gap-1 mt-1"
-                              >
-                                <LinkIcon className="h-3 w-3" />
-                                View Link
-                              </a>
-                            )}
-                          </div>
-                          
-                          <div className="flex flex-col items-end gap-2">
-                            {canVote ? (
-                              <Button
-                                variant={rec.user_voted ? "default" : "outline"}
-                                size="sm"
-                                onClick={() => handleVoteRecommendation(rec.id, rec.user_voted)}
-                                className="flex items-center gap-1"
-                              >
-                                <ThumbsUp className="h-3 w-3" />
-                                {rec.user_voted ? 'Voted' : '+1'} ({rec.vote_count})
-                              </Button>
-                            ) : (
-                              <Badge variant="secondary">
-                                {rec.vote_count} {rec.vote_count === 1 ? 'vote' : 'votes'}
-                              </Badge>
-                            )}
-                            
-                            {rec.voters.length > 0 && response.origin !== 'anonymous' && (
-                              <div className="text-xs text-muted-foreground text-right">
-                                {rec.voters.slice(0, 3).map(v => v.full_name || v.handle).join(", ")}
-                                {rec.voters.length > 3 && ` +${rec.voters.length - 3} more`}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
+                ))}
+              </div>
+
+              <div
+                style={{
+                  fontSize: 11,
+                  color: "hsl(var(--muted-foreground))",
+                  marginTop: 10,
+                }}
+              >
+                {formatDistanceToNow(new Date(response.created_at), { addSuffix: true })}
+              </div>
+            </div>
+          );
+        };
+
+        const renderScroller = (items: React.ReactNode) => (
+          <div
+            style={{
+              overflowX: "auto",
+              paddingBottom: 8,
+              scrollbarWidth: "thin",
+            }}
+          >
+            <div style={{ display: "flex", gap: 10, width: "max-content" }}>
+              {items}
+            </div>
+          </div>
         );
 
         return (
@@ -2259,7 +2275,7 @@ export default function RequestRespond() {
                 </p>
               </div>
               {directResponses.length > 0 ? (
-                <div className="space-y-4">{directResponses.map(renderResponseCard)}</div>
+                renderScroller(directResponses.map(renderResponseCard))
               ) : (
                 <Card>
             <CardContent>
@@ -2299,7 +2315,7 @@ export default function RequestRespond() {
                     treat as informational input, not social trust.
                   </p>
                 </div>
-                <div className="space-y-4">{anonymousResponses.map(renderResponseCard)}</div>
+                {renderScroller(anonymousResponses.map(renderResponseCard))}
               </section>
             )}
           </div>
