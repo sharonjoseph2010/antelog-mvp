@@ -2217,13 +2217,25 @@ export default function RequestRespond() {
                 <Card>
             <CardContent>
               <div className="text-center py-8">
-                <div className="mx-auto w-12 h-12 bg-muted rounded-full flex items-center justify-center mb-3">
-                  <MessageSquare className="h-6 w-6 text-muted-foreground" />
-                </div>
-                <h3 className="font-medium mb-1">No network responses yet</h3>
                 <p className="text-sm text-muted-foreground">
                   Nobody from your network has responded yet.
                 </p>
+                {isOwnRequest && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowShareSection(true);
+                      setTimeout(() => {
+                        document
+                          .getElementById("share-outside-antelog")
+                          ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                      }, 50);
+                    }}
+                    className="mt-2 text-sm text-primary hover:underline"
+                  >
+                    Share with your network →
+                  </button>
+                )}
               </div>
             </CardContent>
                 </Card>
