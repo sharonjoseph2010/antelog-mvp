@@ -2250,7 +2250,7 @@ export default function RequestRespond() {
           );
         };
 
-        const renderScroller = (items: React.ReactNode) => (
+        const renderScroller = (items: JSX.Element[]) => (
           <div
             style={{
               overflowX: "auto",
