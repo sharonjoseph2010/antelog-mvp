@@ -1528,14 +1528,6 @@ export default function RequestRespond() {
                     Edit Request
                   </Link>
                 </Button>
-                <Button
-                  onClick={() => setShowDeleteDialog(true)}
-                  variant="outline"
-                  className="flex items-center gap-2 text-destructive hover:bg-destructive hover:text-destructive-foreground"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Delete Request
-                </Button>
                 {/* Tier 2: Response Tree - only for request creator */}
                 {currentUserId && (
                   <ResponseTree
@@ -1544,6 +1536,22 @@ export default function RequestRespond() {
                     viewerId={currentUserId}
                   />
                 )}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="icon" aria-label="More actions">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem
+                      onClick={() => setShowDeleteDialog(true)}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete Request
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </>
             ) : (
               <>
