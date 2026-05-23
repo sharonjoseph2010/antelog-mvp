@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Users, Upload, Trash2, GitMerge, Network as NetworkIcon, UsersRound } from "lucide-react";
+import { Users, Upload, Trash2 } from "lucide-react";
 import { FriendRequestButton } from "@/components/FriendRequestButton";
 
 // Custom icon for 2nd degree - two people connected
@@ -377,53 +377,47 @@ const Friends = () => {
           </div>
 
           <Tabs defaultValue="friends" className="space-y-6">
-            <div className="border-b border-border">
-              <TabsList className="h-auto p-0 bg-transparent grid w-full grid-cols-4 gap-0">
-                <TabsTrigger 
-                  value="friends" 
-                  className="flex items-center justify-center gap-2 px-4 py-3 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none bg-transparent text-muted-foreground data-[state=active]:text-foreground hover:text-foreground transition-colors"
-                >
-                  <Users className="h-4 w-4" />
-                  <span className="hidden xs:inline">1st Network</span>
-                  <Badge variant="secondary" className="ml-1 text-xs">
-                    {friendships.length}
-                  </Badge>
-                </TabsTrigger>
-                
-                <TabsTrigger 
-                  value="second-degree" 
-                  className="flex items-center justify-center gap-2 px-4 py-3 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none bg-transparent text-muted-foreground data-[state=active]:text-foreground hover:text-foreground transition-colors"
-                >
-                  <GitMerge className="h-4 w-4" />
-                  <span className="hidden xs:inline">2nd Degree</span>
-                  <Badge variant="secondary" className="ml-1 text-xs">
-                    {extendedNetwork.length}
-                  </Badge>
-                </TabsTrigger>
+            <TabsList className="h-auto p-0 bg-transparent flex gap-2 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+              <TabsTrigger 
+                value="friends" 
+                className="group rounded-full border border-border text-sm font-medium px-4 py-1.5 flex items-center gap-2 whitespace-nowrap data-[state=active]:bg-foreground data-[state=active]:text-background data-[state=active]:border-foreground bg-background text-muted-foreground hover:text-foreground transition-colors shadow-none"
+              >
+                1st Network
+                <span className="rounded-full px-2 py-0.5 text-xs font-semibold bg-muted text-muted-foreground group-data-[state=active]:bg-white/20 group-data-[state=active]:text-background">
+                  {friendships.length}
+                </span>
+              </TabsTrigger>
+              
+              <TabsTrigger 
+                value="second-degree" 
+                className="group rounded-full border border-border text-sm font-medium px-4 py-1.5 flex items-center gap-2 whitespace-nowrap data-[state=active]:bg-foreground data-[state=active]:text-background data-[state=active]:border-foreground bg-background text-muted-foreground hover:text-foreground transition-colors shadow-none"
+              >
+                2nd Network
+                <span className="rounded-full px-2 py-0.5 text-xs font-semibold bg-muted text-muted-foreground group-data-[state=active]:bg-white/20 group-data-[state=active]:text-background">
+                  {extendedNetwork.length}
+                </span>
+              </TabsTrigger>
 
-                <TabsTrigger 
-                  value="third-plus" 
-                  className="flex items-center justify-center gap-2 px-4 py-3 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none bg-transparent text-muted-foreground data-[state=active]:text-foreground hover:text-foreground transition-colors"
-                >
-                  <NetworkIcon className="h-4 w-4" />
-                  <span className="hidden xs:inline">3rd+ Degree</span>
-                  <Badge variant="secondary" className="ml-1 text-xs">
-                    {thirdPlusNetwork.length}
-                  </Badge>
-                </TabsTrigger>
+              <TabsTrigger 
+                value="third-plus" 
+                className="group rounded-full border border-border text-sm font-medium px-4 py-1.5 flex items-center gap-2 whitespace-nowrap data-[state=active]:bg-foreground data-[state=active]:text-background data-[state=active]:border-foreground bg-background text-muted-foreground hover:text-foreground transition-colors shadow-none"
+              >
+                3rd+ Network
+                <span className="rounded-full px-2 py-0.5 text-xs font-semibold bg-muted text-muted-foreground group-data-[state=active]:bg-white/20 group-data-[state=active]:text-background">
+                  {thirdPlusNetwork.length}
+                </span>
+              </TabsTrigger>
 
-                <TabsTrigger 
-                  value="contacts" 
-                  className="flex items-center justify-center gap-2 px-4 py-3 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none bg-transparent text-muted-foreground data-[state=active]:text-foreground hover:text-foreground transition-colors"
-                >
-                  <UsersRound className="h-4 w-4" />
-                  <span className="hidden xs:inline">All Contacts</span>
-                  <Badge variant="secondary" className="ml-1 text-xs">
-                    {allContacts.length}
-                  </Badge>
-                </TabsTrigger>
-              </TabsList>
-            </div>
+              <TabsTrigger 
+                value="contacts" 
+                className="group rounded-full border border-border text-sm font-medium px-4 py-1.5 flex items-center gap-2 whitespace-nowrap data-[state=active]:bg-foreground data-[state=active]:text-background data-[state=active]:border-foreground bg-background text-muted-foreground hover:text-foreground transition-colors shadow-none"
+              >
+                Groups
+                <span className="rounded-full px-2 py-0.5 text-xs font-semibold bg-muted text-muted-foreground group-data-[state=active]:bg-white/20 group-data-[state=active]:text-background">
+                  {allContacts.length}
+                </span>
+              </TabsTrigger>
+            </TabsList>
 
           <TabsContent value="friends">
             <Card>
