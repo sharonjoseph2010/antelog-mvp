@@ -2386,7 +2386,7 @@ export default function RequestRespond() {
                     <div
                       key={contribution.id}
                       style={{
-                        width: 180,
+                        width: 175,
                         flexShrink: 0,
                         border: "0.5px solid hsl(var(--border))",
                         borderRadius: "calc(var(--radius) + 2px)",
