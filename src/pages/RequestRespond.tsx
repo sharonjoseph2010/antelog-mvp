@@ -1451,10 +1451,14 @@ export default function RequestRespond() {
           Back to Requests
         </Button>
         
-        <h1 className="text-3xl font-bold mb-2">Respond to Request</h1>
-        <p className="text-muted-foreground">
-          Share your top 1-5 recommendations
-        </p>
+        <h1 className="text-3xl font-bold mb-2">
+          {isOwnRequest ? "Your Request" : "Respond to Request"}
+        </h1>
+        {!isOwnRequest && (
+          <p className="text-muted-foreground">
+            Share your top 1-5 recommendations
+          </p>
+        )}
       </div>
 
       {/* Request Details */}
@@ -2199,7 +2203,7 @@ export default function RequestRespond() {
             <div
               key={response.id}
               style={{
-                width: 180,
+                width: 175,
                 flexShrink: 0,
                 border: "0.5px solid hsl(var(--border))",
                 borderRadius: "calc(var(--radius) + 2px)",
@@ -2286,11 +2290,12 @@ export default function RequestRespond() {
           <div
             style={{
               overflowX: "auto",
+              width: "100%",
               paddingBottom: 8,
               scrollbarWidth: "thin",
             }}
           >
-            <div style={{ display: "flex", gap: 10, width: "max-content" }}>
+            <div style={{ display: "flex", flexDirection: "row", flexWrap: "nowrap", gap: 10, width: "max-content" }}>
               {items}
             </div>
           </div>
@@ -2366,11 +2371,12 @@ export default function RequestRespond() {
             <div
               style={{
                 overflowX: "auto",
+                width: "100%",
                 paddingBottom: 8,
                 scrollbarWidth: "thin",
               }}
             >
-              <div style={{ display: "flex", gap: 10, width: "max-content" }}>
+              <div style={{ display: "flex", flexDirection: "row", flexWrap: "nowrap", gap: 10, width: "max-content" }}>
                 {guestContributions.map((contribution) => {
                   const recs = Array.isArray(contribution.recommendations)
                     ? contribution.recommendations
@@ -2380,7 +2386,7 @@ export default function RequestRespond() {
                     <div
                       key={contribution.id}
                       style={{
-                        width: 180,
+                        width: 175,
                         flexShrink: 0,
                         border: "0.5px solid hsl(var(--border))",
                         borderRadius: "calc(var(--radius) + 2px)",
