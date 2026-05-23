@@ -85,17 +85,13 @@ interface ExtendedNetworkMember {
   mutual_friends: string[];
 }
 
-interface Contact {
+interface Group {
   id: string;
-  contact_name: string;
-  contact_phone: string | null;
-  is_matched: boolean;
-  matched_user_id: string | null;
-  matched_profile?: {
-    id: string;
-    handle: string;
-    full_name: string;
-  };
+  creator_id: string;
+  name: string;
+  description: string | null;
+  created_at: string;
+  member_count: number;
 }
 
 const Friends = () => {
@@ -103,9 +99,8 @@ const Friends = () => {
   const [friendships, setFriendships] = useState<Friendship[]>([]);
   const [extendedNetwork, setExtendedNetwork] = useState<ExtendedNetworkMember[]>([]);
   const [thirdPlusNetwork, setThirdPlusNetwork] = useState<ExtendedNetworkMember[]>([]);
-  const [allContacts, setAllContacts] = useState<Contact[]>([]);
+  const [groups, setGroups] = useState<Group[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [addingToNetwork, setAddingToNetwork] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -116,7 +111,7 @@ const Friends = () => {
     if (currentUserId) {
       loadFriendships();
       loadExtendedNetwork();
-      loadAllContacts();
+      loadGroups();
     }
   }, [currentUserId]);
 
@@ -212,118 +207,45 @@ const Friends = () => {
     }
   };
 
-  const loadAllContacts = async () => {
+  const loadGroups = async () => {
     if (!currentUserId) return;
 
     try {
-      const { data: contacts, error } = await supabase
-        .from('contact_imports')
-        .select('id, contact_name, contact_phone, is_matched, matched_user_id')
-        .eq('user_id', currentUserId)
-        .order('contact_name');
+      const { data: groupsData, error: groupsError } = await supabase
+        .from('groups')
+        .select('*')
+        .eq('creator_id', currentUserId)
+        .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (groupsError) throw groupsError;
 
-      // Get matched user profiles
-      const matchedUserIds = contacts
-        ?.filter(c => c.matched_user_id)
-        .map(c => c.matched_user_id!) || [];
+      if (groupsData && groupsData.length > 0) {
+        const groupIds = groupsData.map(g => g.id);
+        
+        const { data: memberCounts, error: memberError } = await supabase
+          .from('group_members')
+          .select('group_id')
+          .in('group_id', groupIds);
 
-      if (matchedUserIds.length > 0) {
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('id, handle, full_name')
-          .in('id', matchedUserIds);
+        if (memberError) throw memberError;
 
-        const contactsWithProfiles = contacts?.map(contact => ({
-          ...contact,
-          matched_profile: profiles?.find(p => p.id === contact.matched_user_id)
-        })) || [];
+        const countsByGroup = memberCounts?.reduce((acc, member) => {
+          acc[member.group_id] = (acc[member.group_id] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>) || {};
 
-        setAllContacts(contactsWithProfiles);
+        const groupsWithCounts = groupsData.map(group => ({
+          ...group,
+          member_count: countsByGroup[group.id] || 0
+        }));
+
+        setGroups(groupsWithCounts);
       } else {
-        setAllContacts(contacts || []);
+        setGroups([]);
       }
     } catch (error) {
-      console.error('Error loading contacts:', error);
-      setAllContacts([]);
-    }
-  };
-
-  const isAlreadyInNetwork = (contactUserId: string | null) => {
-    if (!contactUserId) return false;
-    return friendships.some(f => 
-      (f.user1_id === contactUserId || f.user2_id === contactUserId)
-    );
-  };
-
-  const addToNetwork = async (contact: Contact) => {
-    if (!currentUserId || !contact.matched_user_id) return;
-
-    // Check if already in network
-    if (isAlreadyInNetwork(contact.matched_user_id)) {
-      toast({
-        title: "Already in 1st Network",
-        description: `${contact.contact_name} is already in your 1st network.`,
-      });
-      return;
-    }
-
-    setAddingToNetwork(contact.id);
-
-    try {
-      // Add to friendships table
-      const { error: friendshipError } = await supabase
-        .from('friendships')
-        .insert({
-          user1_id: currentUserId,
-          user2_id: contact.matched_user_id,
-        });
-
-      if (friendshipError) throw friendshipError;
-
-      // Resolve the adder's full_name from profiles (do NOT use the saved contact name)
-      const { data: adderProfile } = await supabase
-        .from('profiles')
-        .select('full_name, handle')
-        .eq('id', currentUserId)
-        .maybeSingle();
-      const adderDisplay =
-        adderProfile?.full_name ||
-        (adderProfile?.handle ? `@${adderProfile.handle}` : 'Someone');
-
-      // Create notification for the added person
-      const { error: notificationError } = await supabase
-        .from('notifications')
-        .insert({
-          user_id: contact.matched_user_id,
-          type: 'network_addition',
-          title: 'Added to 1st Network',
-          message: `${adderDisplay} added you to their 1st Network`,
-          related_user_id: currentUserId,
-        });
-
-      if (notificationError) {
-        console.error('Failed to create notification:', notificationError);
-        // Don't throw - friendship was created successfully
-      }
-
-      toast({
-        title: "Added to 1st Network",
-        description: `${contact.contact_name} has been added to your 1st network.`,
-      });
-
-      // Reload data
-      await Promise.all([loadFriendships(), loadExtendedNetwork()]);
-    } catch (error: any) {
-      console.error('Error adding to network:', error);
-      toast({
-        title: "Failed to add",
-        description: error.message || "Failed to add to 1st network. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setAddingToNetwork(null);
+      console.error('Error loading groups:', error);
+      setGroups([]);
     }
   };
 
@@ -409,12 +331,12 @@ const Friends = () => {
               </TabsTrigger>
 
               <TabsTrigger 
-                value="contacts" 
+                value="groups" 
                 className="group rounded-full border border-border text-sm font-medium px-4 py-1.5 flex items-center gap-2 whitespace-nowrap data-[state=active]:bg-foreground data-[state=active]:text-background data-[state=active]:border-foreground bg-background text-muted-foreground hover:text-foreground transition-colors shadow-none"
               >
                 Groups
                 <span className="rounded-full px-2 py-0.5 text-xs font-semibold bg-muted text-muted-foreground group-data-[state=active]:bg-white/20 group-data-[state=active]:text-background">
-                  {allContacts.length}
+                  {groups.length}
                 </span>
               </TabsTrigger>
             </TabsList>
@@ -488,7 +410,7 @@ const Friends = () => {
                 <CardHeader>
                   <CardTitle>2nd Degree Network</CardTitle>
                   <CardDescription>
-                    Friends-of-friends in your extended network
+                    Friends of friends
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -498,15 +420,9 @@ const Friends = () => {
                         <TwoPersonChain className="h-8 w-8 text-muted-foreground" />
                       </div>
                       <h3 className="text-xl font-semibold mb-2">No 2nd Degree Connections Yet</h3>
-                      <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                      <p className="text-muted-foreground max-w-md mx-auto">
                         2nd degree connections will appear as your 1st network grows
                       </p>
-                      <Button asChild size="lg">
-                        <Link to="/contacts/import" className="flex items-center gap-2">
-                          <Upload className="h-4 w-4" />
-                          Import Contacts
-                        </Link>
-                      </Button>
                     </div>
                   ) : (
                     <div className="space-y-3">
@@ -573,90 +489,53 @@ const Friends = () => {
               </Card>
             </TabsContent>
 
-            <TabsContent value="contacts">
+            <TabsContent value="groups">
               <Card>
                 <CardHeader>
-                  <CardTitle>All Contacts</CardTitle>
+                  <CardTitle>Groups</CardTitle>
                   <CardDescription>
-                    Everyone you've imported from your contacts
+                    Organize your 1st network into groups
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {allContacts.length === 0 ? (
+                  {groups.length === 0 ? (
                     <div className="text-center py-12">
                       <div className="mx-auto w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
                         <Users className="h-8 w-8 text-muted-foreground" />
                       </div>
-                      <h3 className="text-xl font-semibold mb-2">No Contacts Imported</h3>
-                      <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                        Import contacts to see them here
+                      <h3 className="text-xl font-semibold mb-2">No groups yet</h3>
+                      <p className="text-muted-foreground max-w-md mx-auto">
+                        Create a group from your 1st network to get started.
                       </p>
-                      <Button asChild size="lg">
-                        <Link to="/contacts/import" className="flex items-center gap-2">
-                          <Upload className="h-4 w-4" />
-                          Import Contacts
-                        </Link>
-                      </Button>
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      {allContacts.map((contact) => (
+                      {groups.map((group) => (
                         <div
-                          key={contact.id}
+                          key={group.id}
                           className="flex items-center justify-between p-4 border rounded-lg"
                         >
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <h3 className="font-medium">
-                                {contact.is_matched && contact.matched_user_id ? (
-                                  <Link
-                                    to={`/profile/${contact.matched_user_id}`}
-                                    className="hover:underline"
-                                  >
-                                    {contact.contact_name}
-                                  </Link>
-                                ) : (
-                                  contact.contact_name
-                                )}
-                              </h3>
-                              {contact.is_matched ? (
-                                <Badge variant="default" className="text-xs">On Antelog</Badge>
-                              ) : (
-                                <Badge variant="secondary" className="text-xs">Not on Antelog yet</Badge>
-                              )}
-                            </div>
-                            {contact.matched_profile && (
-                              <p className="text-sm text-muted-foreground">
-                                @{contact.matched_profile.handle}
-                              </p>
-                            )}
-                            {contact.contact_phone && (
-                              <p className="text-xs text-muted-foreground">
-                                {contact.contact_phone}
-                              </p>
-                            )}
-                          </div>
-                          
-                          {contact.is_matched ? (
-                            isAlreadyInNetwork(contact.matched_user_id) ? (
-                              <Badge variant="default" className="text-xs px-3 py-1">
-                                In 1st Network
-                              </Badge>
-                            ) : (
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                onClick={() => addToNetwork(contact)}
-                                disabled={addingToNetwork === contact.id}
+                          <div>
+                            <h3 className="font-medium">
+                              <Link
+                                to={`/groups/${group.id}`}
+                                className="hover:underline"
                               >
-                                {addingToNetwork === contact.id ? "Adding..." : "Add to 1st Network"}
-                              </Button>
-                            )
-                          ) : (
-                            <Button variant="outline" size="sm">
-                              Invite
-                            </Button>
-                          )}
+                                {group.name}
+                              </Link>
+                            </h3>
+                            {group.description && (
+                              <p className="text-sm text-muted-foreground">
+                                {group.description}
+                              </p>
+                            )}
+                            <p className="text-xs text-muted-foreground">
+                              {group.member_count} members
+                            </p>
+                          </div>
+                          <Button variant="outline" size="sm" asChild>
+                            <Link to={`/groups/${group.id}`}>Manage</Link>
+                          </Button>
                         </div>
                       ))}
                     </div>
