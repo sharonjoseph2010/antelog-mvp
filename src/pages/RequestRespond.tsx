@@ -1689,38 +1689,6 @@ export default function RequestRespond() {
         </Card>
       )}
 
-      {/* Close & Review Button - Only for request creator when open */}
-      {isOwnRequest && request.status === 'open' && (responses.length > 0 || guestContributions.length > 0) && (
-        <Card className="mb-8 border-primary/30 bg-primary/5">
-          <CardContent className="py-6">
-            <div className="flex items-center gap-4">
-              <div className="flex-shrink-0 w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
-                <Save className="h-6 w-6 text-primary" />
-              </div>
-              <div className="flex-1">
-                <h3 className="font-medium">Ready to close this request?</h3>
-                <p className="text-sm text-muted-foreground">
-                  Review and save the best recommendations to your list
-                </p>
-              </div>
-              <Button 
-                onClick={handleStartReview}
-                disabled={isStartingReview}
-                className="flex items-center gap-2"
-              >
-                {isStartingReview ? (
-                  <>Processing...</>
-                ) : (
-                  <>
-                    <CheckCircle className="h-4 w-4" />
-                    Close & Review
-                  </>
-                )}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Review in Progress State */}
       {request.status === 'reviewing' && (
@@ -1750,103 +1718,146 @@ export default function RequestRespond() {
         </Card>
       )}
 
-      {/* Share Externally Section - Only show to request creator */}
-      {currentUserId === request?.creator_id && (
-        <Card
-          id="share-outside-antelog"
-          className="mb-8"
-          style={{
-            backgroundColor: "rgba(56,189,248,0.06)",
-            border: "1px solid rgba(56,189,248,0.3)",
-          }}
-        >
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle
-                className="text-lg flex items-center gap-2"
-                style={{ color: "rgb(10,100,150)" }}
-              >
-                <Share2 className="h-5 w-5" />
-                Share outside Antelog
-              </CardTitle>
-              {!showShareSection && existingShareLinks.length === 0 && !myShareLink && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowShareSection(true)}
+      {/* Share and Close & Review - side by side grid */}
+      <div
+        className="mb-8"
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: "12px",
+          alignItems: "stretch",
+        }}
+      >
+        {/* Share Externally Section - Left column */}
+        {currentUserId === request?.creator_id && (
+          <Card
+            id="share-outside-antelog"
+            style={{
+              backgroundColor: "rgba(56,189,248,0.06)",
+              border: "1px solid rgba(56,189,248,0.3)",
+            }}
+          >
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle
+                  className="text-lg flex items-center gap-2"
+                  style={{ color: "rgb(10,100,150)" }}
                 >
-                  Show
-                </Button>
-              )}
-            </div>
-          </CardHeader>
-          {(showShareSection || existingShareLinks.length > 0 || myShareLink) && (
-            <CardContent className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Generate a shareable link for friends who aren't on Antelog. 
-                Your link has unlimited uses. Each person who responds can share with up to 5 more people.
-              </p>
+                  <Share2 className="h-5 w-5" />
+                  Share outside Antelog
+                </CardTitle>
+                {!showShareSection && existingShareLinks.length === 0 && !myShareLink && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowShareSection(true)}
+                  >
+                    Show
+                  </Button>
+                )}
+              </div>
+            </CardHeader>
+            {(showShareSection || existingShareLinks.length > 0 || myShareLink) && (
+              <CardContent className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Generate a shareable link for friends who aren't on Antelog.
+                  Your link has unlimited uses. Each person who responds can share with up to 5 more people.
+                </p>
 
-              {/* Existing Share Links */}
-              {existingShareLinks.length > 0 && (
-                <div className="space-y-3">
-                  <h4 className="text-sm font-semibold">Your shareable link</h4>
-                  {existingShareLinks.map((link, idx) => {
-                    const linkUrl = `${window.location.origin}/r/${request.id}/${link.token}`;
-                    return (
-                      <div key={link.id} className="p-3 bg-background border rounded-lg space-y-2">
-                        <div className="flex gap-2">
-                          <Input value={linkUrl} readOnly className="font-mono text-xs" />
-                          <Button size="sm" variant="outline" onClick={() => copyShareLink(linkUrl)}>
-                            Copy
-                          </Button>
+                {/* Existing Share Links */}
+                {existingShareLinks.length > 0 && (
+                  <div className="space-y-3">
+                    <h4 className="text-sm font-semibold">Your shareable link</h4>
+                    {existingShareLinks.map((link, idx) => {
+                      const linkUrl = `${window.location.origin}/r/${request.id}/${link.token}`;
+                      return (
+                        <div key={link.id} className="p-3 bg-background border rounded-lg space-y-2">
+                          <div className="flex gap-2">
+                            <Input value={linkUrl} readOnly className="font-mono text-xs" />
+                            <Button size="sm" variant="outline" onClick={() => copyShareLink(linkUrl)}>
+                              Copy
+                            </Button>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Created {formatDistanceToNow(new Date(link.created_at), { addSuffix: true })}
+                          </p>
                         </div>
-                        <p className="text-xs text-muted-foreground">
-                          Created {formatDistanceToNow(new Date(link.created_at), { addSuffix: true })}
-                        </p>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {/* Generate Button - Only show if no links exist yet */}
-              {existingShareLinks.length === 0 && !myShareLink && (
-                <Button
-                  onClick={generateShareLink}
-                  disabled={isGeneratingLink}
-                  className="w-full"
-                  variant="default"
-                >
-                  {isGeneratingLink ? "Generating..." : "Generate Share Link"}
-                </Button>
-              )}
-
-              {/* New Share Link */}
-              {myShareLink && !existingShareLinks.some(l => `${window.location.origin}/r/${request.id}/${l.token}` === myShareLink) && (
-                <div className="p-4 border border-primary/30 bg-primary/10 rounded-lg space-y-3">
-                  <p className="text-sm font-semibold">✓ New Share Link Generated!</p>
-                  <div className="flex gap-2">
-                    <Input value={myShareLink} readOnly className="font-mono text-sm" />
-                    <Button size="sm" onClick={() => copyShareLink(myShareLink)}>Copy</Button>
+                      );
+                    })}
                   </div>
+                )}
+
+                {/* Generate Button - Only show if no links exist yet */}
+                {existingShareLinks.length === 0 && !myShareLink && (
+                  <Button
+                    onClick={generateShareLink}
+                    disabled={isGeneratingLink}
+                    className="w-full"
+                    variant="default"
+                  >
+                    {isGeneratingLink ? "Generating..." : "Generate Share Link"}
+                  </Button>
+                )}
+
+                {/* New Share Link */}
+                {myShareLink && !existingShareLinks.some(l => `${window.location.origin}/r/${request.id}/${l.token}` === myShareLink) && (
+                  <div className="p-4 border border-primary/30 bg-primary/10 rounded-lg space-y-3">
+                    <p className="text-sm font-semibold">✓ New Share Link Generated!</p>
+                    <div className="flex gap-2">
+                      <Input value={myShareLink} readOnly className="font-mono text-sm" />
+                      <Button size="sm" onClick={() => copyShareLink(myShareLink)}>Copy</Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Share this link via WhatsApp, SMS, or email with up to 5 friends
+                    </p>
+                  </div>
+                )}
+
+                <div className="flex items-start gap-2 p-3 bg-muted rounded-lg">
+                  <MessageSquare className="h-4 w-4 mt-0.5 text-muted-foreground" />
                   <p className="text-xs text-muted-foreground">
-                    Share this link via WhatsApp, SMS, or email with up to 5 friends
+                    <strong>Tip:</strong> Each person who uses your link can generate their own link
+                    to share with 5 more people. This creates a network chain you can track!
                   </p>
                 </div>
-              )}
+              </CardContent>
+            )}
+          </Card>
+        )}
 
-              <div className="flex items-start gap-2 p-3 bg-muted rounded-lg">
-                <MessageSquare className="h-4 w-4 mt-0.5 text-muted-foreground" />
-                <p className="text-xs text-muted-foreground">
-                  <strong>Tip:</strong> Each person who uses your link can generate their own link 
-                  to share with 5 more people. This creates a network chain you can track!
-                </p>
+        {/* Close & Review Button - Right column */}
+        {isOwnRequest && request.status === 'open' && (responses.length > 0 || guestContributions.length > 0) && (
+          <Card className="border-primary/30 bg-primary/5">
+            <CardContent className="py-6">
+              <div className="flex items-center gap-4">
+                <div className="flex-shrink-0 w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
+                  <Save className="h-6 w-6 text-primary" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-medium">Ready to close this request?</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Review and save the best recommendations to your list
+                  </p>
+                </div>
+                <Button
+                  onClick={handleStartReview}
+                  disabled={isStartingReview}
+                  className="flex items-center gap-2"
+                >
+                  {isStartingReview ? (
+                    <>Processing...</>
+                  ) : (
+                    <>
+                      <CheckCircle className="h-4 w-4" />
+                      Close & Review
+                    </>
+                  )}
+                </Button>
               </div>
             </CardContent>
-          )}
-        </Card>
-      )}
+          </Card>
+        )}
+      </div>
 
       {/* Response Section - Conditional UI based on user's response status */}
       {forwardSuggestion && !isOwnRequest && (
