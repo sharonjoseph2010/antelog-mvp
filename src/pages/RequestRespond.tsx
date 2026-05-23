@@ -1749,6 +1749,7 @@ export default function RequestRespond() {
       )}
 
       {/* Share and Close & Review - side by side grid */}
+      {request.status !== 'closed' && (
       <div
         className="mb-8"
         style={{
@@ -1924,6 +1925,7 @@ export default function RequestRespond() {
           );
         })()}
       </div>
+      )}
 
       {/* Response Section - Conditional UI based on user's response status */}
       {forwardSuggestion && !isOwnRequest && (
