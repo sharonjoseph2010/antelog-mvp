@@ -1503,6 +1503,22 @@ export default function RequestRespond() {
             {(request as any).expires_at && (
               <ExpiryBadge expiresAt={(request as any).expires_at} status={request.status} />
             )}
+            {request.status === 'closed' && (
+              <span
+                className="text-xs inline-flex items-center gap-1"
+                style={{
+                  backgroundColor: "rgba(34,197,94,0.08)",
+                  border: "0.5px solid rgba(34,197,94,0.35)",
+                  borderRadius: 999,
+                  color: "rgb(15,110,60)",
+                  padding: "2px 10px",
+                  lineHeight: 1.4,
+                }}
+              >
+                <CheckCircle className="h-3 w-3" />
+                Closed
+              </span>
+            )}
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -1522,12 +1538,14 @@ export default function RequestRespond() {
           <div className="flex flex-wrap gap-2 pt-2 border-t">
             {isOwnRequest ? (
               <>
-                <Button asChild variant="outline" className="flex items-center gap-2">
-                  <Link to={`/requests/${request.id}/edit`}>
-                    <Edit className="h-4 w-4" />
-                    Edit Request
-                  </Link>
-                </Button>
+                {request.status !== 'closed' && (
+                  <Button asChild variant="outline" className="flex items-center gap-2">
+                    <Link to={`/requests/${request.id}/edit`}>
+                      <Edit className="h-4 w-4" />
+                      Edit Request
+                    </Link>
+                  </Button>
+                )}
                 {/* Tier 2: Response Tree - only for request creator */}
                 {currentUserId && (
                   <ResponseTree
