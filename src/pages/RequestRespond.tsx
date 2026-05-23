@@ -1867,21 +1867,7 @@ export default function RequestRespond() {
           </div>
         </div>
       )}
-      {isOwnRequest ? (
-        <Card className="mb-8 border-muted">
-          <CardContent className="py-8">
-            <div className="text-center">
-              <div className="mx-auto w-12 h-12 bg-muted rounded-full flex items-center justify-center mb-3">
-                <User className="h-6 w-6 text-muted-foreground" />
-              </div>
-              <h3 className="font-medium mb-1">This is your request</h3>
-              <p className="text-sm text-muted-foreground">
-                You created this request and cannot add recommendations. View what your network suggests!
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      ) : userResponse && !isEditing ? (
+      {isOwnRequest ? null : userResponse && !isEditing ? (
         /* User has already responded - show their response */
         <Card className="mb-8 border-green-500/30 bg-green-500/5">
           <CardHeader>
