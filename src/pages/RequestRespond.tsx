@@ -8,7 +8,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Plus, ThumbsUp, MessageSquare, User, Users, UserCheck, MapPin, Clock, Share2, ArrowRight, Edit, Trash2, X, Link as LinkIcon, AlertTriangle, Check, CheckCircle, Save, Timer } from "lucide-react";
+import { ArrowLeft, Plus, ThumbsUp, MessageSquare, User, Users, UserCheck, MapPin, Clock, Share2, ArrowRight, Edit, Trash2, X, Link as LinkIcon, AlertTriangle, Check, CheckCircle, Save, Timer, MoreHorizontal } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { ExpiryBadge, isRequestExpired } from "@/components/ExpiryBadge";
 import { ExpiryDurationPicker } from "@/components/ExpiryDurationPicker";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
