@@ -199,8 +199,14 @@ export function LiveLeaderboard({
   if (sorted.length === 0) return null;
 
   return (
-    <Card className="mb-8">
-      <CardHeader className="pb-3">
+    <Card className="mb-8 bg-white" style={{ border: "0.5px solid hsl(var(--border))" }}>
+      <CardHeader
+        className="pb-3"
+        style={{
+          backgroundColor: "rgba(34,197,94,0.06)",
+          borderBottom: "1px solid rgba(34,197,94,0.2)",
+        }}
+      >
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <CardTitle className="text-lg flex items-center gap-2">
             <span className="relative flex h-2.5 w-2.5">
@@ -215,14 +221,22 @@ export function LiveLeaderboard({
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-3 pt-4">
         {/* Similar pairs banner — creator only */}
         {isCreator && similarPairs.length > 0 && (
-          <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3">
+          <div
+            className="p-3"
+            style={{
+              backgroundColor: "rgba(245,158,11,0.08)",
+              borderBottom: "1px solid rgba(245,158,11,0.35)",
+              border: "1px solid rgba(245,158,11,0.35)",
+            }}
+          >
             <button
               type="button"
               onClick={() => setShowMergePanel((v) => !v)}
-              className="w-full flex items-center justify-between gap-2 text-sm font-medium text-amber-800 dark:text-amber-200"
+              className="w-full flex items-center justify-between gap-2 text-sm font-medium"
+              style={{ color: "rgb(160,100,0)" }}
             >
               <span className="flex items-center gap-2">
                 <AlertTriangle className="h-4 w-4" />

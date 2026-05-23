@@ -8,7 +8,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Plus, ThumbsUp, MessageSquare, User, Users, UserCheck, MapPin, Clock, Share2, ArrowRight, Edit, Trash2, X, Link as LinkIcon, AlertTriangle, Check, CheckCircle, Save, Timer } from "lucide-react";
+import { ArrowLeft, Plus, ThumbsUp, MessageSquare, User, Users, UserCheck, MapPin, Clock, Share2, ArrowRight, Edit, Trash2, X, Link as LinkIcon, AlertTriangle, Check, CheckCircle, Save, Timer, MoreHorizontal } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { ExpiryBadge, isRequestExpired } from "@/components/ExpiryBadge";
 import { ExpiryDurationPicker } from "@/components/ExpiryDurationPicker";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -1522,14 +1528,6 @@ export default function RequestRespond() {
                     Edit Request
                   </Link>
                 </Button>
-                <Button
-                  onClick={() => setShowDeleteDialog(true)}
-                  variant="outline"
-                  className="flex items-center gap-2 text-destructive hover:bg-destructive hover:text-destructive-foreground"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Delete Request
-                </Button>
                 {/* Tier 2: Response Tree - only for request creator */}
                 {currentUserId && (
                   <ResponseTree
@@ -1538,6 +1536,22 @@ export default function RequestRespond() {
                     viewerId={currentUserId}
                   />
                 )}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="icon" aria-label="More actions">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem
+                      onClick={() => setShowDeleteDialog(true)}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete Request
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </>
             ) : (
               <>
@@ -1569,28 +1583,56 @@ export default function RequestRespond() {
         onVoteGuest={(cId, recId, idx, voted) => handleGuestVote(cId, recId, idx, voted)}
         onAfterMerge={loadRequestData}
       />
+      {isOwnRequest && (
+        <p className="-mt-6 mb-8 text-sm text-muted-foreground">
+          You created this request — your network's picks appear below.
+        </p>
+      )}
 
       {/* Expired Banner - Creator View */}
       {isOwnRequest && (request as any).expires_at && isRequestExpired((request as any).expires_at, request.status) && (
-        <Card className="mb-8 border-amber-500/30 bg-amber-500/5">
+        <Card
+          className="mb-8"
+          style={{
+            backgroundColor: "rgba(245,158,11,0.08)",
+            border: "1px solid rgba(245,158,11,0.35)",
+          }}
+        >
           <CardContent className="py-6">
             <div className="flex items-center gap-4 flex-wrap">
-              <div className="flex-shrink-0 w-12 h-12 bg-amber-100 dark:bg-amber-900 rounded-full flex items-center justify-center">
-                <Timer className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+              <div
+                className="flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center"
+                style={{ backgroundColor: "rgba(245,158,11,0.15)" }}
+              >
+                <Timer className="h-6 w-6" style={{ color: "rgb(160,100,0)" }} />
               </div>
               <div className="flex-1">
-                <h3 className="font-medium text-amber-800 dark:text-amber-200">
+                <h3 className="font-medium" style={{ color: "rgb(160,100,0)" }}>
                   This request expired on {new Date((request as any).expires_at).toLocaleDateString()}
                 </h3>
-                <p className="text-sm text-amber-600 dark:text-amber-400">
+                <p className="text-sm" style={{ color: "rgb(160,100,0)", opacity: 0.85 }}>
                   What would you like to do?
                 </p>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setShowExtendDialog(true)}>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowExtendDialog(true)}
+                  style={{
+                    border: "1px solid rgba(245,158,11,0.5)",
+                    color: "rgb(160,100,0)",
+                    backgroundColor: "transparent",
+                  }}
+                >
                   Extend Request
                 </Button>
-                <Button variant="default" onClick={handleQuickClose}>
+                <Button
+                  onClick={handleQuickClose}
+                  style={{
+                    backgroundColor: "rgb(160,100,0)",
+                    color: "white",
+                  }}
+                >
                   Close Request
                 </Button>
               </div>
@@ -1710,12 +1752,22 @@ export default function RequestRespond() {
 
       {/* Share Externally Section - Only show to request creator */}
       {currentUserId === request?.creator_id && (
-        <Card className="mb-8 border-primary/20 bg-primary/5">
+        <Card
+          id="share-outside-antelog"
+          className="mb-8"
+          style={{
+            backgroundColor: "rgba(56,189,248,0.06)",
+            border: "1px solid rgba(56,189,248,0.3)",
+          }}
+        >
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle className="text-lg flex items-center gap-2">
+              <CardTitle
+                className="text-lg flex items-center gap-2"
+                style={{ color: "rgb(10,100,150)" }}
+              >
                 <Share2 className="h-5 w-5" />
-                Share with Friends Not on Antelog
+                Share outside Antelog
               </CardTitle>
               {!showShareSection && existingShareLinks.length === 0 && !myShareLink && (
                 <Button
@@ -1738,14 +1790,11 @@ export default function RequestRespond() {
               {/* Existing Share Links */}
               {existingShareLinks.length > 0 && (
                 <div className="space-y-3">
-                  <h4 className="text-sm font-semibold">Your Share Links:</h4>
+                  <h4 className="text-sm font-semibold">Your shareable link</h4>
                   {existingShareLinks.map((link, idx) => {
                     const linkUrl = `${window.location.origin}/r/${request.id}/${link.token}`;
                     return (
                       <div key={link.id} className="p-3 bg-background border rounded-lg space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium">Link #{idx + 1}</span>
-                        </div>
                         <div className="flex gap-2">
                           <Input value={linkUrl} readOnly className="font-mono text-xs" />
                           <Button size="sm" variant="outline" onClick={() => copyShareLink(linkUrl)}>
@@ -1799,83 +1848,6 @@ export default function RequestRespond() {
         </Card>
       )}
 
-      {/* Top Recommendations Summary */}
-      {topRecommendations.length > 0 && (
-        <Card className="mb-8 border-primary/20 bg-primary/5">
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <ThumbsUp className="h-5 w-5 text-primary" />
-              Top Recommendations
-            </CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Aggregated from all responses, ranked by votes
-            </p>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {topRecommendations.map((rec, index) => {
-                const isOwnRecommendation = responses.some(r => 
-                  r.responder_id === currentUserId && 
-                  r.recommendations.some(rr => rr.recommendation_text_normalized === rec.recommendation_text_normalized)
-                );
-                const canVote = !isOwnRequest && !isOwnRecommendation && !rec.user_voted;
-                
-                return (
-                  <div key={rec.id} className="p-4 border rounded-lg bg-background">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-start gap-3 flex-1">
-                        <span className="text-lg font-bold text-primary">#{index + 1}</span>
-                        <div className="flex-1">
-                          <p className="font-medium">{rec.recommendation_text}</p>
-                          {rec.link && (
-                            <a 
-                              href={rec.link} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="text-sm text-primary hover:underline flex items-center gap-1 mt-1"
-                            >
-                              <LinkIcon className="h-3 w-3" />
-                              View Link
-                            </a>
-                          )}
-                          <p className="text-sm text-muted-foreground mt-1">
-                            {rec.vote_count} {rec.vote_count === 1 ? 'vote' : 'votes'}
-                          </p>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center gap-2">
-                        {canVote && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleVoteRecommendation(rec.id, false)}
-                            className="flex items-center gap-1"
-                          >
-                            <ThumbsUp className="h-3 w-3" />
-                            +1
-                          </Button>
-                        )}
-                        {rec.user_voted && (
-                          <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
-                            ✓ Voted
-                          </Badge>
-                        )}
-                        {isOwnRecommendation && !rec.user_voted && (
-                          <Badge variant="outline" className="text-muted-foreground">
-                            Your pick
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Response Section - Conditional UI based on user's response status */}
       {forwardSuggestion && !isOwnRequest && (
         <div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 p-4">
@@ -1895,21 +1867,7 @@ export default function RequestRespond() {
           </div>
         </div>
       )}
-      {isOwnRequest ? (
-        <Card className="mb-8 border-muted">
-          <CardContent className="py-8">
-            <div className="text-center">
-              <div className="mx-auto w-12 h-12 bg-muted rounded-full flex items-center justify-center mb-3">
-                <User className="h-6 w-6 text-muted-foreground" />
-              </div>
-              <h3 className="font-medium mb-1">This is your request</h3>
-              <p className="text-sm text-muted-foreground">
-                You created this request and cannot add recommendations. View what your network suggests!
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      ) : userResponse && !isEditing ? (
+      {isOwnRequest ? null : userResponse && !isEditing ? (
         /* User has already responded - show their response */
         <Card className="mb-8 border-green-500/30 bg-green-500/5">
           <CardHeader>
@@ -2259,13 +2217,25 @@ export default function RequestRespond() {
                 <Card>
             <CardContent>
               <div className="text-center py-8">
-                <div className="mx-auto w-12 h-12 bg-muted rounded-full flex items-center justify-center mb-3">
-                  <MessageSquare className="h-6 w-6 text-muted-foreground" />
-                </div>
-                <h3 className="font-medium mb-1">No network responses yet</h3>
                 <p className="text-sm text-muted-foreground">
                   Nobody from your network has responded yet.
                 </p>
+                {isOwnRequest && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowShareSection(true);
+                      setTimeout(() => {
+                        document
+                          .getElementById("share-outside-antelog")
+                          ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                      }, 50);
+                    }}
+                    className="mt-2 text-sm text-primary hover:underline"
+                  >
+                    Share with your network →
+                  </button>
+                )}
               </div>
             </CardContent>
                 </Card>
