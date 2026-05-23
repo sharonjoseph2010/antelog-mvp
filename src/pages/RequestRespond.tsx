@@ -1583,28 +1583,56 @@ export default function RequestRespond() {
         onVoteGuest={(cId, recId, idx, voted) => handleGuestVote(cId, recId, idx, voted)}
         onAfterMerge={loadRequestData}
       />
+      {isOwnRequest && (
+        <p className="-mt-6 mb-8 text-sm text-muted-foreground">
+          You created this request — your network's picks appear below.
+        </p>
+      )}
 
       {/* Expired Banner - Creator View */}
       {isOwnRequest && (request as any).expires_at && isRequestExpired((request as any).expires_at, request.status) && (
-        <Card className="mb-8 border-amber-500/30 bg-amber-500/5">
+        <Card
+          className="mb-8"
+          style={{
+            backgroundColor: "rgba(245,158,11,0.08)",
+            border: "1px solid rgba(245,158,11,0.35)",
+          }}
+        >
           <CardContent className="py-6">
             <div className="flex items-center gap-4 flex-wrap">
-              <div className="flex-shrink-0 w-12 h-12 bg-amber-100 dark:bg-amber-900 rounded-full flex items-center justify-center">
-                <Timer className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+              <div
+                className="flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center"
+                style={{ backgroundColor: "rgba(245,158,11,0.15)" }}
+              >
+                <Timer className="h-6 w-6" style={{ color: "rgb(160,100,0)" }} />
               </div>
               <div className="flex-1">
-                <h3 className="font-medium text-amber-800 dark:text-amber-200">
+                <h3 className="font-medium" style={{ color: "rgb(160,100,0)" }}>
                   This request expired on {new Date((request as any).expires_at).toLocaleDateString()}
                 </h3>
-                <p className="text-sm text-amber-600 dark:text-amber-400">
+                <p className="text-sm" style={{ color: "rgb(160,100,0)", opacity: 0.85 }}>
                   What would you like to do?
                 </p>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setShowExtendDialog(true)}>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowExtendDialog(true)}
+                  style={{
+                    border: "1px solid rgba(245,158,11,0.5)",
+                    color: "rgb(160,100,0)",
+                    backgroundColor: "transparent",
+                  }}
+                >
                   Extend Request
                 </Button>
-                <Button variant="default" onClick={handleQuickClose}>
+                <Button
+                  onClick={handleQuickClose}
+                  style={{
+                    backgroundColor: "rgb(160,100,0)",
+                    color: "white",
+                  }}
+                >
                   Close Request
                 </Button>
               </div>
