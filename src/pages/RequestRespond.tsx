@@ -1600,6 +1600,7 @@ export default function RequestRespond() {
         onVoteNetwork={(recId, voted) => handleVoteRecommendation(recId, voted)}
         onVoteGuest={(cId, recId, idx, voted) => handleGuestVote(cId, recId, idx, voted)}
         onAfterMerge={loadRequestData}
+        isClosed={request.status === 'closed'}
       />
       {isOwnRequest && (
         <p className="-mt-6 mb-8 text-sm text-muted-foreground">
