@@ -1752,12 +1752,22 @@ export default function RequestRespond() {
 
       {/* Share Externally Section - Only show to request creator */}
       {currentUserId === request?.creator_id && (
-        <Card className="mb-8 border-primary/20 bg-primary/5">
+        <Card
+          id="share-outside-antelog"
+          className="mb-8"
+          style={{
+            backgroundColor: "rgba(56,189,248,0.06)",
+            border: "1px solid rgba(56,189,248,0.3)",
+          }}
+        >
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle className="text-lg flex items-center gap-2">
+              <CardTitle
+                className="text-lg flex items-center gap-2"
+                style={{ color: "rgb(10,100,150)" }}
+              >
                 <Share2 className="h-5 w-5" />
-                Share with Friends Not on Antelog
+                Share outside Antelog
               </CardTitle>
               {!showShareSection && existingShareLinks.length === 0 && !myShareLink && (
                 <Button
@@ -1780,14 +1790,11 @@ export default function RequestRespond() {
               {/* Existing Share Links */}
               {existingShareLinks.length > 0 && (
                 <div className="space-y-3">
-                  <h4 className="text-sm font-semibold">Your Share Links:</h4>
+                  <h4 className="text-sm font-semibold">Your shareable link</h4>
                   {existingShareLinks.map((link, idx) => {
                     const linkUrl = `${window.location.origin}/r/${request.id}/${link.token}`;
                     return (
                       <div key={link.id} className="p-3 bg-background border rounded-lg space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium">Link #{idx + 1}</span>
-                        </div>
                         <div className="flex gap-2">
                           <Input value={linkUrl} readOnly className="font-mono text-xs" />
                           <Button size="sm" variant="outline" onClick={() => copyShareLink(linkUrl)}>
