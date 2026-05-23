@@ -1451,10 +1451,14 @@ export default function RequestRespond() {
           Back to Requests
         </Button>
         
-        <h1 className="text-3xl font-bold mb-2">Respond to Request</h1>
-        <p className="text-muted-foreground">
-          Share your top 1-5 recommendations
-        </p>
+        <h1 className="text-3xl font-bold mb-2">
+          {isOwnRequest ? "Your Request" : "Respond to Request"}
+        </h1>
+        {!isOwnRequest && (
+          <p className="text-muted-foreground">
+            Share your top 1-5 recommendations
+          </p>
+        )}
       </div>
 
       {/* Request Details */}
