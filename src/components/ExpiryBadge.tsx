@@ -1,6 +1,6 @@
 import { differenceInDays, differenceInHours, format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
-import { Clock } from "lucide-react";
+import { Clock, Hourglass } from "lucide-react";
 
 interface ExpiryBadgeProps {
   expiresAt: string;
@@ -32,29 +32,30 @@ export function ExpiryBadge({ expiresAt, status }: ExpiryBadgeProps) {
     );
   }
 
-  if (daysLeft === 0) {
-    return (
-      <Badge className="text-xs flex items-center gap-1 bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
-        <Clock className="h-3 w-3" />
-        {hoursLeft <= 0 ? "Expires today" : `Expires in ${hoursLeft}h`}
-      </Badge>
-    );
-  }
-
-  if (daysLeft === 1) {
-    return (
-      <Badge className="text-xs flex items-center gap-1 bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
-        <Clock className="h-3 w-3" />
-        Expires tomorrow
-      </Badge>
-    );
-  }
+  const label =
+    daysLeft === 0
+      ? hoursLeft <= 0
+        ? "Expires today"
+        : `Expires in ${hoursLeft}h`
+      : daysLeft === 1
+      ? "Expires tomorrow"
+      : `Expires in ${daysLeft} days`;
 
   return (
-    <Badge variant="outline" className="text-xs flex items-center gap-1">
-      <Clock className="h-3 w-3" />
-      Expires in {daysLeft} days
-    </Badge>
+    <span
+      className="text-xs inline-flex items-center gap-1"
+      style={{
+        backgroundColor: "rgba(56,189,248,0.08)",
+        border: "0.5px solid rgba(56,189,248,0.35)",
+        borderRadius: 999,
+        color: "rgb(10,100,150)",
+        padding: "2px 10px",
+        lineHeight: 1.4,
+      }}
+    >
+      <Hourglass className="h-3 w-3" />
+      {label}
+    </span>
   );
 }
 

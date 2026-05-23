@@ -90,7 +90,7 @@ export function LiveLeaderboard({
       });
   }, [entries]);
 
-  const top = expanded ? sorted : sorted.slice(0, 10);
+  const top = expanded ? sorted : sorted.slice(0, 3);
   const maxVotes = sorted.length > 0 ? Math.max(1, sorted[0].voteCount) : 1;
 
   // Fetch similar pairs when creator
@@ -363,17 +363,29 @@ export function LiveLeaderboard({
           })}
         </ul>
 
-        {sorted.length > 10 && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setExpanded((v) => !v)}
-            className="w-full"
-          >
-            {expanded ? "Show top 10" : `View all ${sorted.length} recommendations`}
-          </Button>
-        )}
       </CardContent>
+
+      {sorted.length > 3 && (
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="w-full flex items-center justify-center gap-1.5"
+          style={{
+            backgroundColor: "hsl(var(--secondary))",
+            color: "hsl(var(--muted-foreground))",
+            fontSize: 12,
+            borderTop: "0.5px solid hsl(var(--border))",
+            padding: "9px 16px",
+          }}
+        >
+          {expanded ? "Show top 3" : `View all ${sorted.length} recommendations`}
+          {expanded ? (
+            <ChevronUp className="h-3.5 w-3.5" />
+          ) : (
+            <ChevronDown className="h-3.5 w-3.5" />
+          )}
+        </button>
+      )}
 
       {/* Merge dialog */}
       <Dialog
