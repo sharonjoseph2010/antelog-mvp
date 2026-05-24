@@ -178,9 +178,18 @@ const ContactsImport = () => {
 
       if (error) throw error;
 
+      // Automatically match the newly imported contacts
+      const { data: matchCount, error: matchError } = await supabase.rpc('update_matched_contacts', {
+        user_id_input: user.id
+      });
+
+      if (matchError) {
+        console.error('Error auto-matching contacts:', matchError);
+      }
+
       toast({
         title: "Contacts saved securely",
-        description: `${contactsWithConsent.length} contacts saved with encryption and consent.`,
+        description: `Imported ${contactsWithConsent.length} contacts. ${matchCount || 0} are already on Antelog.`,
       });
     } catch (error) {
       toast({

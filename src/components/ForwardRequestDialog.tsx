@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -38,15 +38,66 @@ export function ForwardRequestDialog({
   onForwardComplete
 }: ForwardRequestDialogProps) {
   const { toast } = useToast();
-  const [audienceType, setAudienceType] = useState<"friends" | "extended_network" | "specific_group">("friends");
+  const [audienceType, setAudienceType] = useState<"first_network" | "group">("first_network");
   const [selectedGroupId, setSelectedGroupId] = useState<string>("");
+  const [selectedFriendIds, setSelectedFriendIds] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [friends, setFriends] = useState<{id: string; full_name: string; handle: string}[]>([]);
+
+  useEffect(() => {
+    if (open) {
+      loadFriends();
+    }
+  }, [open]);
+
+  const loadFriends = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Get user's 1st network
+      const { data: friendships } = await supabase
+        .from('friendships')
+        .select('user1_id, user2_id')
+        .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`);
+
+      const friendIds = friendships?.map(f => 
+        f.user1_id === user.id ? f.user2_id : f.user1_id
+      ) || [];
+
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, full_name, handle')
+        .in('id', friendIds);
+
+      setFriends(profiles?.filter(p => p.full_name && p.handle) || []);
+    } catch (error) {
+      console.error('Error loading friends:', error);
+    }
+  };
+
+  const toggleFriend = (friendId: string) => {
+    setSelectedFriendIds(prev =>
+      prev.includes(friendId)
+        ? prev.filter(id => id !== friendId)
+        : [...prev, friendId]
+    );
+  };
 
   const handleForward = async () => {
-    if (audienceType === "specific_group" && !selectedGroupId) {
+    if (audienceType === "group" && !selectedGroupId) {
       toast({
         title: "Error",
         description: "Please select a group",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (audienceType === "first_network" && selectedFriendIds.length === 0) {
+      toast({
+        title: "Error",
+        description: "Please select at least one person",
         variant: "destructive"
       });
       return;
@@ -57,15 +108,6 @@ export function ForwardRequestDialog({
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Get current forwarding chain from request
-      const { data: requestData } = await supabase
-        .from("requests")
-        .select("forwarding_chain, creator_id")
-        .eq("id", requestId)
-        .single();
-
-      if (!requestData) throw new Error("Request not found");
-
       // Get current user's profile
       const { data: profileData } = await supabase
         .from("profiles")
@@ -73,41 +115,45 @@ export function ForwardRequestDialog({
         .eq("id", user.id)
         .single();
 
-      // Create new forwarding chain entry
-      const currentChain = Array.isArray(requestData.forwarding_chain) ? requestData.forwarding_chain : [];
-      const newChain = [
-        ...currentChain,
-        {
-          user_id: user.id,
-          user_name: profileData?.full_name || "Unknown",
-          user_handle: profileData?.handle || "unknown",
-          forwarded_at: new Date().toISOString()
-        }
-      ];
-
-      // Update request with new forwarding chain
-      const { error: updateError } = await supabase
+      // Get request data to build network path
+      const { data: requestData } = await supabase
         .from("requests")
-        .update({ forwarding_chain: newChain })
-        .eq("id", requestId);
+        .select("creator_id")
+        .eq("id", requestId)
+        .single();
 
-      if (updateError) throw updateError;
+      if (!requestData) throw new Error("Request not found");
 
-      // Create forward record
+      // Get forwarding recipient IDs
+      let recipientIds: string[] = [];
+      if (audienceType === "first_network") {
+        recipientIds = selectedFriendIds;
+      } else if (audienceType === "group" && selectedGroupId) {
+        const { data: groupMembers } = await supabase
+          .from("group_members")
+          .select("user_id")
+          .eq("group_id", selectedGroupId);
+        recipientIds = groupMembers?.map(m => m.user_id) || [];
+      }
+
+      // Create forward record with network tracking
       const { error: forwardError } = await supabase
         .from("request_forwards")
-        .insert({
+        .insert([{
           request_id: requestId,
           forwarded_by_user_id: user.id,
+          forwarded_to: recipientIds,
           forwarded_to_audience: audienceType,
-          forwarded_to_group_id: audienceType === "specific_group" ? selectedGroupId : null
-        });
+          forwarded_to_group_id: audienceType === "group" ? selectedGroupId : null,
+          network_depth: 2, // This is a simple forward
+          network_path: [user.id] // Just the forwarder
+        }]);
 
       if (forwardError) throw forwardError;
 
       toast({
         title: "Request shared!",
-        description: `Request has been shared with your ${audienceType === "friends" ? "friends" : audienceType === "extended_network" ? "extended network" : "group"}`,
+        description: `Request has been shared with your ${audienceType === "first_network" ? "1st network" : "group"}`,
       });
 
       onOpenChange(false);
@@ -138,31 +184,20 @@ export function ForwardRequestDialog({
         <div className="space-y-4 py-4">
           <RadioGroup value={audienceType} onValueChange={(value: any) => setAudienceType(value)}>
             <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-accent cursor-pointer">
-              <RadioGroupItem value="friends" id="friends" />
-              <Label htmlFor="friends" className="flex items-center gap-2 flex-1 cursor-pointer">
+              <RadioGroupItem value="first_network" id="first_network" />
+              <Label htmlFor="first_network" className="flex items-center gap-2 flex-1 cursor-pointer">
                 <User className="h-4 w-4" />
                 <div>
-                  <div className="font-medium">My Friends</div>
-                  <div className="text-xs text-muted-foreground">Share with your direct connections</div>
-                </div>
-              </Label>
-            </div>
-
-            <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-accent cursor-pointer">
-              <RadioGroupItem value="extended_network" id="extended_network" />
-              <Label htmlFor="extended_network" className="flex items-center gap-2 flex-1 cursor-pointer">
-                <Users className="h-4 w-4" />
-                <div>
-                  <div className="font-medium">My Extended Network</div>
-                  <div className="text-xs text-muted-foreground">Share with friends of friends</div>
+                  <div className="font-medium">My 1st Network</div>
+                  <div className="text-xs text-muted-foreground">Share with your trusted connections</div>
                 </div>
               </Label>
             </div>
 
             {userGroups.length > 0 && (
               <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-accent cursor-pointer">
-                <RadioGroupItem value="specific_group" id="specific_group" />
-                <Label htmlFor="specific_group" className="flex items-center gap-2 flex-1 cursor-pointer">
+                <RadioGroupItem value="group" id="group" />
+                <Label htmlFor="group" className="flex items-center gap-2 flex-1 cursor-pointer">
                   <UserCheck className="h-4 w-4" />
                   <div>
                     <div className="font-medium">Select Group</div>
@@ -173,7 +208,38 @@ export function ForwardRequestDialog({
             )}
           </RadioGroup>
 
-          {audienceType === "specific_group" && userGroups.length > 0 && (
+          {audienceType === "first_network" && friends.length > 0 && (
+            <div className="space-y-2">
+              <Label>Choose People</Label>
+              <div className="max-h-[200px] overflow-y-auto space-y-2 border rounded-lg p-2">
+                {friends.map((friend) => (
+                  <div
+                    key={friend.id}
+                    className="flex items-center space-x-2 p-2 rounded hover:bg-accent cursor-pointer"
+                    onClick={() => toggleFriend(friend.id)}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedFriendIds.includes(friend.id)}
+                      onChange={() => toggleFriend(friend.id)}
+                      className="h-4 w-4"
+                    />
+                    <div className="flex-1">
+                      <div className="font-medium text-sm">{friend.full_name}</div>
+                      <div className="text-xs text-muted-foreground">@{friend.handle}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {selectedFriendIds.length > 0 && (
+                <p className="text-sm text-muted-foreground">
+                  Selected: {selectedFriendIds.length} {selectedFriendIds.length === 1 ? 'person' : 'people'}
+                </p>
+              )}
+            </div>
+          )}
+
+          {audienceType === "group" && userGroups.length > 0 && (
             <div className="space-y-2">
               <Label>Choose Group</Label>
               <Select value={selectedGroupId} onValueChange={setSelectedGroupId}>

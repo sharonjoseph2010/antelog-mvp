@@ -3,13 +3,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { UserPlus, X, Phone, Mail } from "lucide-react";
+import { UserPlus, X, User } from "lucide-react";
 
 interface FriendSuggestion {
   id: string;
   suggested_user_id: string;
-  match_type: string;
-  match_value: string;
   created_at: string;
   user_profile?: {
     full_name: string;
@@ -36,8 +34,6 @@ export const FriendSuggestions = () => {
         .select(`
           id,
           suggested_user_id,
-          match_type,
-          match_value,
           created_at
         `)
         .eq('user_id', user.id)
@@ -153,7 +149,7 @@ export const FriendSuggestions = () => {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Friend Suggestions</CardTitle>
+          <CardTitle>Contact Notifications</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-center text-muted-foreground">Loading suggestions...</div>
@@ -166,9 +162,9 @@ export const FriendSuggestions = () => {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Friend Suggestions</CardTitle>
+          <CardTitle>Contact Notifications</CardTitle>
           <CardDescription>
-            We'll suggest friends when people from your contacts join Antelog
+            We'll notify you when people from your contacts join Antelog so you can add them to your 1st Network
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -183,7 +179,7 @@ export const FriendSuggestions = () => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Friend Suggestions</CardTitle>
+        <CardTitle>Contact Notifications</CardTitle>
         <CardDescription>
           People from your contacts who joined Antelog
         </CardDescription>
@@ -197,11 +193,7 @@ export const FriendSuggestions = () => {
             >
               <div className="flex items-center gap-3">
                 <div className="h-10 w-10 bg-primary/10 rounded-full flex items-center justify-center">
-                  {suggestion.match_type === 'phone' ? (
-                    <Phone className="h-4 w-4 text-primary" />
-                  ) : (
-                    <Mail className="h-4 w-4 text-primary" />
-                  )}
+                  <User className="h-4 w-4 text-primary" />
                 </div>
                 <div>
                   <h3 className="font-medium">
@@ -209,9 +201,6 @@ export const FriendSuggestions = () => {
                   </h3>
                   <p className="text-sm text-muted-foreground">
                     @{suggestion.user_profile?.handle || 'unknown'}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Matched via {suggestion.match_type}: {suggestion.match_value}
                   </p>
                 </div>
               </div>

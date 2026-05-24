@@ -1,15 +1,38 @@
-import { useState, useEffect } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { useParams, useNavigate, Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Plus, ThumbsUp, MessageSquare, User, Users, UserCheck, MapPin, Clock } from "lucide-react";
+import { ArrowLeft, Plus, ThumbsUp, MessageSquare, User, Users, UserCheck, MapPin, Clock, Share2, ArrowRight, Edit, Trash2, X, Link as LinkIcon, AlertTriangle, Check, CheckCircle, Save, Timer, MoreHorizontal } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ExpiryBadge, isRequestExpired } from "@/components/ExpiryBadge";
+import { ExpiryDurationPicker } from "@/components/ExpiryDurationPicker";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { formatDistanceToNow } from "date-fns";
+import { ForwardRequestModal } from "@/components/ForwardRequestModal";
+import { DeleteRequestDialog } from "@/components/DeleteRequestDialog";
+// Note: Request pages always show real names. Network-aware anonymization
+// is only applied in the Master Directory context.
+import { initiateClusteringReview } from "@/lib/clustering";
+import { ResponseTree } from "@/components/ResponseTree";
+import { LiveLeaderboard, LeaderboardEntry } from "@/components/LiveLeaderboard";
+
+interface NetworkPathNode {
+  user_id: string;
+  user_name: string;
+  user_handle: string;
+  isConnectedToViewer?: boolean;
+}
 
 interface Request {
   id: string;
@@ -17,71 +40,240 @@ interface Request {
   category: string;
   location: string | null;
   audience_type: string;
+  audience_types?: string[];
   status: string;
   created_at: string;
+  allow_forwarding: boolean;
+  creator_id: string;
   creator_profile?: {
     full_name: string;
     handle: string;
   };
+  isCreatorConnected?: boolean;
+  network_path?: NetworkPathNode[];
+  forwarded_by?: string;
+}
+
+interface Recommendation {
+  id: string;
+  recommendation_text: string;
+  recommendation_text_normalized: string;
+  position: number;
+  quick_details: string | null;
+  reason: string;
+  link: string | null;
+  vote_count: number;
+  user_voted: boolean;
+  voters: { id: string; full_name: string; handle: string }[];
 }
 
 interface RequestResponse {
   id: string;
-  response_type: string;
-  content: string;
+  overall_notes: string | null;
   created_at: string;
-  list_id?: string;
+  responder_id: string;
   responder_profile: {
     full_name: string;
     handle: string;
   };
-  list?: {
-    title: string;
-    description: string;
-  };
-  vote_counts: {
-    helpful: number;
-    not_helpful: number;
-  };
-  user_vote?: {
-    vote_type: string;
-  };
+  recommendations: Recommendation[];
+  origin?: 'direct' | 'anonymous';
 }
 
-interface UserList {
-  id: string;
-  title: string;
-  description: string;
-  category: string;
+interface RecommendationInput {
+  name: string;
+  link: string;
 }
+
+interface SimilarRecommendation {
+  id: string;
+  recommendation_text: string;
+  vote_count: number;
+  similarity_score?: number;
+}
+
+interface Suggestions {
+  index: number;
+  items: SimilarRecommendation[];
+}
+
+// Helper function to validate URLs
+const isValidUrl = (url: string): boolean => {
+  try {
+    new URL(url);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+// Normalize text for duplicate detection
+const normalizeText = (text: string): string => {
+  return text
+    .trim()
+    .toLowerCase()
+    .replace(/[^\w\s]/g, '') // Remove punctuation
+    .replace(/\s+/g, ' '); // Collapse multiple spaces
+};
 
 export default function RequestRespond() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
+  const suggestForwardTo = searchParams.get('suggest_forward_to');
+  const suggestExpertName = searchParams.get('expert_name');
   
   const [request, setRequest] = useState<Request | null>(null);
   const [responses, setResponses] = useState<RequestResponse[]>([]);
-  const [userLists, setUserLists] = useState<UserList[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showForwardModal, setShowForwardModal] = useState(false);
+  const [canForward, setCanForward] = useState(false);
+  const [hasForwarded, setHasForwarded] = useState(false);
+  const [forwardSuggestion, setForwardSuggestion] = useState<{ expert_id: string; expert_name: string } | null>(null);
+  const [isOwnRequest, setIsOwnRequest] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isClosingRequest, setIsClosingRequest] = useState(false);
+  const [isStartingReview, setIsStartingReview] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [guestContributions, setGuestContributions] = useState<any[]>([]);
+  const [guestVotes, setGuestVotes] = useState<Record<string, boolean>>({});
+  const [showShareSection, setShowShareSection] = useState(false);
+  const [myShareLink, setMyShareLink] = useState<string | null>(null);
+  const [isGeneratingLink, setIsGeneratingLink] = useState(false);
+  const [existingShareLinks, setExistingShareLinks] = useState<any[]>([]);
+  const [showExtendDialog, setShowExtendDialog] = useState(false);
+  const [extendDays, setExtendDays] = useState("7");
+  const [isExtending, setIsExtending] = useState(false);
+  // User's existing response state
+  const [userResponse, setUserResponse] = useState<RequestResponse | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [showDeleteResponseDialog, setShowDeleteResponseDialog] = useState(false);
+  const [isDeletingResponse, setIsDeletingResponse] = useState(false);
   
-  // Response form state
-  const [responseType, setResponseType] = useState<"new_recommendations" | "existing_list">("new_recommendations");
-  const [selectedListId, setSelectedListId] = useState<string>("");
-  const [responseContent, setResponseContent] = useState("");
+  // Response form state - simplified: name + link per recommendation
+  const [recommendations, setRecommendations] = useState<RecommendationInput[]>([
+    { name: '', link: '' },
+  ]);
+  const [overallContext, setOverallContext] = useState("");
+  const MAX_CONTEXT_LENGTH = 120;
+
+  // Duplicate detection state
+  const [suggestions, setSuggestions] = useState<Suggestions | null>(null);
+  const [isSearching, setIsSearching] = useState(false);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Welcome banner for newly converted guest users
+  const [showWelcomeBanner, setShowWelcomeBanner] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("welcome") !== "1") return;
+
+    setShowWelcomeBanner(true);
+    params.delete("welcome");
+    const query = params.toString();
+    window.history.replaceState(null, "", `${window.location.pathname}${query ? `?${query}` : ""}`);
+
+    const timer = setTimeout(() => setShowWelcomeBanner(false), 5000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Real-time subscriptions for live updates
+  useEffect(() => {
+    if (!id) return;
+
+    const responsesChannel = supabase
+      .channel(`request-responses-${id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "request_responses", filter: `request_id=eq.${id}` },
+        () => { loadRequestData(); }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "recommendation_votes" },
+        () => { loadRequestData(); }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "response_recommendations" },
+        () => { loadRequestData(); }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "guest_contributions", filter: `request_id=eq.${id}` },
+        () => { loadRequestData(); }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(responsesChannel); };
+  }, [id]);
+
+  const loadExistingShareLinks = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user || !id) return;
+
+      const { data, error } = await supabase
+        .from("share_links")
+        .select("id, token, generated_by_name, current_responses, max_responses, created_at")
+        .eq("request_id", id)
+        .eq("generated_by_user_id", user.id)
+        .is("parent_link_id", null)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setExistingShareLinks(data || []);
+    } catch (error) {
+      console.error("Error loading share links:", error);
+    }
+  };
 
   useEffect(() => {
     if (id) {
       loadRequestData();
+      loadExistingShareLinks();
     }
   }, [id]);
+
+  // Load forward_suggestion notification for this user + request
+  useEffect(() => {
+    if (!id) return;
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase
+        .from('notifications')
+        .select('metadata')
+        .eq('user_id', user.id)
+        .eq('type', 'forward_suggestion')
+        .eq('metadata->>request_id', id)
+        .maybeSingle();
+      const meta: any = data?.metadata;
+      if (meta?.expert_id) {
+        // Fall back to suggest_forward_to query param values too
+        setForwardSuggestion({
+          expert_id: meta.expert_id,
+          expert_name: meta.expert_name || suggestExpertName || 'an expert',
+        });
+      } else if (suggestForwardTo) {
+        setForwardSuggestion({
+          expert_id: suggestForwardTo,
+          expert_name: suggestExpertName || 'an expert',
+        });
+      }
+    })();
+  }, [id, suggestForwardTo, suggestExpertName]);
 
   const loadRequestData = async () => {
     setIsLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+      setCurrentUserId(user.id);
 
       // Load request details
       const { data: requestData, error: requestError } = await supabase
@@ -103,12 +295,69 @@ export default function RequestRespond() {
         creator_profile = creatorData;
       }
       
+      const userIsOwner = requestData.creator_id === user.id;
+      setIsOwnRequest(userIsOwner);
+      const allowsForwarding = requestData.allow_forwarding === true;
+      
+      const { data: forwardData } = await supabase
+        .from('request_forwards')
+        .select('id')
+        .eq('request_id', id)
+        .eq('forwarded_by_user_id', user.id)
+        .maybeSingle();
+      
+      setHasForwarded(!!forwardData);
+      setCanForward(!userIsOwner && allowsForwarding && !forwardData);
+
+      // Get network path if request was forwarded to user
+      const { data: forwardPath } = await supabase
+        .from('request_forwards')
+        .select('network_path')
+        .eq('request_id', id)
+        .contains('forwarded_to', [user.id])
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      let networkPath: NetworkPathNode[] = [];
+      if (forwardPath?.network_path && Array.isArray(forwardPath.network_path)) {
+        const { data: pathProfiles } = await supabase
+          .from('profiles')
+          .select('id, full_name, handle')
+          .in('id', forwardPath.network_path);
+
+        networkPath = forwardPath.network_path.map((userId: string) => {
+          const profile = pathProfiles?.find(p => p.id === userId);
+          return {
+            user_id: userId,
+            user_name: profile?.full_name || profile?.handle || 'Someone',
+            user_handle: profile?.handle || 'unknown',
+            isConnectedToViewer: true,
+          };
+        });
+      }
+
+      // Anonymous expertise sealing: only reveal creator identity when the
+      // viewer has a direct trust relationship with the creator in this
+      // request's context. Otherwise treat as anonymous.
+      let isCreatorConnected = userIsOwner;
+      if (!userIsOwner) {
+        const { data: canReveal } = await supabase.rpc("can_reveal_identity", {
+          p_viewer_id: user.id,
+          p_request_id: id,
+          p_target_user_id: requestData.creator_id,
+        });
+        isCreatorConnected = !!canReveal;
+      }
+
       setRequest({
         ...requestData,
-        creator_profile
+        creator_profile,
+        isCreatorConnected,
+        network_path: networkPath
       });
 
-      // Load existing responses
+      // Load existing responses with recommendations
       const { data: responsesData, error: responsesError } = await supabase
         .from("request_responses")
         .select("*")
@@ -117,7 +366,7 @@ export default function RequestRespond() {
 
       if (responsesError) throw responsesError;
 
-      // Process responses with profile data, vote counts and user votes
+      // Process responses with recommendations and votes
       const processedResponses = await Promise.all(
         (responsesData || []).map(async (response) => {
           // Get responder profile
@@ -127,53 +376,134 @@ export default function RequestRespond() {
             .eq("id", response.responder_id)
             .single();
 
-          // Get list data if response has a list_id
-          let listData = null;
-          if (response.list_id) {
-            const { data: list } = await supabase
-              .from("lists")
-              .select("title, description")
-              .eq("id", response.list_id)
-              .single();
-            listData = list;
-          }
+          // Always show responder's real name on request pages
+          const responderDisplayName = responderData?.full_name || responderData?.handle || 'Someone';
+          const responderDisplayHandle = responderData?.handle || 'unknown';
 
-          // Get votes for this response
-          const { data: votesData } = await supabase
-            .from("request_votes")
-            .select("vote_type, voter_id")
-            .eq("response_id", response.id);
+          // Get recommendations for this response
+          const { data: recsData } = await supabase
+            .from("response_recommendations")
+            .select("*")
+            .eq("response_id", response.id)
+            .order("position", { ascending: true });
 
-          const votes = votesData || [];
-          const helpfulVotes = votes.filter(v => v.vote_type === 'helpful').length;
-          const notHelpfulVotes = votes.filter(v => v.vote_type === 'not_helpful').length;
-          const userVote = votes.find(v => v.voter_id === user.id);
+          // Determine response origin (direct network vs anonymous expertise)
+          const { data: originData } = await supabase.rpc("get_response_origin", {
+            p_response_id: response.id,
+          });
+          const origin: 'direct' | 'anonymous' =
+            originData === 'anonymous' ? 'anonymous' : 'direct';
+
+          // Get votes for each recommendation
+          const recommendationsWithVotes = await Promise.all(
+            (recsData || []).map(async (rec) => {
+              const { data: votesData } = await supabase
+                .from("recommendation_votes")
+                .select("user_id")
+                .eq("recommendation_id", rec.id);
+
+              const voters = votesData || [];
+              const userVoted = voters.some(v => v.user_id === user.id);
+
+              // Get voter profiles with network-aware names
+              let voterProfiles: { id: string; full_name: string; handle: string }[] = [];
+              if (voters.length > 0) {
+                const { data: profiles } = await supabase
+                  .from("profiles")
+                  .select("id, full_name, handle")
+                  .in("id", voters.map(v => v.user_id));
+                
+                // Always show voters' real names on request pages
+                voterProfiles = (profiles || []).map(p => ({
+                  id: p.id,
+                  full_name: p.full_name || p.handle || 'Someone',
+                  handle: p.handle,
+                }));
+              }
+
+              return {
+                ...rec,
+                user_voted: userVoted,
+                voters: voterProfiles
+              };
+            })
+          );
 
           return {
             ...response,
-            responder_profile: responderData || { full_name: 'Unknown', handle: 'unknown' },
-            list: listData,
-            vote_counts: {
-              helpful: helpfulVotes,
-              not_helpful: notHelpfulVotes
+            responder_profile: {
+              full_name: origin === 'anonymous' ? 'Anonymous contributor' : responderDisplayName,
+              handle: origin === 'anonymous' ? 'anonymous' : responderDisplayHandle,
             },
-            user_vote: userVote
+            recommendations: recommendationsWithVotes,
+            origin,
           };
         })
       );
 
       setResponses(processedResponses);
 
-      // Load user's lists for selection
-      const { data: listsData, error: listsError } = await supabase
-        .from("lists")
-        .select("id, title, description, category")
-        .eq("owner_id", user.id)
-        .eq("visibility", "public")
+      // Check if current user has already responded
+      const existingUserResponse = processedResponses.find(r => r.responder_id === user.id);
+      setUserResponse(existingUserResponse || null);
+
+      // Load guest contributions
+      const { data: guestData, error: guestError } = await supabase
+        .from("guest_contributions")
+        .select(`
+          id,
+          contributor_name,
+          contributor_contact,
+          recommendations,
+          created_at,
+          share_link_id
+        `)
+        .eq("request_id", id!)
         .order("created_at", { ascending: false });
 
-      if (listsError) throw listsError;
-      setUserLists(listsData || []);
+      if (guestError) {
+        console.error("Error loading guest contributions:", guestError);
+      }
+
+      // Get share link info for each contribution
+      const guestWithLinks = await Promise.all(
+        (guestData || []).map(async (contribution) => {
+          let shareLink = null;
+          if (contribution.share_link_id) {
+            const { data: linkData } = await supabase
+              .from("share_links")
+              .select("id, generated_by_name, parent_link_id")
+              .eq("id", contribution.share_link_id)
+              .maybeSingle();
+            shareLink = linkData;
+          }
+          return { ...contribution, share_links: shareLink };
+        })
+      );
+
+      setGuestContributions(guestWithLinks);
+
+      // Load user's existing votes on guest recommendations
+      if (user) {
+        const allRecIds: string[] = [];
+        (guestWithLinks || []).forEach((c: any) => {
+          const recs = Array.isArray(c.recommendations) ? c.recommendations : [];
+          recs.forEach((r: any) => {
+            if (!r) return;
+            if (r.id) allRecIds.push(r.id);
+          });
+        });
+        if (allRecIds.length > 0) {
+          const { data: voteData } = await supabase
+            .from("recommendation_votes")
+            .select("recommendation_id")
+            .eq("user_id", user.id)
+            .in("recommendation_id", allRecIds);
+          const voteMap: Record<string, boolean> = {};
+          (voteData || []).forEach(v => { voteMap[v.recommendation_id] = true; });
+          setGuestVotes(voteMap);
+        }
+      }
 
     } catch (error) {
       console.error("Error loading request data:", error);
@@ -187,20 +517,200 @@ export default function RequestRespond() {
     }
   };
 
-  const handleSubmitResponse = async () => {
-    if (!request || !responseContent.trim()) {
+  const addRecommendation = () => {
+    if (recommendations.length >= 5) {
       toast({
-        title: "Error",
-        description: "Please provide a response message",
+        title: "Maximum reached",
+        description: "You can add up to 5 recommendations",
+        variant: "destructive"
+      });
+      return;
+    }
+    setRecommendations([...recommendations, { name: '', link: '' }]);
+  };
+
+  const removeRecommendation = (index: number) => {
+    if (recommendations.length <= 1) {
+      toast({
+        title: "Minimum required",
+        description: "You need at least 1 recommendation",
+        variant: "destructive"
+      });
+      return;
+    }
+    setRecommendations(recommendations.filter((_, i) => i !== index));
+  };
+
+  const updateRecommendation = (index: number, field: keyof RecommendationInput, value: string) => {
+    const updated = [...recommendations];
+    updated[index][field] = value;
+    setRecommendations(updated);
+
+    // Trigger duplicate search when name field changes
+    if (field === 'name') {
+      searchForSimilarRecommendations(index, value);
+    }
+  };
+
+  // Search for similar existing recommendations with debouncing
+  const searchForSimilarRecommendations = useCallback((index: number, value: string) => {
+    // Clear any pending search
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    // Clear suggestions if input is too short
+    if (value.trim().length < 3) {
+      setSuggestions(null);
+      return;
+    }
+
+    // Debounce the search
+    searchTimeoutRef.current = setTimeout(async () => {
+      if (!id) return;
+      
+      setIsSearching(true);
+      try {
+        const normalized = normalizeText(value);
+        
+        // Use fuzzy matching with PostgreSQL's pg_trgm similarity
+        const { data: similar, error } = await supabase
+          .rpc('search_similar_recommendations', {
+            search_term: normalized,
+            req_id: id,
+            similarity_threshold: 0.4
+          });
+
+        if (error) {
+          console.error('Fuzzy search error:', error);
+          setSuggestions(null);
+          return;
+        }
+
+        console.log('Fuzzy search results:', similar);
+
+        if (similar && similar.length > 0) {
+          setSuggestions({
+            index,
+            items: similar.map((r: { id: string; recommendation_text: string; vote_count: number; similarity_score: number }) => ({
+              id: r.id,
+              recommendation_text: r.recommendation_text,
+              vote_count: r.vote_count || 0,
+              similarity_score: r.similarity_score
+            }))
+          });
+        } else {
+          setSuggestions(null);
+        }
+      } catch (error) {
+        console.error('Error searching for similar recommendations:', error);
+        setSuggestions(null);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300); // 300ms debounce
+  }, [id]);
+
+  // Handle selecting an existing recommendation to vote on instead
+  const handleSelectExistingRecommendation = async (existingRec: SimilarRecommendation, index: number) => {
+    if (!currentUserId) return;
+
+    // Check if user is request creator
+    if (isOwnRequest) {
+      toast({
+        title: "Cannot vote",
+        description: "Request creators cannot vote on recommendations",
         variant: "destructive"
       });
       return;
     }
 
-    if (responseType === "existing_list" && !selectedListId) {
+    try {
+      // Check if user already voted
+      const { data: existingVote } = await supabase
+        .from("recommendation_votes")
+        .select("id")
+        .eq("recommendation_id", existingRec.id)
+        .eq("user_id", currentUserId)
+        .maybeSingle();
+
+      if (existingVote) {
+        toast({
+          title: "Already voted",
+          description: `You've already voted for "${existingRec.recommendation_text}"`,
+          variant: "destructive"
+        });
+      } else {
+        // Add vote
+        const { error } = await supabase
+          .from("recommendation_votes")
+          .insert({
+            recommendation_id: existingRec.id,
+            user_id: currentUserId
+          });
+
+        if (error) throw error;
+        
+        toast({
+          title: "Voted on existing recommendation",
+          description: `You voted for "${existingRec.recommendation_text}"`,
+        });
+
+        // Refresh data to show updated vote count
+        await loadRequestData();
+      }
+
+      // Clear the input
+      const updated = [...recommendations];
+      updated[index].name = '';
+      setRecommendations(updated);
+      setSuggestions(null);
+
+    } catch (error) {
+      console.error('Error voting on recommendation:', error);
       toast({
-        title: "Error", 
-        description: "Please select a list to recommend",
+        title: "Error",
+        description: "Failed to submit vote",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Dismiss suggestions for a specific input
+  const dismissSuggestions = () => {
+    setSuggestions(null);
+  };
+
+  const handleSubmitResponse = async () => {
+    if (!request) return;
+
+    // Validate at least 1 valid recommendation (name is required)
+    const validRecs = recommendations.filter(r => r.name.trim());
+    if (validRecs.length < 1) {
+      toast({
+        title: "Incomplete Response",
+        description: "Please provide at least 1 recommendation",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Validate overall context length
+    if (overallContext.length > MAX_CONTEXT_LENGTH) {
+      toast({
+        title: "Context too long",
+        description: `Overall context must be ${MAX_CONTEXT_LENGTH} characters or less`,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Validate links if provided
+    const invalidLinks = validRecs.filter(r => r.link.trim() && !isValidUrl(r.link.trim()));
+    if (invalidLinks.length > 0) {
+      toast({
+        title: "Invalid link",
+        description: "Please enter valid URLs for links (or leave them empty)",
         variant: "destructive"
       });
       return;
@@ -211,29 +721,113 @@ export default function RequestRespond() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { error } = await supabase
-        .from("request_responses")
-        .insert({
-          request_id: request.id,
-          responder_id: user.id,
-          response_type: responseType,
-          content: responseContent,
-          list_id: responseType === "existing_list" ? selectedListId : null
+      let responseId: string;
+
+      if (isEditing && userResponse) {
+        // Update existing response
+        const { error: updateError } = await supabase
+          .from("request_responses")
+          .update({
+            overall_notes: overallContext.trim() || null
+          })
+          .eq("id", userResponse.id);
+
+        if (updateError) throw updateError;
+        responseId = userResponse.id;
+
+        // Delete existing recommendations and re-insert
+        await supabase
+          .from("response_recommendations")
+          .delete()
+          .eq("response_id", userResponse.id);
+      } else {
+        // Create new response container
+        const { data: responseData, error: responseError } = await supabase
+          .from("request_responses")
+          .insert({
+            request_id: request.id,
+            responder_id: user.id,
+            overall_notes: overallContext.trim() || null
+          })
+          .select()
+          .single();
+
+        if (responseError) throw responseError;
+        responseId = responseData.id;
+      }
+
+      // Create individual recommendations with improved normalization
+      const recsToInsert = validRecs.map((rec, index) => ({
+        response_id: responseId,
+        recommendation_text: rec.name.trim(),
+        recommendation_text_normalized: normalizeText(rec.name),
+        position: index + 1,
+        quick_details: null,
+        reason: '',
+        link: rec.link.trim() || null,
+        vote_count: 0
+      }));
+
+      const { error: recsError } = await supabase
+        .from("response_recommendations")
+        .insert(recsToInsert);
+
+      if (recsError) throw recsError;
+
+      // Notify request creator (only for new responses).
+      // Anonymous expertise routing must seal identity: never include real name/handle
+      // when the responder reached this request through anonymous routing.
+      if (!isEditing && request.creator_id !== user.id) {
+        const { data: canReveal } = await supabase.rpc("can_reveal_identity", {
+          p_viewer_id: request.creator_id,
+          p_request_id: request.id,
+          p_target_user_id: user.id,
         });
 
-      if (error) throw error;
+        let title: string;
+        let relatedUserId: string | null = user.id;
+        if (canReveal) {
+          const { data: responderProfile } = await supabase
+            .from("profiles")
+            .select("full_name, handle")
+            .eq("id", user.id)
+            .single();
+          const responderName = responderProfile?.full_name || responderProfile?.handle || "Someone";
+          title = `${responderName} responded to your request`;
+        } else {
+          const { data: label } = await supabase.rpc("anonymous_thread_label", {
+            p_uid: user.id,
+            p_request_id: request.id,
+          });
+          title = `${label || "Anonymous contributor"} responded to your request`;
+          relatedUserId = null;
+        }
+
+        await supabase
+          .from("notifications")
+          .insert({
+            user_id: request.creator_id,
+            type: "request_response",
+            title,
+            message: request.title,
+            related_user_id: relatedUserId,
+            is_read: false,
+            metadata: { request_id: request.id, anonymous: !canReveal },
+          });
+      }
 
       toast({
         title: "Success",
-        description: "Your response has been submitted!",
+        description: isEditing ? "Your response has been updated!" : "Your recommendations have been submitted!",
       });
 
-      // Refresh responses
+      // Reset form and state
+      setRecommendations([
+        { name: '', link: '' },
+      ]);
+      setOverallContext("");
+      setIsEditing(false);
       await loadRequestData();
-      
-      // Reset form
-      setResponseContent("");
-      setSelectedListId("");
 
     } catch (error) {
       console.error("Error submitting response:", error);
@@ -247,49 +841,123 @@ export default function RequestRespond() {
     }
   };
 
-  const handleVote = async (responseId: string, voteType: "helpful" | "not_helpful") => {
+  const handleEditResponse = () => {
+    if (!userResponse) return;
+    
+    // Pre-populate form with existing data
+    const existingRecs = userResponse.recommendations
+      .sort((a, b) => a.position - b.position)
+      .map(r => ({
+        name: r.recommendation_text,
+        link: r.link || ''
+      }));
+    
+    // Ensure at least 1 slot
+    if (existingRecs.length < 1) {
+      existingRecs.push({ name: '', link: '' });
+    }
+    
+    setRecommendations(existingRecs);
+    setOverallContext(userResponse.overall_notes || '');
+    setIsEditing(true);
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setRecommendations([
+      { name: '', link: '' },
+    ]);
+    setOverallContext("");
+  };
+
+  const handleDeleteUserResponse = async () => {
+    if (!userResponse) return;
+    
+    setIsDeletingResponse(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      const { error } = await supabase
+        .from("request_responses")
+        .delete()
+        .eq("id", userResponse.id);
 
-      // Check if user already voted on this response
-      const existingResponse = responses.find(r => r.id === responseId);
-      const userVote = existingResponse?.user_vote;
+      if (error) throw error;
 
-      if (userVote) {
-        if (userVote.vote_type === voteType) {
-          // Remove vote if clicking same vote
-          const { error } = await supabase
-            .from("request_votes")
-            .delete()
-            .eq("response_id", responseId)
-            .eq("voter_id", user.id);
+      toast({
+        title: "Response Deleted",
+        description: "Your response has been removed"
+      });
 
-          if (error) throw error;
-        } else {
-          // Update vote if clicking different vote
-          const { error } = await supabase
-            .from("request_votes")
-            .update({ vote_type: voteType })
-            .eq("response_id", responseId)
-            .eq("voter_id", user.id);
+      setUserResponse(null);
+      setShowDeleteResponseDialog(false);
+      await loadRequestData();
+    } catch (error) {
+      console.error("Error deleting response:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete response",
+        variant: "destructive"
+      });
+    } finally {
+      setIsDeletingResponse(false);
+    }
+  };
 
-          if (error) throw error;
-        }
-      } else {
-        // Create new vote
+  const handleVoteRecommendation = async (recommendationId: string, currentlyVoted: boolean) => {
+    if (!currentUserId) return;
+    
+    // Check if user is request creator
+    if (isOwnRequest) {
+      toast({
+        title: "Cannot vote",
+        description: "Request creators cannot vote on recommendations",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    try {
+      if (currentlyVoted) {
+        // Remove vote
         const { error } = await supabase
-          .from("request_votes")
-          .insert({
-            response_id: responseId,
-            voter_id: user.id,
-            vote_type: voteType
-          });
+          .from("recommendation_votes")
+          .delete()
+          .eq("recommendation_id", recommendationId)
+          .eq("user_id", currentUserId);
 
         if (error) throw error;
+        
+        toast({
+          title: "Vote removed",
+          description: "Your vote has been removed"
+        });
+      } else {
+        // Add vote
+        const { error } = await supabase
+          .from("recommendation_votes")
+          .insert({
+            recommendation_id: recommendationId,
+            user_id: currentUserId
+          });
+
+        if (error) {
+          // Check for unique constraint violation (already voted)
+          if (error.code === '23505') {
+            toast({
+              title: "Already voted",
+              description: "You've already voted on this recommendation",
+              variant: "destructive"
+            });
+            return;
+          }
+          throw error;
+        }
+        
+        toast({
+          title: "Vote recorded",
+          description: "Your vote has been added"
+        });
       }
 
-      // Refresh responses to show updated vote counts
       await loadRequestData();
 
     } catch (error) {
@@ -302,17 +970,305 @@ export default function RequestRespond() {
     }
   };
 
-  const getAudienceIcon = (audienceType: string) => {
-    switch (audienceType) {
-      case "friends":
-        return <User className="h-4 w-4" />;
-      case "extended_network":
-        return <Users className="h-4 w-4" />;
-      case "specific_group":
-        return <UserCheck className="h-4 w-4" />;
-      default:
-        return <Users className="h-4 w-4" />;
+  const handleGuestVote = async (contributionId: string, recId: string, recIndex: number, currentlyVoted: boolean) => {
+    if (!currentUserId) return;
+    if (isOwnRequest) {
+      toast({ title: "Cannot vote", description: "Request creators cannot vote on recommendations", variant: "destructive" });
+      return;
     }
+    try {
+      if (currentlyVoted) {
+        const { error } = await supabase.from("recommendation_votes").delete()
+          .eq("recommendation_id", recId).eq("user_id", currentUserId);
+        if (error) throw error;
+        setGuestVotes(prev => { const n = { ...prev }; delete n[recId]; return n; });
+        // Decrement vote_count in JSONB
+        const contribution = guestContributions.find(c => c.id === contributionId);
+        if (contribution) {
+          const recs = [...(contribution.recommendations || [])];
+          if (recs[recIndex]) {
+            recs[recIndex] = { ...recs[recIndex], vote_count: Math.max(0, (recs[recIndex].vote_count || 0) - 1) };
+            await supabase.from("guest_contributions").update({ recommendations: recs }).eq("id", contributionId);
+          }
+        }
+        toast({ title: "Vote removed" });
+      } else {
+        const { error } = await supabase.from("recommendation_votes").insert({ recommendation_id: recId, user_id: currentUserId });
+        if (error) {
+          if (error.code === '23505') { toast({ title: "Already voted", variant: "destructive" }); return; }
+          throw error;
+        }
+        setGuestVotes(prev => ({ ...prev, [recId]: true }));
+        // Increment vote_count in JSONB
+        const contribution = guestContributions.find(c => c.id === contributionId);
+        if (contribution) {
+          const recs = [...(contribution.recommendations || [])];
+          if (recs[recIndex]) {
+            recs[recIndex] = { ...recs[recIndex], vote_count: (recs[recIndex].vote_count || 0) + 1 };
+            await supabase.from("guest_contributions").update({ recommendations: recs }).eq("id", contributionId);
+          }
+        }
+        toast({ title: "Vote recorded" });
+      }
+      await loadRequestData();
+    } catch (error) {
+      console.error("Error voting on guest rec:", error);
+      toast({ title: "Error", description: "Failed to submit vote", variant: "destructive" });
+    }
+  };
+
+  const handleDeleteRequest = async () => {
+    if (!request) return;
+    
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase
+        .from("requests")
+        .delete()
+        .eq("id", request.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Request Deleted",
+        description: "Your request has been permanently deleted"
+      });
+
+      navigate("/requests");
+    } catch (error) {
+      console.error("Error deleting request:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete request",
+        variant: "destructive"
+      });
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteDialog(false);
+    }
+  };
+
+  // Close request and save top recommendations to My Lists
+  const handleCloseAndSave = async () => {
+    if (!request || !currentUserId) return;
+    
+    console.log('=== CLOSING REQUEST AND SAVING TO MY LISTS ===');
+    setIsClosingRequest(true);
+    
+    try {
+      // 1. Get top 10 recommendations by vote count from aggregated top recs
+      const allRecs = responses.flatMap(r => r.recommendations);
+      const grouped = allRecs.reduce((acc, rec) => {
+        const key = rec.recommendation_text_normalized || rec.recommendation_text.toLowerCase();
+        if (!acc[key]) {
+          acc[key] = { ...rec, total_votes: rec.vote_count };
+        } else {
+          acc[key].total_votes += rec.vote_count;
+        }
+        return acc;
+      }, {} as Record<string, Recommendation & { total_votes: number }>);
+      
+      const topRecommendations = Object.values(grouped)
+        .sort((a, b) => b.total_votes - a.total_votes)
+        .slice(0, 10);
+      
+      console.log('Top 10 recommendations:', topRecommendations);
+      
+      if (!topRecommendations || topRecommendations.length === 0) {
+        toast({
+          title: "No recommendations to save",
+          description: "This request has no recommendations yet.",
+          variant: "destructive"
+        });
+        setIsClosingRequest(false);
+        return;
+      }
+      
+      // 2. Create saved list using existing lists table
+      const { data: savedList, error: listError } = await supabase
+        .from('lists')
+        .insert({
+          owner_id: currentUserId,
+          title: request.title,
+          description: `Saved from request - ${topRecommendations.length} top recommendations with ${topRecommendations.reduce((sum, rec) => sum + rec.total_votes, 0)} total votes`,
+          category: request.category as any,
+          visibility: 'private',
+          source_request_id: request.id
+        })
+        .select()
+        .single();
+      
+      if (listError) throw listError;
+      
+      console.log('Saved list created:', savedList);
+      
+      // 3. Save top items to list_items
+      const listItems = topRecommendations.map((rec, index) => ({
+        list_id: savedList.id,
+        content: rec.recommendation_text,
+        url: rec.link,
+        position: index + 1
+      }));
+      
+      const { error: itemsError } = await supabase
+        .from('list_items')
+        .insert(listItems);
+      
+      if (itemsError) throw itemsError;
+      
+      console.log('List items saved:', listItems.length);
+      
+      // 4. Mark request as closed
+      const { error: updateError } = await supabase
+        .from('requests')
+        .update({ 
+          status: 'closed',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', request.id);
+      
+      if (updateError) throw updateError;
+      
+      console.log('Request marked as closed');
+      
+      // 5. Show success message
+      toast({
+        title: "Request closed!",
+        description: `Saved top ${topRecommendations.length} recommendations to My Lists`
+      });
+      
+      // 6. Reload to show closed state
+      await loadRequestData();
+      
+    } catch (error: any) {
+      console.error('Error closing request:', error);
+      toast({
+        title: "Failed to close request",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setIsClosingRequest(false);
+    }
+  };
+
+  // Close & Review: cluster recommendations and navigate to review page
+  const handleStartReview = async () => {
+    if (!request?.id) return;
+    
+    setIsStartingReview(true);
+    try {
+      const clusters = await initiateClusteringReview(request.id);
+      toast({
+        title: "Review Started!",
+        description: `Found ${clusters.length} unique recommendations to review`
+      });
+      navigate(`/requests/${request.id}/review`);
+    } catch (error: any) {
+      console.error('Error starting review:', error);
+      toast({
+        title: "Failed to Start Review",
+        description: error?.message || "Please try again",
+        variant: "destructive"
+      });
+    } finally {
+      setIsStartingReview(false);
+    }
+  };
+
+  const handleExtendRequest = async () => {
+    if (!request) return;
+    setIsExtending(true);
+    try {
+      const newExpiresAt = new Date(Date.now() + parseInt(extendDays) * 24 * 60 * 60 * 1000).toISOString();
+      const { error } = await supabase
+        .from("requests")
+        .update({ expires_at: newExpiresAt, expiry_notified: false })
+        .eq("id", request.id);
+      if (error) throw error;
+      toast({ title: "Request Extended", description: `Extended by ${extendDays} days` });
+      setShowExtendDialog(false);
+      await loadRequestData();
+    } catch (error) {
+      console.error("Error extending request:", error);
+      toast({ title: "Error", description: "Failed to extend request", variant: "destructive" });
+    } finally {
+      setIsExtending(false);
+    }
+  };
+
+  const handleQuickClose = async () => {
+    if (!request) return;
+    try {
+      const { error } = await supabase
+        .from("requests")
+        .update({ status: "closed" })
+        .eq("id", request.id);
+      if (error) throw error;
+      toast({ title: "Request Closed", description: "Your request has been closed" });
+      await loadRequestData();
+    } catch (error) {
+      console.error("Error closing request:", error);
+      toast({ title: "Error", description: "Failed to close request", variant: "destructive" });
+    }
+  };
+
+
+  const generateShareLink = async () => {
+    setIsGeneratingLink(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", user.id)
+        .single();
+
+      const { data: tokenData, error: tokenError } = await supabase.rpc("generate_share_token");
+      if (tokenError) throw tokenError;
+
+      const { error: linkError } = await supabase
+        .from("share_links")
+        .insert({
+          request_id: id,
+          token: tokenData,
+          generated_by_user_id: user.id,
+          generated_by_name: profile?.full_name || "You",
+          max_responses: 999,  // Unlimited for Antelog users
+          current_responses: 0
+        });
+
+      if (linkError) throw linkError;
+
+      const generatedUrl = `${window.location.origin}/r/${id}/${tokenData}`;
+      setMyShareLink(generatedUrl);
+
+      toast({
+        title: "Share Link Generated!",
+        description: "Copy and share this link with friends not on Antelog"
+      });
+
+      await loadExistingShareLinks();
+    } catch (error) {
+      console.error("Error generating link:", error);
+      toast({
+        title: "Failed to Generate Link",
+        description: "Please try again",
+        variant: "destructive"
+      });
+    } finally {
+      setIsGeneratingLink(false);
+    }
+  };
+
+  const copyShareLink = (link: string) => {
+    navigator.clipboard.writeText(link);
+    toast({
+      title: "Copied!",
+      description: "Share link copied to clipboard"
+    });
   };
 
   const formatCategory = (category: string) => {
@@ -321,15 +1277,107 @@ export default function RequestRespond() {
 
   const formatAudienceType = (audienceType: string) => {
     switch (audienceType) {
-      case "friends":
-        return "Friends";
-      case "extended_network":
-        return "Extended Network";
+      case "first_network": return "1st Network";
+      case "friends": return "Friends";
+      case "extended_network": return "Extended Network";
       case "specific_group":
-        return "Group";
-      default:
-        return audienceType;
+      case "group": return "Group";
+      case "specific_people": return "Specific People";
+      case "public": return "Public";
+      default: return audienceType;
     }
+  };
+
+  const getAudienceIcon = (audienceType: string) => {
+    switch (audienceType) {
+      case "friends": return <User className="h-4 w-4" />;
+      case "extended_network": return <Users className="h-4 w-4" />;
+      case "specific_group": return <UserCheck className="h-4 w-4" />;
+      default: return <Users className="h-4 w-4" />;
+    }
+  };
+
+  const getAudienceBadgeColor = (audienceType: string) => {
+    switch (audienceType) {
+      case "first_network":
+      case "friends":
+        return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200";
+      case "group":
+      case "specific_group":
+        return "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200";
+      case "specific_people":
+        return "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200";
+      case "public":
+        return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200";
+      default:
+        return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200";
+    }
+  };
+
+  // Get aggregated top recommendations across all responses
+  const getTopRecommendations = () => {
+    const allRecs = responses.flatMap(r => r.recommendations);
+    const grouped = allRecs.reduce((acc, rec) => {
+      const key = rec.recommendation_text_normalized || rec.recommendation_text.toLowerCase();
+      if (!acc[key]) {
+        acc[key] = { ...rec, total_votes: rec.vote_count };
+      } else {
+        acc[key].total_votes += rec.vote_count;
+      }
+      return acc;
+    }, {} as Record<string, Recommendation & { total_votes: number }>);
+    
+    return Object.values(grouped)
+      .sort((a, b) => b.total_votes - a.total_votes)
+      .slice(0, 5);
+  };
+
+  // Build unified leaderboard entries (network + guest), excluding merged-away items
+  const buildLeaderboardEntries = (): LeaderboardEntry[] => {
+    const items: LeaderboardEntry[] = [];
+
+    // Network recommendations from response_recommendations
+    responses.forEach((response) => {
+      response.recommendations.forEach((rec: any) => {
+        if (rec.merged_into_id || rec.merged_away) return; // Hide merged-away network entries
+        items.push({
+          key: `n:${rec.id}`,
+          recommendationId: rec.id,
+          source: "network",
+          text: rec.recommendation_text,
+          link: rec.link ?? null,
+          voteCount: rec.vote_count ?? 0,
+          userVoted: !!rec.user_voted,
+          responderId: response.responder_id,
+        });
+      });
+    });
+
+    // Guest recommendations from guest_contributions JSONB
+    guestContributions.forEach((contribution: any) => {
+      const recs: any[] = Array.isArray(contribution.recommendations) ? contribution.recommendations : [];
+      recs.forEach((rec, idx) => {
+        if (!rec) return;
+        if (rec.merged_into_id) return; // Hide merged-away guest entries
+        const recId: string | undefined = rec.id;
+        const text: string = rec.text || rec.name || rec.recommendation_text || "";
+        if (!recId || !text) return;
+        items.push({
+          key: `g:${contribution.id}:${idx}`,
+          recommendationId: recId,
+          source: "guest",
+          text,
+          link: rec.link ?? null,
+          voteCount: rec.vote_count ?? 0,
+          userVoted: !!guestVotes[recId],
+          guestContributionId: contribution.id,
+          guestRecIndex: idx,
+          responderId: undefined,
+        });
+      });
+    });
+
+    return items;
   };
 
   if (isLoading) {
@@ -346,18 +1394,6 @@ export default function RequestRespond() {
             <Skeleton className="h-4 w-2/3" />
           </CardContent>
         </Card>
-        <div className="space-y-4">
-          {[1, 2].map((i) => (
-            <Card key={i}>
-              <CardHeader>
-                <Skeleton className="h-5 w-1/3" />
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-20 w-full" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
       </div>
     );
   }
@@ -375,21 +1411,54 @@ export default function RequestRespond() {
     );
   }
 
+  const topRecommendations = getTopRecommendations();
+
   return (
     <div className="container mx-auto px-4 py-8">
-      {/* Header */}
+      {/* Welcome Banner for newly converted guests */}
+      {showWelcomeBanner && (
+        <div className="mb-6 p-4 rounded-lg border border-primary/30 bg-primary/5 flex items-center justify-between">
+          <div>
+            <p className="font-medium text-foreground">Welcome to Antelog! 🎉</p>
+            <p className="text-sm text-muted-foreground">Here's the request you contributed to. See how your recommendation is doing.</p>
+          </div>
+          <Button variant="ghost" size="sm" onClick={() => setShowWelcomeBanner(false)}>
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
+      {/* Forward suggestion banner from notification */}
+      {suggestForwardTo && request && (
+        <div className="mb-6 p-4 rounded-lg border border-amber-500/40 bg-amber-500/10 flex items-center justify-between gap-4">
+          <div className="flex-1">
+            <p className="text-sm text-foreground">
+              {request.creator_profile?.full_name || 'Someone'} asked about this — {suggestExpertName || 'someone'} in your network is an expert.
+            </p>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => setShowForwardModal(true)}
+          >
+            Forward to {suggestExpertName ? suggestExpertName.split(' ')[0] : 'them'}
+          </Button>
+        </div>
+      )}
       <div className="mb-6">
-        <Button variant="ghost" asChild className="mb-4">
-          <Link to="/requests" className="flex items-center gap-2">
-            <ArrowLeft className="h-4 w-4" />
-            Back to Requests
-          </Link>
+        <Button variant="ghost" className="mb-4 flex items-center gap-2" onClick={() => navigate(-1)}>
+          <ArrowLeft className="h-4 w-4" />
+          Back to Requests
         </Button>
         
-        <h1 className="text-3xl font-bold mb-2">Respond to Request</h1>
-        <p className="text-muted-foreground">
-          Share your recommendations or vote on existing responses
-        </p>
+        <h1 className="text-3xl font-bold mb-2">
+          {isOwnRequest ? "Your Request" : "Respond to Request"}
+        </h1>
+        {!isOwnRequest && (
+          <p className="text-muted-foreground">
+            Share your top 1-5 recommendations
+          </p>
+        )}
       </div>
 
       {/* Request Details */}
@@ -398,9 +1467,24 @@ export default function RequestRespond() {
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1">
               <CardTitle className="text-xl mb-2">{request.title}</CardTitle>
+              
+              {/* Requested by + Share Chain.
+                  When the viewer reached this request via anonymous expertise
+                  routing, the creator's identity is sealed. */}
               {request.creator_profile && (
-                <p className="text-sm text-muted-foreground mb-3">
-                  Requested by {request.creator_profile.full_name} (@{request.creator_profile.handle})
+                <p className="text-sm text-muted-foreground mb-1">
+                  {request.isCreatorConnected
+                    ? `Requested by ${request.creator_profile.full_name || request.creator_profile.handle}`
+                    : "Requested anonymously"}
+                </p>
+              )}
+              {/* Tier 1: Subtle share chain for forwarded requests */}
+              {request.network_path && request.network_path.length > 0 && (
+                <p className="text-xs text-muted-foreground mb-3">
+                  Shared by {request.network_path[request.network_path.length - 1].user_name}
+                  {request.network_path.length > 1 && (
+                    <> via {request.network_path.slice(0, -1).map(n => n.user_name).join(" → ")}</>
+                  )}
                 </p>
               )}
             </div>
@@ -408,190 +1492,1069 @@ export default function RequestRespond() {
           </div>
         </CardHeader>
         
-        <CardContent>
-          <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+        <CardContent className="space-y-4">
+          <div className="flex flex-wrap items-center gap-4 text-sm">
             {request.location && (
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 text-muted-foreground">
                 <MapPin className="h-3 w-3" />
                 <span>{request.location}</span>
               </div>
             )}
-            <div className="flex items-center gap-1">
-              {getAudienceIcon(request.audience_type)}
-              <span>Sent to {formatAudienceType(request.audience_type)}</span>
-            </div>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 text-muted-foreground">
               <Clock className="h-3 w-3" />
               <span>{formatDistanceToNow(new Date(request.created_at), { addSuffix: true })}</span>
             </div>
+            {(request as any).expires_at && (
+              <ExpiryBadge expiresAt={(request as any).expires_at} status={request.status} />
+            )}
+            {request.status === 'closed' && (
+              <span
+                className="text-xs inline-flex items-center gap-1"
+                style={{
+                  backgroundColor: "rgba(34,197,94,0.08)",
+                  border: "0.5px solid rgba(34,197,94,0.35)",
+                  borderRadius: 999,
+                  color: "rgb(15,110,60)",
+                  padding: "2px 10px",
+                  lineHeight: 1.4,
+                }}
+              >
+                <CheckCircle className="h-3 w-3" />
+                Closed
+              </span>
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm text-muted-foreground">Sent to:</span>
+            {(request.audience_types || [request.audience_type]).map((audienceType, index) => (
+              <Badge 
+                key={index} 
+                variant="secondary" 
+                className={`text-xs ${getAudienceBadgeColor(audienceType)}`}
+              >
+                {getAudienceIcon(audienceType)}
+                <span className="ml-1">{formatAudienceType(audienceType)}</span>
+              </Badge>
+            ))}
+          </div>
+
+          <div className="flex flex-wrap gap-2 pt-2 border-t">
+            {isOwnRequest ? (
+              <>
+                {request.status !== 'closed' && (
+                  <Button asChild variant="outline" className="flex items-center gap-2">
+                    <Link to={`/requests/${request.id}/edit`}>
+                      <Edit className="h-4 w-4" />
+                      Edit Request
+                    </Link>
+                  </Button>
+                )}
+                {/* Tier 2: Response Tree - only for request creator */}
+                {currentUserId && (
+                  <ResponseTree
+                    requestId={request.id}
+                    creatorId={request.creator_id}
+                    viewerId={currentUserId}
+                  />
+                )}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="icon" aria-label="More actions">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem
+                      onClick={() => setShowDeleteDialog(true)}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete Request
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </>
+            ) : (
+              <>
+                {canForward && (
+                  <Button onClick={() => setShowForwardModal(true)} variant="outline" className="flex items-center gap-2">
+                    <Share2 className="h-4 w-4" />
+                    Forward & Endorse
+                  </Button>
+                )}
+                {hasForwarded && (
+                  <Badge variant="secondary" className="flex items-center gap-1">
+                    <Share2 className="h-3 w-3" />
+                    You forwarded this
+                  </Badge>
+                )}
+              </>
+            )}
           </div>
         </CardContent>
       </Card>
 
-      {/* Response Form */}
-      <Card className="mb-8">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Plus className="h-5 w-5" />
-            Add Your Response
-          </CardTitle>
-        </CardHeader>
-        
-        <CardContent className="space-y-4">
-          {/* Response Type Selection */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Response Type</label>
-            <Select value={responseType} onValueChange={(value: "new_recommendations" | "existing_list") => setResponseType(value)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="new_recommendations">New Recommendations</SelectItem>
-                <SelectItem value="existing_list">Recommend Existing List</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+      {/* Live Leaderboard — visible to everyone who can see the request */}
+      <LiveLeaderboard
+        requestId={request.id}
+        isCreator={isOwnRequest}
+        currentUserId={currentUserId}
+        entries={buildLeaderboardEntries()}
+        onVoteNetwork={(recId, voted) => handleVoteRecommendation(recId, voted)}
+        onVoteGuest={(cId, recId, idx, voted) => handleGuestVote(cId, recId, idx, voted)}
+        onAfterMerge={loadRequestData}
+        isClosed={request.status === 'closed'}
+      />
+      {isOwnRequest && (
+        <p className="-mt-6 mb-8 text-sm text-muted-foreground">
+          You created this request — your network's picks appear below.
+        </p>
+      )}
 
-          {/* List Selection for existing list response */}
-          {responseType === "existing_list" && (
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Select List to Recommend</label>
-              <Select value={selectedListId} onValueChange={setSelectedListId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose from your public lists" />
-                </SelectTrigger>
-                <SelectContent>
-                  {userLists.map((list) => (
-                    <SelectItem key={list.id} value={list.id}>
-                      {list.title} ({formatCategory(list.category)})
-                    </SelectItem>
-                  ))
-                }
-                </SelectContent>
-              </Select>
-              {userLists.length === 0 && (
-                <p className="text-sm text-muted-foreground">
-                  You don't have any public lists yet.{" "}
-                  <Link to="/lists/new" className="text-primary hover:underline">
-                    Create one first
-                  </Link>
+      {/* Expired Banner - Creator View */}
+      {isOwnRequest && (request as any).expires_at && isRequestExpired((request as any).expires_at, request.status) && (
+        <Card
+          className="mb-8"
+          style={{
+            backgroundColor: "rgba(245,158,11,0.08)",
+            border: "1px solid rgba(245,158,11,0.35)",
+          }}
+        >
+          <CardContent className="py-6">
+            <div className="flex items-center gap-4 flex-wrap">
+              <div
+                className="flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center"
+                style={{ backgroundColor: "rgba(245,158,11,0.15)" }}
+              >
+                <Timer className="h-6 w-6" style={{ color: "rgb(160,100,0)" }} />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-medium" style={{ color: "rgb(160,100,0)" }}>
+                  This request expired on {new Date((request as any).expires_at).toLocaleDateString()}
+                </h3>
+                <p className="text-sm" style={{ color: "rgb(160,100,0)", opacity: 0.85 }}>
+                  What would you like to do?
                 </p>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowExtendDialog(true)}
+                  style={{
+                    border: "1px solid rgba(245,158,11,0.5)",
+                    color: "rgb(160,100,0)",
+                    backgroundColor: "transparent",
+                  }}
+                >
+                  Extend Request
+                </Button>
+                <Button
+                  onClick={handleQuickClose}
+                  style={{
+                    backgroundColor: "rgb(160,100,0)",
+                    color: "white",
+                  }}
+                >
+                  Close Request
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Expired Banner - Non-creator View */}
+      {!isOwnRequest && (request as any).expires_at && isRequestExpired((request as any).expires_at, request.status) && (
+        <Card className="mb-8 border-amber-500/30 bg-amber-500/5">
+          <CardContent className="py-6">
+            <div className="flex items-center gap-4">
+              <div className="flex-shrink-0 w-12 h-12 bg-amber-100 dark:bg-amber-900 rounded-full flex items-center justify-center">
+                <Timer className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-medium text-amber-800 dark:text-amber-200">This request has expired</h3>
+                <p className="text-sm text-amber-600 dark:text-amber-400">
+                  No new responses can be submitted. Existing responses are still visible.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+
+      {request.status === 'closed' && (
+        <div
+          className="mb-8 flex items-center justify-between gap-4 flex-wrap"
+          style={{
+            backgroundColor: "rgba(34,197,94,0.06)",
+            border: "0.5px solid rgba(34,197,94,0.25)",
+            borderRadius: "var(--radius)",
+            padding: "12px 16px",
+          }}
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <CheckCircle style={{ width: 20, height: 20, color: "rgb(15,110,60)", flexShrink: 0 }} />
+            <div className="min-w-0">
+              <div style={{ fontSize: 13, fontWeight: 500, color: "rgb(15,110,60)" }}>
+                Request closed
+              </div>
+              <div style={{ fontSize: 12, color: "rgba(15,110,60,0.7)" }}>
+                No new responses will be accepted
+              </div>
+            </div>
+          </div>
+          {isOwnRequest && (
+            <Button
+              variant="outline"
+              onClick={() => navigate('/lists')}
+              className="flex items-center gap-2"
+              style={{
+                border: "0.5px solid rgba(34,197,94,0.4)",
+                color: "rgb(15,110,60)",
+                backgroundColor: "transparent",
+              }}
+            >
+              <Save className="h-4 w-4" />
+              View in My Lists
+            </Button>
+          )}
+        </div>
+      )}
+
+
+      {/* Review in Progress State */}
+      {request.status === 'reviewing' && (
+        <Card className="mb-8 border-amber-500/30 bg-amber-500/5">
+          <CardContent className="py-6">
+            <div className="flex items-center gap-4">
+              <div className="flex-shrink-0 w-12 h-12 bg-amber-100 dark:bg-amber-900 rounded-full flex items-center justify-center">
+                <Clock className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-medium text-amber-800 dark:text-amber-200">Review in Progress</h3>
+                <p className="text-sm text-amber-600 dark:text-amber-400">
+                  You're currently reviewing this request's recommendations
+                </p>
+              </div>
+              {isOwnRequest && (
+                <Button 
+                  onClick={() => navigate(`/requests/${request.id}/review`)} 
+                  variant="outline" 
+                  className="flex items-center gap-2"
+                >
+                  Continue Review
+                </Button>
               )}
             </div>
-          )}
+          </CardContent>
+        </Card>
+      )}
 
-          {/* Response Content */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">
-              {responseType === "existing_list" ? "Why do you recommend this list?" : "Your Recommendations"}
-            </label>
-            <Textarea
-              value={responseContent}
-              onChange={(e) => setResponseContent(e.target.value)}
-              placeholder={
-                responseType === "existing_list" 
-                  ? "Explain why this list would be helpful for this request..."
-                  : "Share your recommendations and why you suggest them..."
-              }
-              rows={4}
-            />
-          </div>
-
-          <Button 
-            onClick={handleSubmitResponse} 
-            disabled={isSubmitting || !responseContent.trim()}
-            className="w-full"
+      {/* Share and Close & Review - side by side grid */}
+      {request.status !== 'closed' && (
+      <div
+        className="mb-8"
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: "12px",
+          alignItems: "stretch",
+        }}
+      >
+        {/* Share Externally Section - Left column */}
+        {currentUserId === request?.creator_id && (
+          <Card
+            id="share-outside-antelog"
+            style={{
+              backgroundColor: "rgba(56,189,248,0.06)",
+              border: "1px solid rgba(56,189,248,0.3)",
+            }}
           >
-            {isSubmitting ? "Submitting..." : "Submit Response"}
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* Existing Responses */}
-      <div className="space-y-4">
-        <h2 className="text-xl font-semibold">
-          Responses ({responses.length})
-        </h2>
-        
-        {responses.length > 0 ? (
-          responses.map((response) => (
-            <Card key={response.id}>
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <div>
-                      <p className="font-medium">
-                        {response.responder_profile.full_name}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        @{response.responder_profile.handle}
-                      </p>
-                    </div>
-                    <Badge variant="outline">
-                      {response.response_type === "existing_list" ? "List Recommendation" : "New Recommendations"}
-                    </Badge>
-                  </div>
-                  <span className="text-sm text-muted-foreground">
-                    {formatDistanceToNow(new Date(response.created_at), { addSuffix: true })}
-                  </span>
-                </div>
-              </CardHeader>
-              
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle
+                  className="text-lg flex items-center gap-2"
+                  style={{ color: "rgb(10,100,150)" }}
+                >
+                  <Share2 className="h-5 w-5" />
+                  Share outside Antelog
+                </CardTitle>
+                {!showShareSection && existingShareLinks.length === 0 && !myShareLink && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowShareSection(true)}
+                  >
+                    Show
+                  </Button>
+                )}
+              </div>
+            </CardHeader>
+            {(showShareSection || existingShareLinks.length > 0 || myShareLink) && (
               <CardContent className="space-y-4">
-                {/* List recommendation */}
-                {response.list && (
-                  <div className="p-3 bg-muted rounded-lg">
-                    <h4 className="font-medium mb-1">{response.list.title}</h4>
-                    {response.list.description && (
-                      <p className="text-sm text-muted-foreground">{response.list.description}</p>
-                    )}
+                <p className="text-sm text-muted-foreground">
+                  Generate a shareable link for friends who aren't on Antelog.
+                  Your link has unlimited uses. Each person who responds can share with up to 5 more people.
+                </p>
+
+                {/* Existing Share Links */}
+                {existingShareLinks.length > 0 && (
+                  <div className="space-y-3">
+                    <h4 className="text-sm font-semibold">Your shareable link</h4>
+                    {existingShareLinks.map((link, idx) => {
+                      const linkUrl = `${window.location.origin}/r/${request.id}/${link.token}`;
+                      return (
+                        <div key={link.id} className="p-3 bg-background border rounded-lg space-y-2">
+                          <div className="flex gap-2">
+                            <Input value={linkUrl} readOnly className="font-mono text-xs" />
+                            <Button size="sm" variant="outline" onClick={() => copyShareLink(linkUrl)}>
+                              Copy
+                            </Button>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Created {formatDistanceToNow(new Date(link.created_at), { addSuffix: true })}
+                          </p>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
-                
-                {/* Response content */}
-                <p className="text-sm leading-relaxed">{response.content}</p>
-                
-                {/* Voting buttons */}
-                <div className="flex items-center gap-4 pt-2 border-t">
+
+                {/* Generate Button - Only show if no links exist yet */}
+                {existingShareLinks.length === 0 && !myShareLink && (
                   <Button
-                    variant={response.user_vote?.vote_type === "helpful" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => handleVote(response.id, "helpful")}
-                    className="flex items-center gap-2"
+                    onClick={generateShareLink}
+                    disabled={isGeneratingLink}
+                    className="w-full"
+                    variant="default"
                   >
-                    <ThumbsUp className="h-3 w-3" />
-                    Helpful ({response.vote_counts.helpful})
+                    {isGeneratingLink ? "Generating..." : "Generate Share Link"}
                   </Button>
-                  
-                  <Button
-                    variant={response.user_vote?.vote_type === "not_helpful" ? "destructive" : "outline"}
-                    size="sm"
-                    onClick={() => handleVote(response.id, "not_helpful")}
-                    className="flex items-center gap-2"
-                  >
-                    <ThumbsUp className="h-3 w-3 rotate-180" />
-                    Not Helpful ({response.vote_counts.not_helpful})
-                  </Button>
+                )}
+
+                {/* New Share Link */}
+                {myShareLink && !existingShareLinks.some(l => `${window.location.origin}/r/${request.id}/${l.token}` === myShareLink) && (
+                  <div className="p-4 border border-primary/30 bg-primary/10 rounded-lg space-y-3">
+                    <p className="text-sm font-semibold">✓ New Share Link Generated!</p>
+                    <div className="flex gap-2">
+                      <Input value={myShareLink} readOnly className="font-mono text-sm" />
+                      <Button size="sm" onClick={() => copyShareLink(myShareLink)}>Copy</Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Share this link via WhatsApp, SMS, or email with up to 5 friends
+                    </p>
+                  </div>
+                )}
+
+                <div className="flex items-start gap-2 p-3 bg-muted rounded-lg">
+                  <MessageSquare className="h-4 w-4 mt-0.5 text-muted-foreground" />
+                  <p className="text-xs text-muted-foreground">
+                    <strong>Tip:</strong> Each person who uses your link can generate their own link
+                    to share with 5 more people. This creates a network chain you can track!
+                  </p>
                 </div>
               </CardContent>
+            )}
+          </Card>
+        )}
+
+        {/* Close & Review Button - Right column */}
+        {isOwnRequest && request.status === 'open' && (responses.length > 0 || guestContributions.length > 0) && (() => {
+          const uniqueRecsCount = buildLeaderboardEntries().filter(
+            (e) => e.text && e.text.trim().length > 0
+          ).length;
+          const totalResponsesCount = responses.length + guestContributions.length;
+          return (
+            <Card className="border-primary/30 bg-primary/5">
+              <CardContent className="py-6 flex flex-col gap-4 h-full">
+                <div className="flex items-center gap-3">
+                  <div className="flex-shrink-0 w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
+                    <Save className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-medium">Ready to close this request?</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Review and save the best recommendations to your list
+                    </p>
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 12 }}>
+                  <div
+                    style={{
+                      flex: 1,
+                      backgroundColor: "hsl(var(--secondary))",
+                      borderRadius: "var(--radius)",
+                      padding: "8px 10px",
+                      textAlign: "center",
+                    }}
+                  >
+                    <div style={{ fontSize: 18, fontWeight: 500 }}>{uniqueRecsCount}</div>
+                    <div style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}>
+                      Unique recommendations
+                    </div>
+                  </div>
+                  <div
+                    style={{
+                      flex: 1,
+                      backgroundColor: "hsl(var(--secondary))",
+                      borderRadius: "var(--radius)",
+                      padding: "8px 10px",
+                      textAlign: "center",
+                    }}
+                  >
+                    <div style={{ fontSize: 18, fontWeight: 500 }}>{totalResponsesCount}</div>
+                    <div style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}>
+                      Total responses
+                    </div>
+                  </div>
+                </div>
+                <Button
+                  onClick={handleStartReview}
+                  disabled={isStartingReview}
+                  className="flex items-center gap-2 w-full mt-auto"
+                >
+                  {isStartingReview ? (
+                    <>Processing...</>
+                  ) : (
+                    <>
+                      <CheckCircle className="h-4 w-4" />
+                      Close & Review
+                    </>
+                  )}
+                </Button>
+              </CardContent>
             </Card>
-          ))
-        ) : (
-          <Card>
+          );
+        })()}
+      </div>
+      )}
+
+      {/* Response Section - Conditional UI based on user's response status */}
+      {forwardSuggestion && !isOwnRequest && (
+        <div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 p-4">
+          <p className="text-sm text-amber-900 dark:text-amber-200">
+            <span className="mr-1">💡</span>
+            <span className="font-medium">{forwardSuggestion.expert_name}</span> in your network has expertise in this topic. Consider forwarding this request to them.
+          </p>
+          <div className="mt-3">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowForwardModal(true)}
+            >
+              <Share2 className="h-4 w-4 mr-2" />
+              Forward to {forwardSuggestion.expert_name}
+            </Button>
+          </div>
+        </div>
+      )}
+      {isOwnRequest ? null : userResponse && !isEditing ? (
+        /* User has already responded - show their response */
+        <Card className="mb-8 border-green-500/30 bg-green-500/5">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-green-700 dark:text-green-400">
+              <ThumbsUp className="h-5 w-5" />
+              Your Response
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Submitted {formatDistanceToNow(new Date(userResponse.created_at), { addSuffix: true })}
+            </p>
+          </CardHeader>
+          
+          <CardContent className="space-y-4">
+            <div>
+              <p className="font-medium mb-2">You recommended:</p>
+              <ol className="list-decimal list-inside space-y-2">
+                {userResponse.recommendations
+                  .sort((a, b) => a.position - b.position)
+                  .map((rec) => (
+                    <li key={rec.id} className="flex items-center gap-2">
+                      <span>{rec.recommendation_text}</span>
+                      {rec.link && (
+                        <a 
+                          href={rec.link} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="text-primary hover:underline"
+                        >
+                          <LinkIcon className="h-3 w-3" />
+                        </a>
+                      )}
+                      <span className="text-sm text-muted-foreground">
+                        ({rec.vote_count} votes)
+                      </span>
+                    </li>
+                  ))}
+              </ol>
+            </div>
+            
+            {userResponse.overall_notes && (
+              <p className="text-sm italic text-muted-foreground border-l-2 pl-3">
+                "{userResponse.overall_notes}"
+              </p>
+            )}
+            
+            {request.status !== 'closed' && (
+              <div className="flex gap-3 pt-2 border-t">
+                <Button variant="outline" onClick={handleEditResponse} className="flex items-center gap-2">
+                  <Edit className="h-4 w-4" />
+                  Edit Response
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={() => setShowDeleteResponseDialog(true)}
+                  className="flex items-center gap-2 text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete Response
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      ) : request.status === 'closed' || ((request as any).expires_at && isRequestExpired((request as any).expires_at, request.status)) ? (
+        /* Request is closed or expired - show message */
+        <Card className="mb-8 border-muted">
+          <CardContent className="py-8">
+            <div className="text-center">
+              <div className="mx-auto w-12 h-12 bg-muted rounded-full flex items-center justify-center mb-3">
+                {request.status === 'closed' 
+                  ? <CheckCircle className="h-6 w-6 text-muted-foreground" />
+                  : <Timer className="h-6 w-6 text-muted-foreground" />
+                }
+              </div>
+              <h3 className="font-medium mb-1">
+                {request.status === 'closed' ? 'This request has been closed' : 'This request has expired'}
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                {request.status === 'closed' 
+                  ? 'The creator is no longer accepting new recommendations'
+                  : 'No new responses can be submitted'}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        /* User has not responded or is editing - show form */
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              {isEditing ? <Edit className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
+              {isEditing ? "Edit Your Recommendations" : "Add Your Recommendations"}
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Share 1-5 specific recommendations. Each can be voted on individually.
+            </p>
+          </CardHeader>
+          
+          <CardContent className="space-y-4">
+            {recommendations.map((rec, index) => (
+              <div key={index} className="p-4 border rounded-lg space-y-3 relative">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-primary">Recommendation #{index + 1}</span>
+                  {recommendations.length > 3 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeRecommendation(index)}
+                      className="text-destructive hover:text-destructive"
+                    >
+                      <X className="h-4 w-4 mr-1" />
+                      Remove
+                    </Button>
+                  )}
+                </div>
+                
+                <div className="space-y-1">
+                  <label className="text-sm text-muted-foreground">Product/Service name *</label>
+                  <Input
+                    placeholder="Enter product or service"
+                    value={rec.name}
+                    onChange={(e) => updateRecommendation(index, "name", e.target.value)}
+                    onBlur={() => {
+                      // Delay dismissal to allow click on suggestion
+                      setTimeout(() => {
+                        if (suggestions?.index === index) {
+                          setSuggestions(null);
+                        }
+                      }, 200);
+                    }}
+                    maxLength={200}
+                  />
+                  
+                  {/* Duplicate detection suggestions */}
+                  {suggestions && suggestions.index === index && suggestions.items.length > 0 && (
+                    <div className="border rounded-md mt-2 p-3 bg-yellow-50 dark:bg-yellow-950 border-yellow-200 dark:border-yellow-800">
+                      <div className="flex items-center gap-2 mb-2">
+                        <AlertTriangle className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+                        <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                          Similar recommendations exist
+                        </p>
+                      </div>
+                      <div className="space-y-1">
+                        {suggestions.items.map(item => (
+                          <div 
+                            key={item.id}
+                            className="flex items-center justify-between text-sm p-2 rounded bg-yellow-100 dark:bg-yellow-900 hover:bg-yellow-200 dark:hover:bg-yellow-800 cursor-pointer transition-colors"
+                            onClick={() => handleSelectExistingRecommendation(item, index)}
+                          >
+                            <span className="text-yellow-900 dark:text-yellow-100">
+                              {item.recommendation_text}
+                            </span>
+                            <span className="flex items-center gap-2 text-xs text-yellow-700 dark:text-yellow-300">
+                              {item.similarity_score && (
+                                <span className="bg-yellow-200 dark:bg-yellow-800 px-1.5 py-0.5 rounded">
+                                  {Math.round(item.similarity_score * 100)}% match
+                                </span>
+                              )}
+                              <span className="flex items-center gap-1">
+                                <ThumbsUp className="h-3 w-3" />
+                                {item.vote_count} {item.vote_count === 1 ? 'vote' : 'votes'}
+                              </span>
+                              <span>- Click to vote</span>
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex justify-end mt-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={dismissSuggestions}
+                          className="text-xs text-yellow-700 dark:text-yellow-300 hover:text-yellow-900 dark:hover:text-yellow-100"
+                        >
+                          <Check className="h-3 w-3 mr-1" />
+                          No, this is different
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="space-y-1">
+                  <label className="text-sm text-muted-foreground flex items-center gap-1">
+                    <LinkIcon className="h-3 w-3" />
+                    Link (optional)
+                  </label>
+                  <Input
+                    placeholder="https://"
+                    value={rec.link}
+                    onChange={(e) => updateRecommendation(index, "link", e.target.value)}
+                  />
+                </div>
+              </div>
+            ))}
+
+            {recommendations.length < 5 && (
+              <Button variant="outline" onClick={addRecommendation} className="w-full">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Another Recommendation
+              </Button>
+            )}
+            
+            <p className="text-xs text-muted-foreground text-center">
+              (minimum 1, maximum 5)
+            </p>
+
+            <div className="border-t pt-4 space-y-2">
+              <label className="text-sm font-medium">Overall Context (optional)</label>
+              <p className="text-xs text-muted-foreground">Why did you choose these?</p>
+              <Textarea
+                value={overallContext}
+                onChange={(e) => setOverallContext(e.target.value.slice(0, MAX_CONTEXT_LENGTH))}
+                placeholder="Brief context about your picks (optional)"
+                rows={2}
+                maxLength={MAX_CONTEXT_LENGTH}
+              />
+              <p className="text-xs text-muted-foreground text-right">
+                {overallContext.length}/{MAX_CONTEXT_LENGTH}
+              </p>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <Button 
+                variant="outline" 
+                onClick={isEditing ? handleCancelEdit : () => navigate('/requests')} 
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleSubmitResponse} 
+                disabled={isSubmitting}
+                className="flex-1"
+              >
+                {isSubmitting ? "Submitting..." : isEditing ? "Update Response" : "Submit Recommendations"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Existing Responses — split by origin */}
+      {(() => {
+        const directResponses = responses.filter((r) => r.origin !== 'anonymous');
+        const anonymousResponses = responses.filter((r) => r.origin === 'anonymous');
+        const renderResponseCard = (response: RequestResponse) => {
+          const isAnon = response.origin === 'anonymous';
+          return (
+            <div
+              key={response.id}
+              style={{
+                width: 175,
+                flexShrink: 0,
+                border: "0.5px solid hsl(var(--border))",
+                borderRadius: "calc(var(--radius) + 2px)",
+                padding: 12,
+                background: "hsl(var(--card))",
+              }}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <span
+                  style={{ fontSize: 13, fontWeight: 500 }}
+                  className="truncate"
+                  title={response.responder_profile.full_name}
+                >
+                  {response.responder_profile.full_name}
+                </span>
+                <span
+                  style={{
+                    fontSize: 10,
+                    border: "0.5px solid hsl(var(--border))",
+                    borderRadius: 999,
+                    padding: "1px 6px",
+                    color: "hsl(var(--muted-foreground))",
+                    flexShrink: 0,
+                  }}
+                >
+                  {isAnon ? "anonymous" : "network"}
+                </span>
+              </div>
+              <div
+                style={{
+                  fontSize: 11,
+                  color: "hsl(var(--muted-foreground))",
+                  marginTop: 2,
+                }}
+              >
+                {isAnon ? "Identity withheld" : "Direct"}
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 5,
+                  marginTop: 10,
+                }}
+              >
+                {response.recommendations.map((rec, index) => (
+                  <div
+                    key={rec.id}
+                    className="flex items-start justify-between gap-2"
+                    style={{ fontSize: 12 }}
+                  >
+                    <span className="min-w-0 truncate">
+                      <span style={{ fontWeight: 500 }}>#{index + 1}</span>{" "}
+                      <span>{rec.recommendation_text}</span>
+                    </span>
+                    <span
+                      style={{
+                        fontSize: 11,
+                        color: "hsl(var(--muted-foreground))",
+                        flexShrink: 0,
+                      }}
+                    >
+                      {rec.vote_count}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <div
+                style={{
+                  fontSize: 11,
+                  color: "hsl(var(--muted-foreground))",
+                  marginTop: 10,
+                }}
+              >
+                {formatDistanceToNow(new Date(response.created_at), { addSuffix: true })}
+              </div>
+            </div>
+          );
+        };
+
+        const renderScroller = (items: JSX.Element[]) => (
+          <div
+            style={{
+              overflowX: "auto",
+              width: "100%",
+              paddingBottom: 8,
+              scrollbarWidth: "thin",
+            }}
+          >
+            <div style={{ display: "flex", flexDirection: "row", flexWrap: "nowrap", gap: 10, width: "max-content" }}>
+              {items}
+            </div>
+          </div>
+        );
+
+        return (
+          <div className="space-y-8">
+            {/* From your network */}
+            <section className="space-y-3">
+              <div>
+                <h2 className="text-xl font-semibold">From your network</h2>
+                <p className="text-xs text-muted-foreground">
+                  People connected to you through your trust graph.
+                </p>
+              </div>
+              {directResponses.length > 0 ? (
+                renderScroller(directResponses.map(renderResponseCard))
+              ) : (
+                <Card>
             <CardContent>
               <div className="text-center py-8">
-                <div className="mx-auto w-12 h-12 bg-muted rounded-full flex items-center justify-center mb-3">
-                  <MessageSquare className="h-6 w-6 text-muted-foreground" />
-                </div>
-                <h3 className="font-medium mb-1">No responses yet</h3>
                 <p className="text-sm text-muted-foreground">
-                  Be the first to respond to this request!
+                  Nobody from your network has responded yet.
                 </p>
+                {isOwnRequest && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowShareSection(true);
+                      setTimeout(() => {
+                        document
+                          .getElementById("share-outside-antelog")
+                          ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                      }, 50);
+                    }}
+                    className="mt-2 text-sm text-primary hover:underline"
+                  >
+                    Share with your network →
+                  </button>
+                )}
+              </div>
+            </CardContent>
+                </Card>
+              )}
+            </section>
+
+            {/* Anonymous expertise */}
+            {anonymousResponses.length > 0 && (
+              <section className="space-y-3 pt-4 border-t">
+                <div>
+                  <h2 className="text-xl font-semibold">Anonymous expertise</h2>
+                  <p className="text-xs text-muted-foreground">
+                    Contributors routed by relevance. Identities are withheld;
+                    treat as informational input, not social trust.
+                  </p>
+                </div>
+                {renderScroller(anonymousResponses.map(renderResponseCard))}
+              </section>
+            )}
+          </div>
+        );
+      })()}
+
+      <div className="space-y-4">
+
+        {/* Guest Contributions */}
+        {guestContributions.length > 0 && (
+          <div className="space-y-3 mt-6">
+            <h3 className="text-lg font-semibold text-muted-foreground">
+              Guest Responses ({guestContributions.length})
+            </h3>
+
+            <div
+              style={{
+                overflowX: "auto",
+                width: "100%",
+                paddingBottom: 8,
+                scrollbarWidth: "thin",
+              }}
+            >
+              <div style={{ display: "flex", flexDirection: "row", flexWrap: "nowrap", gap: 10, width: "max-content" }}>
+                {guestContributions.map((contribution) => {
+                  const recs = Array.isArray(contribution.recommendations)
+                    ? contribution.recommendations
+                    : [];
+                  const forwarder = contribution.share_links?.generated_by_name;
+                  return (
+                    <div
+                      key={contribution.id}
+                      style={{
+                        width: 175,
+                        flexShrink: 0,
+                        border: "0.5px solid hsl(var(--border))",
+                        borderRadius: "calc(var(--radius) + 2px)",
+                        padding: 12,
+                        background: "hsl(var(--card))",
+                      }}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <span
+                          style={{ fontSize: 13, fontWeight: 500 }}
+                          className="truncate"
+                          title={contribution.contributor_name}
+                        >
+                          {contribution.contributor_name}
+                        </span>
+                        <span
+                          style={{
+                            fontSize: 10,
+                            border: "0.5px solid hsl(var(--border))",
+                            borderRadius: 999,
+                            padding: "1px 6px",
+                            color: "hsl(var(--muted-foreground))",
+                            flexShrink: 0,
+                          }}
+                        >
+                          guest
+                        </span>
+                      </div>
+                      <div
+                        style={{
+                          fontSize: 11,
+                          color: "hsl(var(--muted-foreground))",
+                          marginTop: 2,
+                        }}
+                        className="truncate"
+                      >
+                        {forwarder ? `via ${forwarder}` : "via your share link"}
+                      </div>
+
+                      <div
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 5,
+                          marginTop: 10,
+                        }}
+                      >
+                        {recs.map((rec: any, idx: number) => {
+                          if (!rec) return null;
+                          return (
+                            <div
+                              key={rec.id || idx}
+                              className="flex items-start justify-between gap-2"
+                              style={{ fontSize: 12 }}
+                            >
+                              <span className="min-w-0 truncate">
+                                <span style={{ fontWeight: 500 }}>#{idx + 1}</span>{" "}
+                                <span>{rec.text}</span>
+                              </span>
+                              <span
+                                style={{
+                                  fontSize: 11,
+                                  color: "hsl(var(--muted-foreground))",
+                                  flexShrink: 0,
+                                }}
+                              >
+                                {rec.vote_count || 0}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      <div
+                        style={{
+                          fontSize: 11,
+                          color: "hsl(var(--muted-foreground))",
+                          marginTop: 10,
+                        }}
+                      >
+                        {formatDistanceToNow(new Date(contribution.created_at), { addSuffix: true })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Forward Request Modal */}
+      {request && (
+        <ForwardRequestModal
+          open={showForwardModal}
+          onOpenChange={setShowForwardModal}
+          requestId={request.id}
+          requestTitle={request.title}
+          requestCreatorName={request.creator_profile?.full_name || 'Unknown'}
+          requestCreatorId={request.creator_id}
+          existingNetworkPath={request.network_path}
+          preselectedFriendIds={forwardSuggestion ? [forwardSuggestion.expert_id] : undefined}
+          onForwardComplete={() => {
+            loadRequestData();
+            toast({
+              title: "Success!",
+              description: "Request forwarded to your network"
+            });
+          }}
+        />
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      <DeleteRequestDialog
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        onConfirm={handleDeleteRequest}
+        isDeleting={isDeleting}
+      />
+
+      {/* Delete Response Confirmation Dialog */}
+      {showDeleteResponseDialog && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <Card className="max-w-md w-full mx-4">
+            <CardHeader>
+              <CardTitle>Delete Your Response?</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-muted-foreground">
+                Are you sure you want to delete your response? This will remove all your recommendations and cannot be undone.
+              </p>
+              <div className="flex gap-3">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setShowDeleteResponseDialog(false)}
+                  className="flex-1"
+                  disabled={isDeletingResponse}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  variant="destructive"
+                  onClick={handleDeleteUserResponse}
+                  className="flex-1"
+                  disabled={isDeletingResponse}
+                >
+                  {isDeletingResponse ? "Deleting..." : "Delete Response"}
+                </Button>
               </div>
             </CardContent>
           </Card>
-        )}
-      </div>
+        </div>
+      )}
+      {/* Extend Request Dialog */}
+      <Dialog open={showExtendDialog} onOpenChange={setShowExtendDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Extend Request</DialogTitle>
+          </DialogHeader>
+          <ExpiryDurationPicker value={extendDays} onChange={setExtendDays} label="Extend by" />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowExtendDialog(false)}>Cancel</Button>
+            <Button onClick={handleExtendRequest} disabled={isExtending}>
+              {isExtending ? "Extending..." : "Confirm Extension"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

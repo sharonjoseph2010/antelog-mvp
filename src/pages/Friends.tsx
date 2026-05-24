@@ -7,23 +7,63 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Users, UserPlus, Upload, Check, X, Trash2, Network } from "lucide-react";
+import { Users, Upload, Trash2 } from "lucide-react";
+import { FriendRequestButton } from "@/components/FriendRequestButton";
 
-interface FriendRequest {
-  id: string;
-  requester_id: string;
-  addressee_id: string;
-  status: string;
-  created_at: string;
-  requester_profile?: {
-    handle: string;
-    full_name: string;
-  };
-  addressee_profile?: {
-    handle: string;
-    full_name: string;
-  };
-}
+// Custom icon for 2nd degree - two people connected
+const TwoPersonChain = ({ className }: { className?: string }) => (
+  <svg 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke="currentColor" 
+    strokeWidth="2" 
+    strokeLinecap="round" 
+    strokeLinejoin="round"
+    className={className}
+  >
+    {/* First person */}
+    <circle cx="6" cy="8" r="2.5" />
+    <path d="M 3.5 14 Q 6 11.5 8.5 14" />
+    
+    {/* Connection line */}
+    <line x1="8.5" y1="12" x2="15.5" y2="12" strokeDasharray="2,2" />
+    
+    {/* Second person */}
+    <circle cx="18" cy="8" r="2.5" />
+    <path d="M 15.5 14 Q 18 11.5 20.5 14" />
+  </svg>
+);
+
+// Custom icon for 3rd+ degree - three people connected
+const ThreePersonChain = ({ className }: { className?: string }) => (
+  <svg 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke="currentColor" 
+    strokeWidth="2" 
+    strokeLinecap="round" 
+    strokeLinejoin="round"
+    className={className}
+  >
+    {/* First person */}
+    <circle cx="4" cy="8" r="2" />
+    <path d="M 2.5 13 Q 4 11 5.5 13" />
+    
+    {/* Connection line 1 */}
+    <line x1="5.5" y1="11" x2="9.5" y2="11" strokeDasharray="1,1" />
+    
+    {/* Second person */}
+    <circle cx="12" cy="8" r="2" />
+    <path d="M 10.5 13 Q 12 11 13.5 13" />
+    
+    {/* Connection line 2 */}
+    <line x1="13.5" y1="11" x2="18.5" y2="11" strokeDasharray="1,1" />
+    
+    {/* Third person */}
+    <circle cx="20" cy="8" r="2" />
+    <path d="M 18.5 13 Q 20 11 21.5 13" />
+  </svg>
+);
 
 interface Friendship {
   id: string;
@@ -31,18 +71,35 @@ interface Friendship {
   user2_id: string;
   created_at: string;
   friend_profile?: {
+    id: string;
     handle: string;
     full_name: string;
   };
   contact_name?: string;
 }
 
+interface ExtendedNetworkMember {
+  profile_id: string;
+  full_name: string;
+  handle: string;
+  mutual_friends: string[];
+}
+
+interface Group {
+  id: string;
+  creator_id: string;
+  name: string;
+  description: string | null;
+  created_at: string;
+  member_count: number;
+}
+
 const Friends = () => {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]);
-  const [sentRequests, setSentRequests] = useState<FriendRequest[]>([]);
   const [friendships, setFriendships] = useState<Friendship[]>([]);
-  const [extendedNetworkCount, setExtendedNetworkCount] = useState(0);
+  const [extendedNetwork, setExtendedNetwork] = useState<ExtendedNetworkMember[]>([]);
+  const [thirdPlusNetwork, setThirdPlusNetwork] = useState<ExtendedNetworkMember[]>([]);
+  const [groups, setGroups] = useState<Group[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
@@ -52,9 +109,9 @@ const Friends = () => {
 
   useEffect(() => {
     if (currentUserId) {
-      loadFriendRequests();
       loadFriendships();
-      loadExtendedNetworkCount();
+      loadExtendedNetwork();
+      loadGroups();
     }
   }, [currentUserId]);
 
@@ -62,68 +119,6 @@ const Friends = () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
       setCurrentUserId(user.id);
-    }
-  };
-
-  const loadFriendRequests = async () => {
-    if (!currentUserId) return;
-
-    try {
-      // Load received requests with profiles
-      const { data: receivedData, error: receivedError } = await supabase
-        .from('friend_requests')
-        .select('*')
-        .eq('addressee_id', currentUserId)
-        .eq('status', 'pending');
-
-      if (receivedError) throw receivedError;
-
-      // Load sent requests
-      const { data: sentData, error: sentError } = await supabase
-        .from('friend_requests')
-        .select('*')
-        .eq('requester_id', currentUserId)
-        .eq('status', 'pending');
-
-      if (sentError) throw sentError;
-
-      // Get profiles for received requests
-      if (receivedData && receivedData.length > 0) {
-        const requesterIds = receivedData.map(r => r.requester_id);
-        const { data: requesterProfiles } = await supabase
-          .from('profiles')
-          .select('id, handle, full_name')
-          .in('id', requesterIds);
-
-        const receivedWithProfiles = receivedData.map(request => ({
-          ...request,
-          requester_profile: requesterProfiles?.find(p => p.id === request.requester_id)
-        }));
-        setFriendRequests(receivedWithProfiles);
-      } else {
-        setFriendRequests([]);
-      }
-
-      // Get profiles for sent requests
-      if (sentData && sentData.length > 0) {
-        const addresseeIds = sentData.map(r => r.addressee_id);
-        const { data: addresseeProfiles } = await supabase
-          .from('profiles')
-          .select('id, handle, full_name')
-          .in('id', addresseeIds);
-
-        const sentWithProfiles = sentData.map(request => ({
-          ...request,
-          addressee_profile: addresseeProfiles?.find(p => p.id === request.addressee_id)
-        }));
-        setSentRequests(sentWithProfiles);
-      } else {
-        setSentRequests([]);
-      }
-    } catch (error) {
-      console.error('Error loading friend requests:', error);
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -191,7 +186,7 @@ const Friends = () => {
     }
   };
 
-  const loadExtendedNetworkCount = async () => {
+  const loadExtendedNetwork = async () => {
     if (!currentUserId) return;
 
     try {
@@ -200,55 +195,57 @@ const Friends = () => {
       });
 
       if (error) {
-        console.error('Error loading extended network count:', error);
-        setExtendedNetworkCount(0);
+        console.error('Error loading extended network:', error);
+        setExtendedNetwork([]);
         return;
       }
 
-      setExtendedNetworkCount(networkData?.length || 0);
+      setExtendedNetwork(networkData || []);
     } catch (error) {
-      console.error('Error loading extended network count:', error);
-      setExtendedNetworkCount(0);
+      console.error('Error loading extended network:', error);
+      setExtendedNetwork([]);
     }
   };
 
-  const handleFriendRequest = async (requestId: string, action: 'accept' | 'reject') => {
+  const loadGroups = async () => {
+    if (!currentUserId) return;
+
     try {
-      const { error } = await supabase
-        .from('friend_requests')
-        .update({ status: action === 'accept' ? 'accepted' : 'rejected' })
-        .eq('id', requestId);
+      const { data: groupsData, error: groupsError } = await supabase
+        .from('groups')
+        .select('*')
+        .eq('creator_id', currentUserId)
+        .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (groupsError) throw groupsError;
 
-      if (action === 'accept') {
-        // Create friendship
-        const request = friendRequests.find(r => r.id === requestId);
-        if (request && currentUserId) {
-          const { error: friendshipError } = await supabase
-            .from('friendships')
-            .insert({
-              user1_id: request.requester_id,
-              user2_id: currentUserId,
-            });
+      if (groupsData && groupsData.length > 0) {
+        const groupIds = groupsData.map(g => g.id);
+        
+        const { data: memberCounts, error: memberError } = await supabase
+          .from('group_members')
+          .select('group_id')
+          .in('group_id', groupIds);
 
-          if (friendshipError) throw friendshipError;
-        }
+        if (memberError) throw memberError;
+
+        const countsByGroup = memberCounts?.reduce((acc, member) => {
+          acc[member.group_id] = (acc[member.group_id] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>) || {};
+
+        const groupsWithCounts = groupsData.map(group => ({
+          ...group,
+          member_count: countsByGroup[group.id] || 0
+        }));
+
+        setGroups(groupsWithCounts);
+      } else {
+        setGroups([]);
       }
-
-      toast({
-        title: action === 'accept' ? "Friend request accepted" : "Friend request rejected",
-        description: `You ${action === 'accept' ? 'accepted' : 'rejected'} the friend request.`,
-      });
-
-      loadFriendRequests();
-      loadFriendships();
     } catch (error) {
-      toast({
-        title: "Action failed",
-        description: "Failed to process friend request. Please try again.",
-        variant: "destructive",
-      });
+      console.error('Error loading groups:', error);
+      setGroups([]);
     }
   };
 
@@ -262,15 +259,15 @@ const Friends = () => {
       if (error) throw error;
 
       toast({
-        title: "Friend removed",
-        description: "Friend has been removed from your list.",
+        title: "Removed from 1st Network",
+        description: "Connection has been removed from your 1st network.",
       });
 
-      loadFriendships();
+      await Promise.all([loadFriendships(), loadExtendedNetwork()]);
     } catch (error) {
       toast({
         title: "Remove failed",
-        description: "Failed to remove friend. Please try again.",
+        description: "Failed to remove connection. Please try again.",
         variant: "destructive",
       });
     }
@@ -279,17 +276,17 @@ const Friends = () => {
   return (
     <>
       <Helmet>
-        <title>Friends - Antelog</title>
-        <meta name="description" content="Manage your friends and friend requests on Antelog" />
+        <title>Network - Antelog</title>
+        <meta name="description" content="Manage your network connections on Antelog" />
       </Helmet>
 
       <div className="container mx-auto py-8 px-4 max-w-4xl">
         <div className="mb-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
             <div>
-              <h1 className="text-3xl font-bold mb-2">Friends</h1>
+              <h1 className="text-3xl font-bold mb-2">Network</h1>
               <p className="text-muted-foreground">
-                Manage your friend connections and requests
+                Manage your network connections
               </p>
             </div>
             
@@ -302,69 +299,63 @@ const Friends = () => {
           </div>
 
           <Tabs defaultValue="friends" className="space-y-6">
-            <div className="border-b border-border">
-              <TabsList className="h-auto p-0 bg-transparent grid w-full grid-cols-2 sm:grid-cols-4 gap-0">
-                <TabsTrigger 
-                  value="friends" 
-                  className="flex items-center justify-center gap-2 px-4 py-3 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none bg-transparent text-muted-foreground data-[state=active]:text-foreground hover:text-foreground transition-colors"
-                >
-                  <Users className="h-4 w-4" />
-                  <span className="hidden xs:inline">Friends</span>
-                  <Badge variant="secondary" className="ml-1 text-xs">
-                    {friendships.length}
-                  </Badge>
-                </TabsTrigger>
-                
-                <TabsTrigger 
-                  value="extended" 
-                  className="flex items-center justify-center gap-2 px-4 py-3 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none bg-transparent text-muted-foreground data-[state=active]:text-foreground hover:text-foreground transition-colors"
-                >
-                  <Network className="h-4 w-4" />
-                  <span className="hidden xs:inline">Extended</span>
-                  <Badge variant="secondary" className="ml-1 text-xs">
-                    {extendedNetworkCount}
-                  </Badge>
-                </TabsTrigger>
-                
-                <TabsTrigger 
-                  value="received" 
-                  className="flex items-center justify-center gap-2 px-4 py-3 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none bg-transparent text-muted-foreground data-[state=active]:text-foreground hover:text-foreground transition-colors"
-                >
-                  <UserPlus className="h-4 w-4" />
-                  <span className="hidden xs:inline">Received</span>
-                  <Badge variant="secondary" className="ml-1 text-xs">
-                    {friendRequests.length}
-                  </Badge>
-                </TabsTrigger>
-                
-                <TabsTrigger 
-                  value="sent" 
-                  className="flex items-center justify-center gap-2 px-4 py-3 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none bg-transparent text-muted-foreground data-[state=active]:text-foreground hover:text-foreground transition-colors"
-                >
-                  <Upload className="h-4 w-4" />
-                  <span className="hidden xs:inline">Sent</span>
-                  <Badge variant="secondary" className="ml-1 text-xs">
-                    {sentRequests.length}
-                  </Badge>
-                </TabsTrigger>
-              </TabsList>
-            </div>
+            <TabsList className="h-auto p-0 bg-transparent flex gap-2 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+              <TabsTrigger 
+                value="friends" 
+                className="group rounded-full border border-border text-sm font-medium px-4 py-1.5 flex items-center gap-2 whitespace-nowrap data-[state=active]:bg-foreground data-[state=active]:text-background data-[state=active]:border-foreground bg-background text-muted-foreground hover:text-foreground transition-colors shadow-none"
+              >
+                1st Network
+                <span className="rounded-full px-2 py-0.5 text-xs font-semibold bg-muted text-muted-foreground group-data-[state=active]:bg-white/20 group-data-[state=active]:text-background">
+                  {friendships.length}
+                </span>
+              </TabsTrigger>
+              
+              <TabsTrigger 
+                value="second-degree" 
+                className="group rounded-full border border-border text-sm font-medium px-4 py-1.5 flex items-center gap-2 whitespace-nowrap data-[state=active]:bg-foreground data-[state=active]:text-background data-[state=active]:border-foreground bg-background text-muted-foreground hover:text-foreground transition-colors shadow-none"
+              >
+                2nd Network
+                <span className="rounded-full px-2 py-0.5 text-xs font-semibold bg-muted text-muted-foreground group-data-[state=active]:bg-white/20 group-data-[state=active]:text-background">
+                  {extendedNetwork.length}
+                </span>
+              </TabsTrigger>
+
+              <TabsTrigger 
+                value="third-plus" 
+                className="group rounded-full border border-border text-sm font-medium px-4 py-1.5 flex items-center gap-2 whitespace-nowrap data-[state=active]:bg-foreground data-[state=active]:text-background data-[state=active]:border-foreground bg-background text-muted-foreground hover:text-foreground transition-colors shadow-none"
+              >
+                3rd+ Network
+                <span className="rounded-full px-2 py-0.5 text-xs font-semibold bg-muted text-muted-foreground group-data-[state=active]:bg-white/20 group-data-[state=active]:text-background">
+                  {thirdPlusNetwork.length}
+                </span>
+              </TabsTrigger>
+
+              <TabsTrigger 
+                value="groups" 
+                className="group rounded-full border border-border text-sm font-medium px-4 py-1.5 flex items-center gap-2 whitespace-nowrap data-[state=active]:bg-foreground data-[state=active]:text-background data-[state=active]:border-foreground bg-background text-muted-foreground hover:text-foreground transition-colors shadow-none"
+              >
+                Groups
+                <span className="rounded-full px-2 py-0.5 text-xs font-semibold bg-muted text-muted-foreground group-data-[state=active]:bg-white/20 group-data-[state=active]:text-background">
+                  {groups.length}
+                </span>
+              </TabsTrigger>
+            </TabsList>
 
           <TabsContent value="friends">
             <Card>
               <CardHeader>
-                <CardTitle>Your Friends</CardTitle>
+                <CardTitle>Your 1st Network</CardTitle>
                 <CardDescription>
-                  People you're connected with on Antelog
+                  People you trust for recommendations
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 {friendships.length === 0 ? (
                   <div className="text-center py-8">
                     <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                    <h3 className="text-lg font-medium mb-2">No friends yet</h3>
+                    <h3 className="text-lg font-medium mb-2">No one in your 1st network yet</h3>
                     <p className="text-muted-foreground mb-4">
-                      Import your contacts to find friends on Antelog
+                      Build your 1st network by importing contacts
                     </p>
                     <Button asChild>
                       <Link to="/contacts/import">Import Contacts</Link>
@@ -379,13 +370,22 @@ const Friends = () => {
                       >
                         <div>
                           <h3 className="font-medium">
-                            {friendship.contact_name || friendship.friend_profile?.full_name || 'Unknown User'}
+                            {friendship.friend_profile?.id ? (
+                              <Link
+                                to={`/profile/${friendship.friend_profile.id}`}
+                                className="hover:underline"
+                              >
+                                {friendship.contact_name || friendship.friend_profile?.full_name || 'Unknown User'}
+                              </Link>
+                            ) : (
+                              friendship.contact_name || friendship.friend_profile?.full_name || 'Unknown User'
+                            )}
                           </h3>
                           <p className="text-sm text-muted-foreground">
                             @{friendship.friend_profile?.handle || 'unknown'}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            Friends since {new Date(friendship.created_at).toLocaleDateString()}
+                            Connected since {new Date(friendship.created_at).toLocaleDateString()}
                           </p>
                         </div>
                         
@@ -405,140 +405,144 @@ const Friends = () => {
             </Card>
           </TabsContent>
 
-            <TabsContent value="extended">
+            <TabsContent value="second-degree">
               <Card>
                 <CardHeader>
-                  <CardTitle>Extended Network</CardTitle>
+                  <CardTitle>2nd Degree Network</CardTitle>
                   <CardDescription>
-                    Discover friends-of-friends and expand your connections
+                    Friends of friends
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {extendedNetwork.length === 0 ? (
+                    <div className="text-center py-12">
+                      <div className="mx-auto w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
+                        <TwoPersonChain className="h-8 w-8 text-muted-foreground" />
+                      </div>
+                      <h3 className="text-xl font-semibold mb-2">No 2nd Degree Connections Yet</h3>
+                      <p className="text-muted-foreground max-w-md mx-auto">
+                        2nd degree connections will appear as your 1st network grows
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {extendedNetwork.map((member) => (
+                        <div
+                          key={member.profile_id}
+                          className="flex items-center justify-between p-4 border rounded-lg"
+                        >
+                          <div>
+                            <h3 className="font-medium">
+                              <Link
+                                to={`/profile/${member.profile_id}`}
+                                className="hover:underline"
+                              >
+                                {member.full_name}
+                              </Link>
+                            </h3>
+                            <p className="text-sm text-muted-foreground">
+                              @{member.handle}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              via {member.mutual_friends.slice(0, 2).join(', ')}
+                              {member.mutual_friends.length > 2 && ` +${member.mutual_friends.length - 2} more`}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button variant="outline" size="sm" asChild>
+                              <Link to={`/profile/${member.profile_id}`}>View Profile</Link>
+                            </Button>
+                            {currentUserId && (
+                              <FriendRequestButton
+                                currentUserId={currentUserId}
+                                targetUserId={member.profile_id}
+                              />
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="third-plus">
+              <Card>
+                <CardHeader>
+                  <CardTitle>3rd+ Degree Network</CardTitle>
+                  <CardDescription>
+                    Extended connections beyond your 2nd degree network
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="text-center py-12">
                     <div className="mx-auto w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
-                      <Network className="h-8 w-8 text-muted-foreground" />
+                      <ThreePersonChain className="h-8 w-8 text-muted-foreground" />
                     </div>
-                    <h3 className="text-xl font-semibold mb-2">Explore Your Extended Network</h3>
+                    <h3 className="text-xl font-semibold mb-2">3rd+ Degree Connections</h3>
                     <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                      Find people you might know through mutual friends and expand your network
+                      Extended network connections will appear here as your network grows
                     </p>
-                    <Button asChild size="lg">
-                      <Link to="/network/extended" className="flex items-center gap-2">
-                        <Network className="h-4 w-4" />
-                        View Extended Network
-                      </Link>
-                    </Button>
                   </div>
                 </CardContent>
               </Card>
             </TabsContent>
 
-            <TabsContent value="received">
-            <Card>
-              <CardHeader>
-                <CardTitle>Friend Requests</CardTitle>
-                <CardDescription>
-                  People who want to connect with you
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {friendRequests.length === 0 ? (
-                  <div className="text-center py-8">
-                    <UserPlus className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                    <h3 className="text-lg font-medium mb-2">No pending requests</h3>
-                    <p className="text-muted-foreground">
-                      You don't have any pending friend requests
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {friendRequests.map((request) => (
-                      <div
-                        key={request.id}
-                        className="flex items-center justify-between p-4 border rounded-lg"
-                      >
-                        <div>
-                          <h3 className="font-medium">
-                            {request.requester_profile?.full_name || 'Unknown User'}
-                          </h3>
-                          <p className="text-sm text-muted-foreground">
-                            @{request.requester_profile?.handle || 'unknown'}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            Sent {new Date(request.created_at).toLocaleDateString()}
-                          </p>
-                        </div>
-                        
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            onClick={() => handleFriendRequest(request.id, 'accept')}
-                            className="flex items-center gap-1"
-                          >
-                            <Check className="h-3 w-3" />
-                            Accept
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleFriendRequest(request.id, 'reject')}
-                            className="flex items-center gap-1"
-                          >
-                            <X className="h-3 w-3" />
-                            Reject
+            <TabsContent value="groups">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Groups</CardTitle>
+                  <CardDescription>
+                    Organize your 1st network into groups
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {groups.length === 0 ? (
+                    <div className="text-center py-12">
+                      <div className="mx-auto w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
+                        <Users className="h-8 w-8 text-muted-foreground" />
+                      </div>
+                      <h3 className="text-xl font-semibold mb-2">No groups yet</h3>
+                      <p className="text-muted-foreground max-w-md mx-auto">
+                        Create a group from your 1st network to get started.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {groups.map((group) => (
+                        <div
+                          key={group.id}
+                          className="flex items-center justify-between p-4 border rounded-lg"
+                        >
+                          <div>
+                            <h3 className="font-medium">
+                              <Link
+                                to={`/groups/${group.id}`}
+                                className="hover:underline"
+                              >
+                                {group.name}
+                              </Link>
+                            </h3>
+                            {group.description && (
+                              <p className="text-sm text-muted-foreground">
+                                {group.description}
+                              </p>
+                            )}
+                            <p className="text-xs text-muted-foreground">
+                              {group.member_count} members
+                            </p>
+                          </div>
+                          <Button variant="outline" size="sm" asChild>
+                            <Link to={`/groups/${group.id}`}>Manage</Link>
                           </Button>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="sent">
-            <Card>
-              <CardHeader>
-                <CardTitle>Sent Requests</CardTitle>
-                <CardDescription>
-                  Friend requests you've sent that are pending
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {sentRequests.length === 0 ? (
-                  <div className="text-center py-8">
-                    <h3 className="text-lg font-medium mb-2">No pending requests</h3>
-                    <p className="text-muted-foreground">
-                      You haven't sent any friend requests yet
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {sentRequests.map((request) => (
-                      <div
-                        key={request.id}
-                        className="flex items-center justify-between p-4 border rounded-lg"
-                      >
-                        <div>
-                          <h3 className="font-medium">
-                            {request.addressee_profile?.full_name || 'Unknown User'}
-                          </h3>
-                          <p className="text-sm text-muted-foreground">
-                            @{request.addressee_profile?.handle || 'unknown'}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            Sent {new Date(request.created_at).toLocaleDateString()}
-                          </p>
-                        </div>
-                        
-                        <Badge variant="secondary">Pending</Badge>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
         </Tabs>
         </div>
       </div>

@@ -1,158 +1,586 @@
 import { useEffect, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { Link, useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
-import { FriendSuggestions } from "@/components/FriendSuggestions";
-import { NotificationCenter } from "@/components/NotificationCenter";
+import {
+  ArrowRight,
+  Inbox,
+  List as ListIcon,
+  MessageSquare,
+  Shield,
+  Users,
+  type LucideIcon,
+} from "lucide-react";
+
+interface ActivityItem {
+  id: string;
+  kind: "response" | "notification";
+  title: string;
+  subtitle?: string;
+  href: string;
+  at: Date;
+  isRead: boolean;
+}
+
+interface OpenRequest {
+  id: string;
+  title: string;
+  created_at: string;
+  response_count: number;
+}
+
+interface PendingRequest {
+  id: string;
+  title: string;
+  asker_name: string;
+  response_count: number;
+}
+
+interface RecentList {
+  id: string;
+  title: string;
+  updated_at: string;
+}
+
+function getNotifLink(type: string, metadata: any, relatedUserId: string | null): string {
+  const meta = metadata || {};
+  switch (type) {
+    case "request_response":
+    case "response":
+    case "vote":
+    case "recommendation_voted":
+    case "forwarded_request":
+    case "request_forwarded":
+    case "forward":
+    case "new_request":
+    case "endorsement":
+    case "forward_suggestion":
+      return meta.request_id ? `/requests/${meta.request_id}/respond` : "/requests";
+    case "friend_request":
+    case "friend_request_accepted":
+    case "connection_request":
+    case "connection_accepted":
+      return relatedUserId ? `/profile/${relatedUserId}` : "/friends";
+    case "contact_joined":
+    case "network_addition":
+    case "friend_suggestion":
+      return "/friends";
+    default:
+      return "/notifications";
+  }
+}
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const [checking, setChecking] = useState(true);
-  const [userName, setUserName] = useState<string>("");
-  const [listCount, setListCount] = useState<number>(0);
-  const [recentLists, setRecentLists] = useState<Array<{ id: string; title: string; created_at: string }>>([]);
+  const [loading, setLoading] = useState(true);
+  const [firstName, setFirstName] = useState("");
+  const [newResponses, setNewResponses] = useState(0);
+  const [openRequestCount, setOpenRequestCount] = useState(0);
+  const [listCount, setListCount] = useState(0);
+  const [networkCount, setNetworkCount] = useState(0);
+  const [activity, setActivity] = useState<ActivityItem[]>([]);
+  const [openRequests, setOpenRequests] = useState<OpenRequest[]>([]);
+  const [pendingRequests, setPendingRequests] = useState<PendingRequest[]>([]);
+  const [recentLists, setRecentLists] = useState<RecentList[]>([]);
 
-useEffect(() => {
-  let mounted = true;
-  (async () => {
-    console.info("[Dashboard] Checking session...");
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-    console.info("[Dashboard] getSession:", { hasSession: !!session, userId: session?.user?.id, sessionError });
-    if (!mounted) return;
-    if (!session?.user) {
-      console.info("[Dashboard] No session, redirecting to /login");
-      navigate("/login", { replace: true });
-      return;
-    }
-
-    const userId = session.user.id;
-    const isAdmin = session.user.email?.toLowerCase() === "sharonjoseph2010@gmail.com";
-
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .select("full_name, handle, is_verified")
-      .eq("id", userId)
-      .maybeSingle();
-    console.info("[Dashboard] Profile lookup:", { profile, profileError });
-
-    if (!mounted) return;
-    if (!profile) {
-      if (isAdmin) {
-        console.info("[Dashboard] No profile found but user is admin — allowing dashboard access.");
-      } else {
-        console.info("[Dashboard] Missing profile, redirecting to /profile-setup with internal state");
-        navigate("/profile-setup", { replace: true, state: { internal: true, from: "/dashboard" } });
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!mounted) return;
+      if (!session?.user) {
+        navigate("/login", { replace: true });
         return;
       }
-    }
+      const userId = session.user.id;
+      const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString();
 
-    const name = (profile?.full_name as string) || (profile?.handle as string) || (session.user.email ?? "there");
-    setUserName(name);
+      const [profRes, openReqRes, listCountRes, friendsRes, recentListsRes] = await Promise.all([
+        supabase.from("profiles").select("full_name, handle").eq("id", userId).maybeSingle(),
+        supabase
+          .from("requests")
+          .select("id, title, created_at")
+          .eq("creator_id", userId)
+          .eq("status", "open")
+          .order("created_at", { ascending: false }),
+        supabase.from("lists").select("id", { count: "exact", head: true }).eq("owner_id", userId),
+        supabase
+          .from("friendships")
+          .select("id, user1_id, user2_id")
+          .or(`user1_id.eq.${userId},user2_id.eq.${userId}`),
+        supabase
+          .from("lists")
+          .select("id, title, updated_at")
+          .eq("owner_id", userId)
+          .order("updated_at", { ascending: false })
+          .limit(3),
+      ]);
 
-    const { count, error: countError } = await supabase
-      .from("lists")
-      .select("id", { count: "exact", head: true })
-      .eq("owner_id", userId);
-    if (countError) {
-      console.warn("[Dashboard] lists count error", countError);
-    }
-    setListCount(count ?? 0);
+      if (!mounted) return;
 
-    const { data: recent, error: recentError } = await supabase
-      .from("lists")
-      .select("id,title,created_at")
-      .eq("owner_id", userId)
-      .order("created_at", { ascending: false })
-      .limit(3);
-    if (recentError) {
-      console.warn("[Dashboard] recent lists error", recentError);
-    }
-    setRecentLists((recent ?? []) as any);
+      const prof = profRes.data;
+      const displayName = (prof?.full_name as string) || (prof?.handle as string) || "there";
+      setFirstName(displayName.split(" ")[0]);
 
-    setChecking(false);
-  })();
-  return () => { setChecking(false); mounted = false; };
-}, [navigate]);
+      const allOpen = (openReqRes.data || []) as Array<{ id: string; title: string; created_at: string }>;
+      setOpenRequestCount(allOpen.length);
+      const openIds = allOpen.map((r) => r.id);
 
-return (
-  <>
-    <Helmet>
-      <title>Dashboard | Antelog</title>
-      <meta name="description" content="Overview of your lists and quick actions." />
-      <link rel="canonical" href={window.location.href} />
-    </Helmet>
-    <main className="min-h-screen bg-background px-4 py-10">
-      <section className="mx-auto w-full max-w-4xl space-y-6">
-        {checking ? (
-          <p className="text-muted-foreground">Loading…</p>
+      let recentResponses: Array<{ id: string; request_id: string; responder_id: string; created_at: string }> = [];
+      if (openIds.length > 0) {
+        const { data: respData } = await supabase
+          .from("request_responses")
+          .select("id, request_id, responder_id, created_at")
+          .in("request_id", openIds)
+          .gte("created_at", sevenDaysAgo)
+          .order("created_at", { ascending: false })
+          .limit(50);
+        recentResponses = (respData || []) as typeof recentResponses;
+      }
+      setNewResponses(recentResponses.length);
+
+      const top3 = allOpen.slice(0, 3);
+      const responseCounts: Record<string, number> = {};
+      if (top3.length) {
+        const ids3 = top3.map((r) => r.id);
+        const { data: allResp } = await supabase
+          .from("request_responses")
+          .select("id, request_id")
+          .in("request_id", ids3);
+        (allResp || []).forEach((r: any) => {
+          responseCounts[r.request_id] = (responseCounts[r.request_id] || 0) + 1;
+        });
+      }
+      setOpenRequests(top3.map((r) => ({ ...r, response_count: responseCounts[r.id] || 0 })));
+
+      setListCount(listCountRes.count || 0);
+
+      // Friend ids
+      const friendships = (friendsRes.data || []) as Array<{ user1_id: string; user2_id: string }>;
+      setNetworkCount(friendships.length);
+      const friendIds = friendships.map((f) => (f.user1_id === userId ? f.user2_id : f.user1_id));
+
+      // Recent lists
+      setRecentLists((recentListsRes.data || []) as RecentList[]);
+
+      // Requests waiting on you: from friends, status open, not responded, not own
+      if (friendIds.length > 0) {
+        const { data: networkReqs } = await supabase
+          .from("requests")
+          .select("id, title, creator_id, created_at")
+          .in("creator_id", friendIds)
+          .eq("status", "open")
+          .order("created_at", { ascending: false })
+          .limit(15);
+
+        const reqIds = (networkReqs || []).map((r: any) => r.id);
+        let respondedSet = new Set<string>();
+        if (reqIds.length) {
+          const { data: myResps } = await supabase
+            .from("request_responses")
+            .select("request_id")
+            .eq("responder_id", userId)
+            .in("request_id", reqIds);
+          respondedSet = new Set((myResps || []).map((r: any) => r.request_id));
+        }
+        const pending = (networkReqs || []).filter((r: any) => !respondedSet.has(r.id)).slice(0, 3);
+
+        if (pending.length) {
+          const creatorIds = Array.from(new Set(pending.map((r: any) => r.creator_id)));
+          const { data: creatorProfiles } = await supabase
+            .from("profiles")
+            .select("id, full_name, handle")
+            .in("id", creatorIds);
+          const nameMap: Record<string, string> = {};
+          (creatorProfiles || []).forEach((p: any) => {
+            nameMap[p.id] = (p.full_name as string) || (p.handle as string) || "Someone";
+          });
+          const { data: respCounts } = await supabase
+            .from("request_responses")
+            .select("request_id")
+            .in("request_id", pending.map((r: any) => r.id));
+          const countMap: Record<string, number> = {};
+          (respCounts || []).forEach((r: any) => {
+            countMap[r.request_id] = (countMap[r.request_id] || 0) + 1;
+          });
+          setPendingRequests(
+            pending.map((r: any) => ({
+              id: r.id,
+              title: r.title,
+              asker_name: nameMap[r.creator_id] || "Someone",
+              response_count: countMap[r.id] || 0,
+            }))
+          );
+        }
+      }
+
+      // Activity stream
+      const activityItems: ActivityItem[] = [];
+
+      const responderIds = Array.from(new Set(recentResponses.map((r) => r.responder_id)));
+      const responderMap: Record<string, string> = {};
+      if (responderIds.length) {
+        const { data: rp } = await supabase
+          .from("profiles")
+          .select("id, full_name, handle")
+          .in("id", responderIds);
+        (rp || []).forEach((p: any) => {
+          responderMap[p.id] = (p.full_name as string) || (p.handle as string) || "Someone";
+        });
+      }
+      const reqTitleMap: Record<string, string> = {};
+      allOpen.forEach((r) => (reqTitleMap[r.id] = r.title));
+
+      recentResponses.forEach((r) => {
+        activityItems.push({
+          id: `resp-${r.id}`,
+          kind: "response",
+          title: `${responderMap[r.responder_id] || "Someone"} responded`,
+          subtitle: reqTitleMap[r.request_id],
+          href: `/requests/${r.request_id}/respond`,
+          at: new Date(r.created_at),
+          isRead: false,
+        });
+      });
+
+      const { data: notifs } = await supabase
+        .from("notifications")
+        .select("id, title, message, created_at, type, metadata, related_user_id, is_read")
+        .eq("user_id", userId)
+        .gte("created_at", new Date(Date.now() - 30 * 86400000).toISOString())
+        .order("created_at", { ascending: false })
+        .limit(30);
+      (notifs || []).forEach((n: any) => {
+        activityItems.push({
+          id: `notif-${n.id}`,
+          kind: "notification",
+          title: n.title,
+          subtitle: n.message,
+          href: getNotifLink(n.type, n.metadata, n.related_user_id),
+          at: new Date(n.created_at),
+          isRead: !!n.is_read,
+        });
+      });
+
+      activityItems.sort((a, b) => b.at.getTime() - a.at.getTime());
+      setActivity(activityItems.slice(0, 30));
+
+      setLoading(false);
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [navigate]);
+
+  const newItems = activity.filter((a) => !a.isRead);
+  const earlierItems = activity.filter((a) => a.isRead);
+
+  return (
+    <>
+      <Helmet>
+        <title>Dashboard | Antelog</title>
+        <meta name="description" content="Your recommendations, requests, and network activity." />
+        <link rel="canonical" href={window.location.href} />
+      </Helmet>
+
+      <style>{`
+        .activity-scroll::-webkit-scrollbar { width: 8px; }
+        .activity-scroll::-webkit-scrollbar-track { background: transparent; }
+        .activity-scroll::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 4px; }
+        .activity-scroll::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground) / 0.4); }
+      `}</style>
+
+      <div className="mx-auto w-full max-w-[1240px] px-6 py-10 lg:px-10 lg:py-12">
+        {loading ? (
+          <p className="text-sm text-muted-foreground">Loading…</p>
         ) : (
-          <>
-            <header className="space-y-1">
-              <h1 className="text-3xl font-bold">Welcome back{userName ? `, ${userName}` : ""}!</h1>
-              <p className="text-muted-foreground">Here’s a quick snapshot of your activity.</p>
+          <div className="space-y-10">
+            {/* Welcome header */}
+            <header className="space-y-2">
+              <h1 className="text-[26px] font-medium tracking-tight text-foreground">
+                Welcome back, {firstName}.
+              </h1>
+              <p className="text-[14px] text-muted-foreground">
+                {newResponses > 0
+                  ? `${newResponses} new ${newResponses === 1 ? "response" : "responses"} this week`
+                  : "No new activity this week"}
+                {" · "}
+                {openRequestCount} open {openRequestCount === 1 ? "request" : "requests"}
+                {" · "}
+                {networkCount} in your network
+              </p>
             </header>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-lg">Your Stats</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-1">
-                  <div className="text-3xl font-semibold">{listCount}</div>
-                  <div className="text-muted-foreground">lists</div>
-                </CardContent>
-              </Card>
+            {/* Black summary bar */}
+            <Link
+              to="/requests/new"
+              className="group flex items-center justify-between rounded-lg bg-foreground px-5 py-4 text-background transition-opacity hover:opacity-90"
+            >
+              <span className="text-[14px]">
+                <span className="font-medium">{newResponses}</span> new{" "}
+                {newResponses === 1 ? "response" : "responses"} ·{" "}
+                <span className="font-medium">{openRequestCount}</span> open{" "}
+                {openRequestCount === 1 ? "request" : "requests"}
+              </span>
+              <span className="flex items-center gap-1.5 text-[13px]">
+                Ask your network
+                <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" strokeWidth={1.5} />
+              </span>
+            </Link>
 
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-lg">Quick Actions</CardTitle>
-                </CardHeader>
-                <CardContent className="flex flex-wrap gap-3">
-                  <Button asChild>
-                    <Link to="/lists/new">{listCount === 0 ? "Create Your First List" : "Create New List"}</Link>
-                  </Button>
-                  <Button asChild variant="outline">
-                    <Link to="/lists">View My Lists</Link>
-                  </Button>
-                </CardContent>
-              </Card>
+            {/* Stat cards */}
+            <div className="grid grid-cols-3 gap-3">
+              <StatCard icon={MessageSquare} label="New Responses" value={newResponses} to="/requests?status=open" />
+              <StatCard icon={Inbox} label="Open Requests" value={openRequestCount} to="/requests?status=open" />
+              <StatCard icon={Users} label="Your Network" value={networkCount} to="/friends" />
             </div>
 
-            {/* Friend Suggestions and Notifications */}
-            <div className="grid gap-6 lg:grid-cols-2">
-              <FriendSuggestions />
-              <NotificationCenter />
+            {/* Two-column body */}
+            <div className="grid gap-8 lg:grid-cols-[1.6fr_1fr]">
+              {/* Left: Recent activity */}
+              <section className="space-y-5">
+                <h2 className="text-[15px] font-medium text-foreground">Recent activity</h2>
+                {activity.length === 0 ? (
+                  <p className="text-[13px] text-muted-foreground">
+                    Nothing yet. When your network responds to a request, it'll show up here.
+                  </p>
+                ) : (
+                  <div
+                    className="activity-scroll space-y-6 overflow-y-auto pr-1"
+                    style={{ maxHeight: 440 }}
+                  >
+                    {newItems.length > 0 && (
+                      <ActivityGroup label="NEW" items={newItems} />
+                    )}
+                    {earlierItems.length > 0 && (
+                      <ActivityGroup label="EARLIER" items={earlierItems} />
+                    )}
+                  </div>
+                )}
+              </section>
+
+              {/* Right column */}
+              <div className="space-y-6">
+                {openRequests.length > 0 && (
+                  <section className="rounded-lg bg-foreground p-6 text-background">
+                    <h2 className="text-[15px] font-medium">Continue where you left off</h2>
+                    <ul className="mt-4 divide-y divide-background/10">
+                      {openRequests.map((r) => (
+                        <li key={r.id}>
+                          <Link
+                            to={`/requests/${r.id}/respond`}
+                            className="group flex items-center justify-between gap-4 py-3 transition-opacity hover:opacity-80"
+                          >
+                            <span className="min-w-0 flex-1 truncate text-[14px]">{r.title}</span>
+                            <span className="flex items-center gap-3 text-[12px] text-background/70">
+                              <span>
+                                {r.response_count} {r.response_count === 1 ? "response" : "responses"}
+                              </span>
+                              <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" strokeWidth={1.5} />
+                            </span>
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                    <Link
+                      to="/requests"
+                      className="mt-4 inline-flex items-center gap-1 text-[12px] text-background/80 hover:text-background"
+                    >
+                      View all requests
+                      <ArrowRight className="h-3 w-3" strokeWidth={1.5} />
+                    </Link>
+                  </section>
+                )}
+
+                {/* Requests waiting on you */}
+                <section className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                      Requests waiting on you
+                    </h2>
+                    <Link to="/requests" className="text-[12px] text-muted-foreground hover:text-foreground">
+                      View all →
+                    </Link>
+                  </div>
+                  {pendingRequests.length === 0 ? (
+                    <p className="text-[13px] text-muted-foreground">
+                      All caught up. No requests waiting for your input.
+                    </p>
+                  ) : (
+                    <ul className="divide-y divide-border rounded-lg border border-border">
+                      {pendingRequests.map((r) => (
+                        <li key={r.id}>
+                          <Link
+                            to={`/requests/${r.id}/respond`}
+                            className="group flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-muted/40"
+                          >
+                            <span className="min-w-0 flex-1 truncate text-[14px] text-foreground">{r.title}</span>
+                            <span className="flex shrink-0 items-center gap-3 text-[12px] text-muted-foreground">
+                              <span>{r.asker_name} · {r.response_count} {r.response_count === 1 ? "response" : "responses"}</span>
+                              <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" strokeWidth={1.5} />
+                            </span>
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </section>
+
+                {/* Your recent lists */}
+                <section className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                      Your recent lists
+                    </h2>
+                    <Link to="/lists" className="text-[12px] text-muted-foreground hover:text-foreground">
+                      All {listCount} →
+                    </Link>
+                  </div>
+                  {recentLists.length === 0 ? (
+                    <p className="text-[13px] text-muted-foreground">
+                      No lists yet. <Link to="/lists/new" className="underline underline-offset-2 hover:text-foreground">Create one</Link>.
+                    </p>
+                  ) : (
+                    <ul className="divide-y divide-border rounded-lg border border-border">
+                      {recentLists.map((l) => (
+                        <li key={l.id}>
+                          <Link
+                            to={`/lists/${l.id}`}
+                            className="group flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-muted/40"
+                          >
+                            <span className="min-w-0 flex-1 truncate text-[14px] text-foreground">{l.title}</span>
+                            <span className="flex shrink-0 items-center gap-3 text-[12px] text-muted-foreground">
+                              <span>{formatShortDate(l.updated_at)}</span>
+                              <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" strokeWidth={1.5} />
+                            </span>
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </section>
+              </div>
             </div>
 
-            {recentLists.length > 0 && (
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-lg">Recent Lists</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  <ul className="space-y-2">
-                    {recentLists.map((l) => (
-                      <li key={l.id} className="flex items-center justify-between">
-                        <Link to={`/lists/${l.id}`} className="text-primary underline-offset-4 hover:underline">
-                          {l.title}
-                        </Link>
-                        <span className="text-sm text-muted-foreground">
-                          {new Date(l.created_at).toLocaleDateString()}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </CardContent>
-              </Card>
-            )}
-          </>
+            {/* Trust band */}
+            <section className="rounded-lg border border-border bg-muted/30 p-6">
+              <div className="flex items-start gap-4">
+                <Shield className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" strokeWidth={1.5} />
+                <div className="space-y-2">
+                  <h3 className="text-[14px] font-medium text-foreground">Built on real trust</h3>
+                  <p className="text-[13px] leading-relaxed text-muted-foreground">
+                    Every recommendation on Antelog comes from someone in your network — friends, friends of friends, real people.
+                    {" "}No ads. No influencers. No fake reviews.
+                    {" "}Just answers from people you'd actually listen to.
+                  </p>
+                  <Link
+                    to="/"
+                    className="inline-flex items-center gap-1 text-[13px] text-foreground underline-offset-4 hover:underline"
+                  >
+                    Learn about trust
+                    <ArrowRight className="h-3 w-3" strokeWidth={1.5} />
+                  </Link>
+                </div>
+              </div>
+            </section>
+
+            <footer className="flex flex-col items-start justify-between gap-2 border-t border-border pt-6 text-[12px] text-muted-foreground sm:flex-row sm:items-center">
+              <span>© 2026 Antelog · People powered</span>
+              <nav className="flex items-center gap-4">
+                <Link to="/" className="hover:text-foreground">About</Link>
+                <Link to="/" className="hover:text-foreground">Privacy</Link>
+                <Link to="/" className="hover:text-foreground">Terms</Link>
+                <Link to="/" className="hover:text-foreground">Help</Link>
+              </nav>
+            </footer>
+          </div>
         )}
-      </section>
-    </main>
-  </>
-);
+      </div>
+    </>
+  );
 };
+
+function ActivityGroup({ label, items }: { label: string; items: ActivityItem[] }) {
+  return (
+    <div className="space-y-3">
+      <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+        {label}
+      </div>
+      <ul className="space-y-2">
+        {items.map((a) => (
+          <li key={a.id}>
+            <Link
+              to={a.href}
+              className="-mx-2 flex items-start gap-3 rounded-md px-2 py-2 transition-colors hover:bg-muted/60"
+            >
+              <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground">
+                {a.kind === "response" ? (
+                  <MessageSquare className="h-3.5 w-3.5" strokeWidth={1.5} />
+                ) : (
+                  <Inbox className="h-3.5 w-3.5" strokeWidth={1.5} />
+                )}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[14px] text-foreground">{a.title}</span>
+                {a.subtitle && (
+                  <span className="block truncate text-[13px] text-muted-foreground">{a.subtitle}</span>
+                )}
+                <span className="mt-0.5 block text-[11px] text-muted-foreground">
+                  {formatRelative(a.at)}
+                </span>
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function StatCard({
+  icon: Icon,
+  label,
+  value,
+  to,
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: number;
+  to: string;
+}) {
+  return (
+    <Link
+      to={to}
+      className="flex items-center gap-4 rounded-lg border border-border bg-background p-5 transition-colors hover:bg-muted/60"
+    >
+      <span className="flex h-11 w-11 items-center justify-center rounded-[10px] border border-border bg-background text-muted-foreground">
+        <Icon className="h-5 w-5" strokeWidth={1.5} />
+      </span>
+      <span className="flex flex-col">
+        <span className="text-[10px] font-normal uppercase tracking-wider text-muted-foreground">
+          {label}
+        </span>
+        <span className="text-[20px] font-normal text-foreground">{value}</span>
+      </span>
+    </Link>
+  );
+}
+
+function formatShortDate(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+function formatRelative(d: Date): string {
+  const diff = Date.now() - d.getTime();
+  const min = Math.floor(diff / 60000);
+  if (min < 1) return "just now";
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}h ago`;
+  const day = Math.floor(hr / 24);
+  if (day < 7) return `${day}d ago`;
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
 
 export default Dashboard;

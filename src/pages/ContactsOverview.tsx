@@ -1,14 +1,14 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
+import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Search, UserPlus, Mail, Phone, Users, Send, Trash2 } from "lucide-react";
+import { Search, Mail, Phone, Users, Send, Trash2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,6 +19,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import ContactDebugPanel from "@/components/ContactDebugPanel";
 
 interface ContactWithStatus {
   id: string;
@@ -27,15 +28,8 @@ interface ContactWithStatus {
   contact_phone?: string;
   is_matched: boolean;
   matched_user_id?: string;
-  // Joined user info
   full_name?: string;
   handle?: string;
-  // Relationship status
-  friend_request_status?: 'pending' | 'accepted' | 'rejected';
-  friendship_id?: string;
-  is_friends: boolean;
-  has_sent_request: boolean;
-  has_received_request: boolean;
 }
 
 const ContactsOverview = () => {
@@ -43,297 +37,230 @@ const ContactsOverview = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const [contactToDelete, setContactToDelete] = useState<ContactWithStatus | null>(null);
+  const [isRematching, setIsRematching] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    checkAdminStatus();
+  }, []);
+
+  const checkAdminStatus = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: roleData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .single();
+
+      setIsAdmin(roleData?.role === 'admin');
+    } catch (error) {
+      console.error('Error checking admin status:', error);
+    }
+  };
 
   const loadContacts = async () => {
+    setLoading(true);
+    
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        console.log('No authenticated user found');
-        toast({
-          title: "Authentication required",
-          description: "Please log in to view your contacts",
-          variant: "destructive",
-        });
-        setLoading(false);
+        navigate('/login');
         return;
       }
 
-      console.log('Loading contacts for user:', user.id);
-
-      // First, get basic contacts data
-      const { data: contactsData, error } = await supabase
+      const { data: contactImports, error: contactError } = await supabase
         .from('contact_imports')
-        .select('*')
+        .select(`
+          id,
+          contact_name,
+          contact_email,
+          contact_phone,
+          is_matched,
+          matched_user_id
+        `)
         .eq('user_id', user.id)
-        .order('is_matched', { ascending: false })
         .order('contact_name');
 
-      console.log('Contacts query result:', { contactsData, error });
-
-      if (error) {
-        console.error('Contacts query error:', error);
-        throw error;
+      if (contactError) {
+        console.error('Error fetching contacts:', contactError);
+        throw contactError;
       }
 
-      if (!contactsData) {
-        console.log('No contacts data returned');
-        setContacts([]);
-        setLoading(false);
-        return;
-      }
+      const matchedUserIds = contactImports
+        ?.filter(c => c.is_matched && c.matched_user_id)
+        .map(c => c.matched_user_id) || [];
 
-      // Now get profile data for matched contacts
-      const processedContacts: ContactWithStatus[] = [];
-      
-      for (const contact of contactsData) {
-        let profile = null;
-        let isFriends = false;
-        let hasSentRequest = false;
-        let hasReceivedRequest = false;
+      let matchedProfiles = [];
+      if (matchedUserIds.length > 0) {
+      const { data: profiles, error: profileError } = await supabase
+          .from('profiles')
+          .select('id, full_name, handle')
+          .in('id', matchedUserIds);
 
-        if (contact.is_matched && contact.matched_user_id) {
-          // Get profile data
-          const { data: profileData } = await supabase
-            .from('profiles')
-            .select('full_name, handle')
-            .eq('id', contact.matched_user_id)
-            .single();
-          
-          profile = profileData;
-
-          // Check friendship status
-          const { data: friendshipData } = await supabase
-            .from('friendships')
-            .select('*')
-            .or(`and(user1_id.eq.${user.id},user2_id.eq.${contact.matched_user_id}),and(user1_id.eq.${contact.matched_user_id},user2_id.eq.${user.id})`);
-          
-          isFriends = friendshipData && friendshipData.length > 0;
-
-          // Check friend request status
-          const { data: sentRequestData } = await supabase
-            .from('friend_requests')
-            .select('*')
-            .eq('requester_id', user.id)
-            .eq('addressee_id', contact.matched_user_id)
-            .eq('status', 'pending');
-          
-          const { data: receivedRequestData } = await supabase
-            .from('friend_requests')
-            .select('*')
-            .eq('requester_id', contact.matched_user_id)
-            .eq('addressee_id', user.id)
-            .eq('status', 'pending');
-
-          hasSentRequest = sentRequestData && sentRequestData.length > 0;
-          hasReceivedRequest = receivedRequestData && receivedRequestData.length > 0;
+        if (profileError) {
+          console.error('Error fetching profiles:', profileError);
+        } else {
+          matchedProfiles = profiles || [];
         }
+      }
 
-        processedContacts.push({
-          id: contact.id,
-          contact_name: contact.contact_name,
-          contact_email: contact.contact_email,
-          contact_phone: contact.contact_phone,
-          is_matched: contact.is_matched,
-          matched_user_id: contact.matched_user_id,
+      const contactsWithStatus: ContactWithStatus[] = (contactImports || []).map(contact => {
+        const profile = matchedProfiles.find(p => p.id === contact.matched_user_id);
+
+        return {
+          ...contact,
           full_name: profile?.full_name,
           handle: profile?.handle,
-          is_friends: isFriends,
-          has_sent_request: hasSentRequest,
-          has_received_request: hasReceivedRequest,
-          friend_request_status: hasSentRequest ? 'pending' : hasReceivedRequest ? 'pending' : undefined
-        });
-      }
+        };
+      });
 
-      setContacts(processedContacts);
+      setContacts(contactsWithStatus);
     } catch (error) {
       console.error('Error loading contacts:', error);
       toast({
         title: "Error",
-        description: "Failed to load contacts",
-        variant: "destructive",
+        description: "Failed to load contacts. Please try again.",
+        variant: "destructive"
       });
     } finally {
       setLoading(false);
     }
   };
 
-  const deleteContact = async (contactId: string) => {
+  const rematchContacts = async () => {
+    setIsRematching(true);
+    
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         toast({
-          title: "Authentication required",
-          description: "Please log in to delete contacts",
-          variant: "destructive",
+          title: "Error",
+          description: "You must be logged in",
+          variant: "destructive"
         });
         return;
       }
 
-      const { error } = await supabase
-        .from('contact_imports')
-        .delete()
-        .eq('id', contactId)
-        .eq('user_id', user.id);
+      const { data: matchCount, error: matchError } = await supabase
+        .rpc('update_matched_contacts', { user_id_input: user.id });
 
-      if (error) throw error;
-
-      toast({
-        title: "Contact removed",
-        description: "The contact has been removed from your list",
-      });
-
-      // Update UI immediately
-      setContacts(prev => prev.filter(c => c.id !== contactId));
-      setContactToDelete(null);
-    } catch (error) {
-      console.error('Error deleting contact:', error);
-      toast({
-        title: "Error",
-        description: "Failed to delete contact",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const sendFriendRequest = async (userId: string, contactName: string) => {
-    try {
-      const { error } = await supabase
-        .from('friend_requests')
-        .insert({
-          requester_id: (await supabase.auth.getUser()).data.user?.id,
-          addressee_id: userId,
-          status: 'pending'
+      if (matchError) {
+        console.error('Error matching contacts:', matchError);
+        toast({
+          title: "Error",
+          description: "Failed to match contacts. Please try again.",
+          variant: "destructive"
         });
-
-      if (error) throw error;
+        return;
+      }
 
       toast({
-        title: "Friend request sent!",
-        description: `Friend request sent to ${contactName}`,
+        title: "Contacts Rematched",
+        description: `Found ${matchCount || 0} matches`,
       });
-
-      loadContacts(); // Refresh the list
+      
+      await loadContacts();
     } catch (error) {
-      console.error('Error sending friend request:', error);
+      console.error('Error in rematchContacts:', error);
       toast({
         title: "Error",
-        description: "Failed to send friend request",
-        variant: "destructive",
+        description: "An unexpected error occurred",
+        variant: "destructive"
       });
+    } finally {
+      setIsRematching(false);
     }
   };
 
   useEffect(() => {
     loadContacts();
+    
+    // Listen for contact updates from import page
+    const handleContactsUpdated = () => {
+      loadContacts();
+    };
+    
+    window.addEventListener('contacts-updated', handleContactsUpdated);
+    
+    return () => {
+      window.removeEventListener('contacts-updated', handleContactsUpdated);
+    };
   }, []);
+
+  const deleteContact = async (contactId: string) => {
+    try {
+      const { error } = await supabase
+        .from('contact_imports')
+        .delete()
+        .eq('id', contactId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Contact Deleted",
+        description: "Contact has been removed from your list",
+      });
+
+      await loadContacts();
+    } catch (error) {
+      console.error('Error deleting contact:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete contact",
+        variant: "destructive"
+      });
+    } finally {
+      setContactToDelete(null);
+    }
+  };
+
 
   const filteredContacts = contacts.filter(contact =>
     contact.contact_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     contact.contact_email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    contact.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    contact.handle?.toLowerCase().includes(searchTerm.toLowerCase())
+    contact.contact_phone?.includes(searchTerm)
   );
 
-  const onAntelogContacts = filteredContacts.filter(c => c.is_matched);
-  const notOnAntelogContacts = filteredContacts.filter(c => !c.is_matched);
-
-  const getStatusBadge = (contact: ContactWithStatus) => {
-    if (contact.is_friends) {
-      return <Badge variant="secondary" className="bg-green-100 text-green-800">Friends</Badge>;
-    }
-    if (contact.has_sent_request) {
-      return <Badge variant="outline">Request Sent</Badge>;
-    }
-    if (contact.has_received_request) {
-      return <Badge variant="default">Request Received</Badge>;
-    }
-    return null;
-  };
-
-  const getActionButton = (contact: ContactWithStatus) => {
-    if (contact.is_friends) {
-      return (
-        <Button variant="outline" size="sm" disabled>
-          <Users className="w-4 h-4 mr-1" />
-          Friends
-        </Button>
-      );
-    }
-    if (contact.has_sent_request) {
-      return (
-        <Button variant="outline" size="sm" disabled>
-          Request Sent
-        </Button>
-      );
-    }
-    if (contact.has_received_request) {
-      return (
-        <Button 
-          variant="default" 
-          size="sm"
-          onClick={() => navigate('/friends?tab=received')}
-        >
-          View Request
-        </Button>
-      );
-    }
-    return (
-      <Button 
-        variant="default" 
-        size="sm"
-        onClick={() => sendFriendRequest(contact.matched_user_id!, contact.contact_name)}
-      >
-        <UserPlus className="w-4 h-4 mr-1" />
-        Send Request
-      </Button>
-    );
-  };
-
-  if (loading) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="animate-pulse">
-          <div className="h-8 bg-muted rounded w-1/4 mb-6"></div>
-          <div className="space-y-4">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="h-16 bg-muted rounded"></div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const onAntelogContacts = filteredContacts.filter(c => c.is_matched && c.matched_user_id);
+  const notOnAntelogContacts = filteredContacts.filter(c => !c.is_matched || !c.matched_user_id);
 
   return (
     <>
       <Helmet>
-        <title>Contacts - Antelog</title>
-        <meta name="description" content="Manage your imported contacts and see who's on Antelog" />
+        <title>My Contacts - Antelog</title>
+        <meta name="description" content="View and manage your imported contacts on Antelog" />
       </Helmet>
 
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h1 className="text-3xl font-bold">Your Contacts</h1>
-            <p className="text-muted-foreground mt-1">
-              {contacts.length} contacts imported • {onAntelogContacts.length} on Antelog
-            </p>
-          </div>
+      <div className="container mx-auto px-4 py-8 max-w-4xl">
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold mb-2">My Contacts</h1>
+          <p className="text-muted-foreground">
+            Manage your imported contacts and see who's on Antelog
+          </p>
+        </div>
+
+        <div className="mb-6">
           <Button 
+            onClick={rematchContacts}
+            disabled={isRematching}
             variant="outline"
-            onClick={() => navigate('/contacts-import-hub')}
           >
-            <UserPlus className="w-4 h-4 mr-2" />
-            Import More
+            <Users className="mr-2 h-4 w-4" />
+            {isRematching ? "Rematching..." : "Refresh Matches"}
           </Button>
         </div>
 
         <div className="mb-6">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
             <Input
+              type="text"
               placeholder="Search contacts..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -342,159 +269,157 @@ const ContactsOverview = () => {
           </div>
         </div>
 
-        <div className="space-y-8">
-          {/* On Antelog Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="w-5 h-5 text-green-600" />
-                On Antelog ({onAntelogContacts.length})
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {onAntelogContacts.length === 0 ? (
-                <p className="text-muted-foreground text-center py-6">
-                  None of your contacts have joined Antelog yet
-                </p>
-              ) : (
-                <div className="space-y-3">
-                  {onAntelogContacts.map((contact, index) => (
-                    <div key={contact.id}>
-                      <div className="flex items-center justify-between p-3 hover:bg-muted/50 rounded-lg">
+        {loading ? (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">Loading contacts...</p>
+          </div>
+        ) : (
+          <div className="space-y-8">
+            {/* On Antelog */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  On Antelog ({onAntelogContacts.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {onAntelogContacts.length === 0 ? (
+                  <p className="text-muted-foreground text-sm">
+                    No contacts found on Antelog yet.
+                  </p>
+                ) : (
+                  <div className="space-y-4">
+                    {onAntelogContacts.map((contact) => (
+                      <div
+                        key={contact.id}
+                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 transition-colors"
+                      >
                         <div className="flex-1">
-                          <div className="flex items-center gap-3">
-                            <div>
-                              <h3 className="font-medium">
-                                {contact.contact_name}
-                              </h3>
-                              <p className="text-sm text-muted-foreground">
-                                @{contact.handle} • {contact.full_name}
-                              </p>
-                              <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
-                                {contact.contact_email && (
-                                  <span className="flex items-center gap-1">
-                                    <Mail className="w-3 h-3" />
-                                    {contact.contact_email}
-                                  </span>
-                                )}
-                                {contact.contact_phone && (
-                                  <span className="flex items-center gap-1">
-                                    <Phone className="w-3 h-3" />
-                                    {contact.contact_phone}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                            <div className="ml-auto">
-                              {getStatusBadge(contact)}
-                            </div>
-                           </div>
-                         </div>
-                         <div className="ml-4 flex items-center gap-2">
-                           {getActionButton(contact)}
-                           <Button
-                             variant="ghost"
-                             size="icon"
-                             onClick={() => setContactToDelete(contact)}
-                             className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                           >
-                             <Trash2 className="w-4 h-4" />
-                           </Button>
-                         </div>
-                       </div>
-                      {index < onAntelogContacts.length - 1 && <Separator />}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Not on Antelog Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Send className="w-5 h-5 text-blue-600" />
-                Not on Antelog Yet ({notOnAntelogContacts.length})
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {notOnAntelogContacts.length === 0 ? (
-                <p className="text-muted-foreground text-center py-6">
-                  All your contacts are on Antelog! 🎉
-                </p>
-              ) : (
-                <div className="space-y-3">
-                  {notOnAntelogContacts.map((contact, index) => (
-                    <div key={contact.id}>
-                      <div className="flex items-center justify-between p-3 hover:bg-muted/50 rounded-lg">
-                        <div className="flex-1">
-                          <h3 className="font-medium">{contact.contact_name}</h3>
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
-                            {contact.contact_email && (
-                              <span className="flex items-center gap-1">
-                                <Mail className="w-3 h-3" />
-                                {contact.contact_email}
-                              </span>
+                          <div className="flex items-center gap-2 mb-1">
+                            <h3 className="font-medium">{contact.contact_name}</h3>
+                            {contact.full_name && (
+                              <Badge variant="secondary" className="text-xs">
+                                @{contact.handle}
+                              </Badge>
                             )}
+                          </div>
+                          <div className="flex items-center gap-4 text-sm text-muted-foreground">
                             {contact.contact_phone && (
-                              <span className="flex items-center gap-1">
-                                <Phone className="w-3 h-3" />
+                              <div className="flex items-center gap-1">
+                                <Phone className="h-3 w-3" />
                                 {contact.contact_phone}
-                              </span>
+                              </div>
                             )}
-                           </div>
-                         </div>
-                         <div className="flex items-center gap-2">
-                           <Button variant="outline" size="sm">
-                             <Send className="w-4 h-4 mr-1" />
-                             Invite
-                           </Button>
-                           <Button
-                             variant="ghost"
-                             size="icon"
-                             onClick={() => setContactToDelete(contact)}
-                             className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                           >
-                             <Trash2 className="w-4 h-4" />
-                           </Button>
-                         </div>
-                       </div>
-                      {index < notOnAntelogContacts.length - 1 && <Separator />}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+                            {contact.contact_email && (
+                              <div className="flex items-center gap-1">
+                                <Mail className="h-3 w-3" />
+                                {contact.contact_email}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="default">On Antelog</Badge>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setContactToDelete(contact)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={!!contactToDelete} onOpenChange={(open) => !open && setContactToDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remove {contactToDelete?.contact_name}?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will remove the contact from your imported contacts list.
-              {contactToDelete?.is_friends && (
-                <span className="block mt-2 text-amber-600 dark:text-amber-400">
-                  Note: This will not unfriend them if they're already your friend on Antelog.
-                </span>
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => contactToDelete && deleteContact(contactToDelete.id)}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Remove Contact
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+            {/* Not on Antelog Yet */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  Not on Antelog Yet ({notOnAntelogContacts.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {notOnAntelogContacts.length === 0 ? (
+                  <p className="text-muted-foreground text-sm">
+                    All your contacts are on Antelog!
+                  </p>
+                ) : (
+                  <div className="space-y-4">
+                    {notOnAntelogContacts.map((contact) => (
+                      <div
+                        key={contact.id}
+                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 transition-colors"
+                      >
+                        <div className="flex-1">
+                          <h3 className="font-medium mb-1">{contact.contact_name}</h3>
+                          <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                            {contact.contact_phone && (
+                              <div className="flex items-center gap-1">
+                                <Phone className="h-3 w-3" />
+                                {contact.contact_phone}
+                              </div>
+                            )}
+                            {contact.contact_email && (
+                              <div className="flex items-center gap-1">
+                                <Mail className="h-3 w-3" />
+                                {contact.contact_email}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button size="sm" variant="outline">
+                            <Send className="h-4 w-4 mr-1" />
+                            Invite
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setContactToDelete(contact)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {isAdmin && (
+          <div className="mt-8">
+            <ContactDebugPanel />
+          </div>
+        )}
+
+        <AlertDialog open={!!contactToDelete} onOpenChange={() => setContactToDelete(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Contact?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will remove {contactToDelete?.contact_name} from your contacts list.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => contactToDelete && deleteContact(contactToDelete.id)}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
     </>
   );
 };

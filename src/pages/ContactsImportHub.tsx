@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PhoneInput } from "@/components/ui/phone-input";
+import { normalizePhone } from "@/lib/phone-utils";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
@@ -104,23 +106,6 @@ export default function ContactsImportHub() {
     return contacts.filter(c => c.name.trim());
   };
 
-  const normalizePhone = (phone: string): string | null => {
-    if (!phone) return null;
-    // Remove all non-digit characters except +
-    let cleaned = phone.replace(/[^\d+]/g, '');
-    
-    // Add +91 if it's a 10-digit Indian number
-    if (cleaned.length === 10 && !cleaned.startsWith('+')) {
-      cleaned = '+91' + cleaned;
-    } else if (cleaned.length === 12 && cleaned.startsWith('91')) {
-      cleaned = '+' + cleaned;
-    } else if (!cleaned.startsWith('+') && cleaned.length > 10) {
-      cleaned = '+' + cleaned;
-    }
-    
-    return cleaned || null;
-  };
-
   const normalizeEmail = (email: string): string | null => {
     if (!email) return null;
     const cleaned = email.trim().toLowerCase();
@@ -158,7 +143,7 @@ export default function ContactsImportHub() {
           const normalized = {
             user_id: user.id,
             contact_name: contact.name.trim(),
-            contact_phone: normalizePhone(contact.phone),
+            contact_phone: normalizePhone(contact.phone) || null,
             contact_email: normalizeEmail(contact.email),
             import_source: source
           };
@@ -189,13 +174,25 @@ export default function ContactsImportHub() {
 
       console.log('Contacts saved successfully:', data);
 
-      toast({
-        title: "Contacts imported successfully",
-        description: `${contactsToSave.length} contacts have been added to your network`,
+      // Automatically match the newly imported contacts
+      const { data: matchCount, error: matchError } = await supabase.rpc('update_matched_contacts', {
+        user_id_input: user.id
       });
 
-      // Navigate to contacts overview after successful import
-      navigate('/contacts-overview');
+      if (matchError) {
+        console.error('Error auto-matching contacts:', matchError);
+      }
+
+      toast({
+        title: "Contacts imported successfully",
+        description: `${contactsToSave.length} contacts added. ${matchCount || 0} are already on Antelog.`,
+      });
+
+      // Dispatch event to notify contacts page to reload
+      window.dispatchEvent(new Event('contacts-updated'));
+
+      // Navigate to network page after successful import
+      navigate('/contacts');
     } catch (error: any) {
       console.error('Error saving contacts:', error);
       
@@ -353,10 +350,9 @@ export default function ContactsImportHub() {
                       value={contact.name}
                       onChange={(e) => updateManualContact(index, 'name', e.target.value)}
                     />
-                    <Input
-                      placeholder="Phone number"
+                    <PhoneInput
                       value={contact.phone}
-                      onChange={(e) => updateManualContact(index, 'phone', e.target.value)}
+                      onChange={(value) => updateManualContact(index, 'phone', value || '')}
                     />
                     <Input
                       placeholder="Email (optional)"
@@ -396,9 +392,9 @@ export default function ContactsImportHub() {
           </p>
           <Button
             variant="outline"
-            onClick={() => navigate('/dashboard')}
+            onClick={() => navigate('/contacts')}
           >
-            Skip for now
+            Back to Contacts
           </Button>
         </div>
       </div>

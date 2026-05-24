@@ -6,10 +6,12 @@ import { Helmet } from "react-helmet-async";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { generateUniqueHandle } from "@/lib/handleGenerator";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 
 const loginSchema = z.object({
   email: z.string().min(1, "Email is required").email("Enter a valid email"),
@@ -49,8 +51,18 @@ const Login = () => {
       }
 
       if (data?.user) {
-        toast.success("Welcome back!");
-        // Let App.tsx handle navigation via auth state changes
+        // Rotate handle on each login for privacy
+        try {
+          const newHandle = await generateUniqueHandle(supabase);
+          await supabase
+            .from('profiles')
+            .update({ handle: newHandle })
+            .eq('id', data.user.id);
+          toast.success(`Welcome back! You're now @${newHandle}`);
+        } catch (handleErr) {
+          console.error('Handle rotation failed:', handleErr);
+          toast.success("Welcome back!");
+        }
         setLoading(false);
         return;
       }
@@ -130,7 +142,7 @@ const Login = () => {
                           </button>
                         </div>
                         <FormControl>
-                          <Input type="password" placeholder="••••••••" autoComplete="current-password" {...field} />
+                          <PasswordInput placeholder="••••••••" autoComplete="current-password" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

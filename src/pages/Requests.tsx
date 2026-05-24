@@ -7,10 +7,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { MessageSquare, Plus, Clock, CheckCircle, XCircle, MapPin, Users, User, UserCheck, Share2 } from "lucide-react";
+import { MessageSquare, Plus, Clock, CheckCircle, XCircle, MapPin, Users, User, UserCheck, Share2, Edit, Trash2, MoreVertical } from "lucide-react";
+import { ExpiryBadge, isRequestExpired } from "@/components/ExpiryBadge";
 import { formatDistanceToNow } from "date-fns";
 import { NetworkPath } from "@/components/NetworkPath";
 import { ForwardRequestDialog } from "@/components/ForwardRequestDialog";
+import { DeleteRequestDialog } from "@/components/DeleteRequestDialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+// Note: Request pages always show real names. Network-aware anonymization
+// is only applied in the Master Directory context.
 
 interface Request {
   id: string;
@@ -18,6 +23,7 @@ interface Request {
   category: string;
   location: string | null;
   audience_type: string;
+  audience_types?: string[]; // Multiple audiences support
   status: string;
   created_at: string;
   updated_at: string;
@@ -34,6 +40,8 @@ interface Request {
   }>;
   degree_of_separation?: number | null;
   connection_path?: string[];
+  group_id?: string;
+  group_name?: string;
 }
 
 interface Group {
@@ -52,6 +60,9 @@ export default function Requests() {
   const [forwardDialogOpen, setForwardDialogOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<Request | null>(null);
   const [userGroups, setUserGroups] = useState<Group[]>([]);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [requestToDelete, setRequestToDelete] = useState<Request | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     loadRequests();
@@ -86,16 +97,34 @@ export default function Requests() {
         .from("requests")
         .select(`
           *,
-          request_responses(count)
+          request_responses(count),
+          groups(name)
         `)
         .eq("creator_id", user.id)
         .order("created_at", { ascending: false });
 
       if (sentError) throw sentError;
 
+      // Get guest contribution counts for sent requests
+      const sentRequestIds = (sentData || []).map(r => r.id);
+      let sentGuestCounts: Record<string, number> = {};
+      if (sentRequestIds.length > 0) {
+        const { data: guestCounts } = await supabase
+          .from("guest_contributions")
+          .select("request_id")
+          .in("request_id", sentRequestIds);
+        
+        (guestCounts || []).forEach(gc => {
+          sentGuestCounts[gc.request_id!] = (sentGuestCounts[gc.request_id!] || 0) + 1;
+        });
+      }
+
       const formattedSentRequests = sentData?.map(request => ({
         ...request,
-        response_count: request.request_responses?.length || 0,
+        response_count:
+          (request.request_responses?.[0]?.count || 0) +
+          (sentGuestCounts[request.id] || 0),
+        group_name: request.groups?.name,
         forwarding_chain: Array.isArray(request.forwarding_chain) 
           ? request.forwarding_chain as Array<{ user_id: string; user_name: string; user_handle: string; }>
           : []
@@ -104,17 +133,104 @@ export default function Requests() {
       setSentRequests(formattedSentRequests);
       setSentCount(formattedSentRequests.length);
 
-      // Load received requests (requests sent to current user)
-      const { data: receivedData, error: receivedError } = await supabase
-        .from("requests")
-        .select(`
-          *,
-          request_responses(count)
-        `)
-        .neq("creator_id", user.id)
-        .order("created_at", { ascending: false });
+      // Load received requests — only those actually sent to this user.
+      // A request is shown when ANY of the following is true:
+      //   1. Viewer is friends with the creator (friendships table)
+      //   2. Request was explicitly forwarded to viewer (request_forwards)
+      //   3. audience_types contains 'public'
+      //   4. Viewer has a converted guest_contributions record for this request
+      // Always exclude: status='closed' or expires_at < now()
+      //
+      // We collect candidate IDs/criteria via separate small queries, then
+      // fetch & merge — this avoids brittle PostgREST .or() syntax with
+      // array-contains clauses.
 
-      if (receivedError) throw receivedError;
+      const nowIso = new Date().toISOString();
+
+      // 1. Friend creator IDs
+      const { data: friendships } = await supabase
+        .from("friendships")
+        .select("user1_id, user2_id")
+        .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`);
+      const friendIds = (friendships || [])
+        .map(f => (f.user1_id === user.id ? f.user2_id : f.user1_id))
+        .filter(Boolean);
+
+      // 2. Request IDs forwarded to this user
+      const { data: forwardsToMe } = await supabase
+        .from("request_forwards")
+        .select("request_id")
+        .contains("forwarded_to", [user.id]);
+      const forwardedRequestIds = Array.from(
+        new Set((forwardsToMe || []).map(f => f.request_id).filter(Boolean) as string[])
+      );
+
+      // 4. Request IDs from converted guest contributions
+      const { data: convertedGuestRows } = await supabase
+        .from("guest_contributions")
+        .select("request_id")
+        .eq("converted_user_id", user.id);
+      const guestRequestIds = Array.from(
+        new Set((convertedGuestRows || []).map(g => g.request_id).filter(Boolean) as string[])
+      );
+
+      // Run the eligible queries in parallel and merge results
+      const baseSelect = `
+        *,
+        request_responses(count),
+        groups(name)
+      `;
+
+      const queries: PromiseLike<{ data: any[] | null; error: any }>[] = [];
+
+      // (1) Friend-created requests
+      if (friendIds.length > 0) {
+        queries.push(
+          supabase
+            .from("requests")
+            .select(baseSelect)
+            .in("creator_id", friendIds)
+            .neq("status", "closed")
+            .gte("expires_at", nowIso)
+        );
+      }
+
+      // (2) + (4) Specific request IDs (forwarded or converted-guest)
+      const explicitIds = Array.from(new Set([...forwardedRequestIds, ...guestRequestIds]));
+      if (explicitIds.length > 0) {
+        queries.push(
+          supabase
+            .from("requests")
+            .select(baseSelect)
+            .in("id", explicitIds)
+            .neq("status", "closed")
+            .gte("expires_at", nowIso)
+        );
+      }
+
+      // (3) Public open requests
+      queries.push(
+        supabase
+          .from("requests")
+          .select(baseSelect)
+          .contains("audience_types", ["public"])
+          .eq("status", "open")
+          .gte("expires_at", nowIso)
+          .neq("creator_id", user.id)
+      );
+
+      const results = await Promise.all(queries.map(q => Promise.resolve(q)));
+      const mergedById = new Map<string, any>();
+      for (const { data, error } of results) {
+        if (error) throw error;
+        for (const row of data || []) {
+          if (row.creator_id === user.id) continue; // never show own
+          mergedById.set(row.id, row);
+        }
+      }
+      const receivedData = Array.from(mergedById.values()).sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
 
       // Process received requests with network info
       const processedReceivedRequests = await Promise.all(
@@ -138,13 +254,18 @@ export default function Requests() {
               };
             }
           } else {
-            // For network requests, get real profile
+            // For network requests, get real profile with network-aware name
             const { data: profileData } = await supabase
               .from("profiles")
               .select("full_name, handle")
               .eq("id", request.creator_id)
               .single();
-            creatorProfile = profileData;
+            
+            // Always show real full_name on request pages
+            creatorProfile = profileData ? {
+              full_name: profileData.full_name || profileData.handle || 'Someone',
+              handle: profileData.handle
+            } : null;
 
             // Get degree of separation
             const { data: degreeData } = await supabase.rpc(
@@ -161,10 +282,18 @@ export default function Requests() {
             connectionPath = pathData || [];
           }
 
+          // Get guest contribution count for this request
+          const { count: guestCount } = await supabase
+            .from("guest_contributions")
+            .select("id", { count: 'exact', head: true })
+            .eq("request_id", request.id);
+
           return {
             ...request,
             creator_profile: creatorProfile,
-            response_count: request.request_responses?.length || 0,
+            response_count:
+              (request.request_responses?.[0]?.count || 0) + (guestCount || 0),
+            group_name: request.groups?.name,
             degree_of_separation: degreeOfSeparation,
             connection_path: connectionPath,
             forwarding_chain: Array.isArray(request.forwarding_chain) 
@@ -189,10 +318,20 @@ export default function Requests() {
     }
   };
 
+  const getEffectiveStatus = (request: Request) => {
+    const expiresAt = (request as any).expires_at;
+    if (request.status === "open" && expiresAt && isRequestExpired(expiresAt, request.status)) {
+      return "expired";
+    }
+    return request.status;
+  };
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "open":
         return <Clock className="h-4 w-4 text-orange-500" />;
+      case "expired":
+        return <XCircle className="h-4 w-4 text-destructive" />;
       case "responded":
         return <CheckCircle className="h-4 w-4 text-green-500" />;
       case "closed":
@@ -206,6 +345,8 @@ export default function Requests() {
     switch (status) {
       case "open":
         return "bg-orange-100 text-orange-800";
+      case "expired":
+        return "bg-destructive/10 text-destructive";
       case "responded":
         return "bg-green-100 text-green-800";
       case "closed":
@@ -234,20 +375,77 @@ export default function Requests() {
 
   const formatAudienceType = (audienceType: string) => {
     switch (audienceType) {
+      case "first_network":
+        return "1st Network";
       case "friends":
         return "Friends";
       case "extended_network":
         return "Extended Network";
       case "specific_group":
+      case "group":
         return "Group";
+      case "specific_people":
+        return "Specific People";
+      case "public":
+        return "Public";
       default:
         return audienceType;
+    }
+  };
+
+  const getAudienceBadgeColor = (audienceType: string) => {
+    switch (audienceType) {
+      case "first_network":
+      case "friends":
+        return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200";
+      case "group":
+      case "specific_group":
+        return "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200";
+      case "specific_people":
+        return "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200";
+      case "public":
+        return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200";
+      default:
+        return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200";
     }
   };
 
   const handleForward = (request: Request) => {
     setSelectedRequest(request);
     setForwardDialogOpen(true);
+  };
+
+  const handleDeleteRequest = async () => {
+    if (!requestToDelete) return;
+    
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase
+        .from("requests")
+        .delete()
+        .eq("id", requestToDelete.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Request Deleted",
+        description: "Your request has been permanently deleted"
+      });
+
+      // Refresh requests
+      await loadRequests();
+    } catch (error) {
+      console.error("Error deleting request:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete request",
+        variant: "destructive"
+      });
+    } finally {
+      setIsDeleting(false);
+      setDeleteDialogOpen(false);
+      setRequestToDelete(null);
+    }
   };
 
   const RequestCard = ({ request, showCreator = false }: { request: Request; showCreator?: boolean }) => (
@@ -268,7 +466,7 @@ export default function Requests() {
                 ) : (
                   <>
                     <p className="text-sm text-muted-foreground">
-                      Requested by {request.creator_profile.full_name} (@{request.creator_profile.handle})
+                      Requested by {request.creator_profile.full_name}
                     </p>
                     <NetworkPath
                       forwardingChain={request.forwarding_chain}
@@ -281,9 +479,9 @@ export default function Requests() {
             )}
           </div>
           <div className="flex items-center gap-1">
-            {getStatusIcon(request.status)}
-            <Badge className={getStatusColor(request.status)} variant="secondary">
-              {request.status}
+            {getStatusIcon(getEffectiveStatus(request))}
+            <Badge className={getStatusColor(getEffectiveStatus(request))} variant="secondary">
+              {getEffectiveStatus(request)}
             </Badge>
           </div>
         </div>
@@ -302,11 +500,26 @@ export default function Requests() {
             )}
           </div>
 
-          {/* Audience and Response Count */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1 text-sm text-muted-foreground">
-              {getAudienceIcon(request.audience_type)}
-              <span>Sent to {formatAudienceType(request.audience_type)}</span>
+          {/* Audience Badges and Response Count */}
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="flex flex-wrap items-center gap-1.5">
+              {(request.audience_types || [request.audience_type]).map((audienceType, index) => {
+                // Show group name if this is a group audience
+                const label = audienceType === 'group' && request.group_name
+                  ? `Group: ${request.group_name}`
+                  : formatAudienceType(audienceType);
+                
+                return (
+                  <Badge 
+                    key={index} 
+                    variant="secondary" 
+                    className={`text-xs ${getAudienceBadgeColor(audienceType)}`}
+                  >
+                    {getAudienceIcon(audienceType)}
+                    <span className="ml-1">{label}</span>
+                  </Badge>
+                );
+              })}
             </div>
             
             <div className="flex items-center gap-4 text-sm">
@@ -316,13 +529,16 @@ export default function Requests() {
               <span className="text-muted-foreground">
                 {formatDistanceToNow(new Date(request.created_at), { addSuffix: true })}
               </span>
+              {(request as any).expires_at && (
+                <ExpiryBadge expiresAt={(request as any).expires_at} status={request.status} />
+              )}
             </div>
           </div>
 
           {/* Action Buttons */}
           <div className="flex items-center justify-between pt-2 border-t">
             <div className="flex items-center gap-2">
-              {showCreator && (
+              {showCreator ? (
                 <>
                   <Button asChild variant="outline" size="sm">
                     <Link to={`/requests/${request.id}/respond`} className="flex items-center gap-1">
@@ -342,14 +558,45 @@ export default function Requests() {
                     </Button>
                   )}
                 </>
+              ) : (
+                <>
+                  <Button asChild variant="outline" size="sm">
+                    <Link to={`/requests/${request.id}/respond`} className="flex items-center gap-1">
+                      View
+                    </Link>
+                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem asChild>
+                        <Link to={`/requests/${request.id}/edit`} className="flex items-center gap-2">
+                          <Edit className="h-4 w-4" />
+                          Edit
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        className="text-destructive focus:text-destructive"
+                        onClick={() => {
+                          setRequestToDelete(request);
+                          setDeleteDialogOpen(true);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </>
               )}
             </div>
             {!showCreator && request.response_count > 0 && (
-              <Button asChild variant="ghost" size="sm">
-                <Link to={`/requests/${request.id}/respond`} className="flex items-center gap-1">
-                  View Responses
-                </Link>
-              </Button>
+              <span className="text-sm text-muted-foreground">
+                {request.response_count} {request.response_count === 1 ? 'response' : 'responses'}
+              </span>
             )}
           </div>
         </div>
@@ -510,6 +757,14 @@ export default function Requests() {
           onForwardComplete={loadRequests}
         />
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <DeleteRequestDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        onConfirm={handleDeleteRequest}
+        isDeleting={isDeleting}
+      />
     </div>
   );
 }

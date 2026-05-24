@@ -10,10 +10,21 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
+import { PhoneInput } from "@/components/ui/phone-input";
 
 const signupSchema = z.object({
+  full_name: z.string().min(2, "Full name must be at least 2 characters"),
   email: z.string().min(1, "Email is required").email("Enter a valid email"),
   password: z.string().min(8, "Password must be at least 8 characters"),
+  phone_number: z
+    .string()
+    .min(1, "Phone number is required")
+    .refine((val) => {
+      // Check if it's in +91XXXXXXXXXX format with exactly 10 digits after +91
+      const match = val.match(/^\+91(\d{10})$/);
+      return match !== null;
+    }, "Please enter a valid 10-digit phone number"),
 });
 
 type SignupValues = z.infer<typeof signupSchema>;
@@ -24,21 +35,35 @@ const Signup = () => {
 
   const form = useForm<SignupValues>({
     resolver: zodResolver(signupSchema),
-    defaultValues: { email: "", password: "" },
+    defaultValues: { full_name: "", email: "", password: "", phone_number: "" },
     mode: "onSubmit",
   });
 
 const onSubmit = async (values: SignupValues) => {
   setLoading(true);
   try {
-    const redirectUrl = `${window.location.origin}/auth/callback`;
+    const normalizedPhone = values.phone_number;
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const requestId = urlParams.get("request_id");
+    const shareLinkId = urlParams.get("share_link_id");
+    const redirectUrl = requestId
+      ? `${window.location.origin}/auth/callback?request_id=${encodeURIComponent(requestId)}`
+      : `${window.location.origin}/auth/callback`;
+    const isShareLinkSignup = Boolean(requestId || shareLinkId);
+
     const { data, error } = await supabase.auth.signUp({
       email: values.email.toLowerCase(),
       password: values.password,
       options: {
         emailRedirectTo: redirectUrl,
         data: {
-          user_type: 'verified'
+          user_type: "verified",
+          phone_number: normalizedPhone,
+          full_name: values.full_name.trim(),
+          is_share_signup: isShareLinkSignup,
+          share_request_id: requestId,
+          share_link_id: shareLinkId,
         }
       },
     });
@@ -51,14 +76,30 @@ const onSubmit = async (values: SignupValues) => {
       return;
     }
 
+    // Convert guest contribution if coming from share link flow
+    if (data?.user && shareLinkId) {
+      try {
+        await supabase
+          .from("guest_contributions")
+          .update({ joined_antelog: true, converted_user_id: data.user.id })
+          .eq("share_link_id", shareLinkId);
+      } catch (e) {
+        console.error("Failed to update guest contribution:", e);
+      }
+    }
+
     if (data?.session) {
-      toast.success("Account created. Redirecting to verification…");
-      navigate("/profile-setup", { replace: true });
+      toast.success("Account created. Redirecting…");
+      if (requestId) {
+        window.location.replace(`/requests/${requestId}/respond?welcome=1`);
+      } else {
+        navigate("/profile-setup", { replace: true });
+      }
       return;
     }
 
     toast.success("Check your inbox to verify your email.");
-    form.reset({ email: values.email.toLowerCase(), password: "" });
+    form.reset({ email: values.email.toLowerCase(), password: "", full_name: "", phone_number: "" });
   } catch (e) {
     toast.error("Something went wrong. Please try again.");
   } finally {
@@ -88,6 +129,23 @@ const onSubmit = async (values: SignupValues) => {
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                   <FormField
                     control={form.control}
+                    name="full_name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Full Name *</FormLabel>
+                        <FormControl>
+                          <Input type="text" placeholder="e.g., Mike Johnson" autoComplete="name" {...field} />
+                        </FormControl>
+                        <p className="text-xs text-muted-foreground">
+                          This is how you'll appear to people in your network
+                        </p>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
                     name="email"
                     render={({ field }) => (
                       <FormItem>
@@ -107,8 +165,25 @@ const onSubmit = async (values: SignupValues) => {
                       <FormItem>
                         <FormLabel>Password</FormLabel>
                         <FormControl>
-                          <Input type="password" placeholder="••••••••" autoComplete="new-password" {...field} />
+                          <PasswordInput placeholder="••••••••" autoComplete="new-password" {...field} />
                         </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="phone_number"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Phone Number *</FormLabel>
+                        <FormControl>
+                          <PhoneInput {...field} />
+                        </FormControl>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          We'll use this to connect you with friends who have you in their contacts
+                        </p>
                         <FormMessage />
                       </FormItem>
                     )}

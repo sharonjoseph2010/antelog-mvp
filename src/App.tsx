@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import { ThemeProvider } from "next-themes";
 import { useEffect, useState } from "react";
@@ -14,7 +14,7 @@ import Signup from "./pages/Signup";
 import Login from "./pages/Login";
 import Verify from "./pages/Verify";
 import AuthCallback from "./pages/AuthCallback";
-import ProfileSetup from "./pages/ProfileSetup";
+import ProfileSetupEnhanced from "./pages/ProfileSetupEnhanced";
 import Admin from "./pages/Admin";
 import Dashboard from "./pages/Dashboard";
 import Lists from "./pages/Lists";
@@ -22,9 +22,7 @@ import ListsNew from "./pages/ListsNew";
 import ListDetail from "./pages/ListDetail";
 import ListEdit from "./pages/ListEdit";
 import Friends from "./pages/Friends";
-import ContactsImport from "./pages/ContactsImport";
 import ContactsImportHub from "./pages/ContactsImportHub";
-import ContactsOverview from "./pages/ContactsOverview";
 import ExtendedNetwork from "./pages/ExtendedNetwork";
 import Groups from "./pages/Groups";
 import GroupsNew from "./pages/GroupsNew";
@@ -32,12 +30,25 @@ import GroupDetail from "./pages/GroupDetail";
 import Requests from "./pages/Requests";
 import RequestsNew from "./pages/RequestsNew";
 import RequestRespond from "./pages/RequestRespond";
+import RequestEdit from "./pages/RequestEdit";
+import RequestReview from "./pages/RequestReview";
 import { supabase } from "@/integrations/supabase/client";
 import type { Session, User } from "@supabase/supabase-js";
 import { ProtectedRoute, AdminRoute, InternalRoute, VerifiedRoute } from "@/components/routes/RouteGuards";
+import { AppShell } from "@/layouts/AppShell";
 import Directory from "./pages/Directory";
+import DirectoryListDetail from "./pages/DirectoryListDetail";
 import GuestSignup from "./pages/GuestSignup";
 import ForYou from "./pages/ForYou";
+import Profile from "./pages/Profile";
+import PublicProfile from "./pages/PublicProfile";
+import Waitlist from "./pages/Waitlist";
+import GuestResponse from "./pages/GuestResponse";
+import Welcome from "./pages/Welcome";
+import Notifications from "./pages/Notifications";
+import Network from "./pages/Network";
+import Settings from "./pages/Settings";
+import RequestDetail from "./pages/RequestDetail";
 
 const queryClient = new QueryClient();
 
@@ -53,6 +64,14 @@ function App() {
     
     let mounted = true;
     
+    // Safety timeout - never stay stuck on loading screen
+    const safetyTimeout = setTimeout(() => {
+      if (mounted && initializing) {
+        console.warn('INIT: Safety timeout reached, forcing initialization complete');
+        setInitializing(false);
+      }
+    }, 5000);
+
     const initAuth = async () => {
       try {
         console.log('INIT: Getting current session...');
@@ -116,6 +135,7 @@ function App() {
     return () => {
       console.log('CLEANUP: Unmounting auth setup');
       mounted = false;
+      clearTimeout(safetyTimeout);
       subscription.unsubscribe();
     };
   }, []);
@@ -178,6 +198,28 @@ function AppContent({
   setInitializing: (init: boolean) => void;
 }) {
   const navigate = useNavigate();
+  const location = useLocation();
+  const isGuestPage = location.pathname.startsWith("/r/");
+
+  // Routes that live inside the authenticated app shell (sidebar nav).
+  // Landing, auth, guest, and onboarding pages keep the top Header.
+  const SHELL_ROUTES = [
+    "/dashboard",
+    "/lists",
+    "/for-you",
+    "/friends",
+    "/contacts",
+    "/network",
+    "/groups",
+    "/requests",
+    "/directory",
+    "/profile",
+    "/notifications",
+    "/settings",
+    "/admin",
+  ];
+  const isShellRoute =
+    isAuthenticatedShellPath(location.pathname, SHELL_ROUTES);
 
   // Handle navigation after authentication state is set
   useEffect(() => {
@@ -190,6 +232,11 @@ function AppContent({
     
     if (!session?.user) {
       console.log("[Auth] No user session, skipping navigation");
+      return;
+    }
+
+    if (window.location.pathname === "/auth/callback") {
+      console.log("[Auth] On auth callback route, skipping App-level navigation override");
       return;
     }
 
@@ -246,7 +293,11 @@ function AppContent({
       }
     };
 
-    // Only navigate if we're on login/signup pages after successful auth
+    // Only navigate if we're on login/signup/landing pages after successful auth
+    if (window.location.pathname.startsWith('/requests/')) {
+      console.log('[Auth] On request page, skipping post-auth navigation');
+      return;
+    }
     if (["/login", "/signup", "/"].includes(window.location.pathname)) {
       console.log("[Auth] Current path requires post-auth navigation");
       handlePostAuthNavigation();
@@ -291,21 +342,22 @@ function AppContent({
     }
   };
 
-  return (
-    <>
-      <Header 
-        isAuthenticated={isAuthenticated} 
-        isAdmin={isAdmin} 
-        userType={userType}
-        onLogout={handleLogout} 
-      />
-      <Routes>
+  const useShell = isShellRoute && isAuthenticated && userType === "verified";
+
+  const routesNode = (
+    <Routes>
         <Route path="/" element={initializing ? <div className="min-h-screen flex items-center justify-center">Loading...</div> : <Index />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/guest-signup" element={<GuestSignup />} />
+        <Route path="/waitlist" element={<Waitlist />} />
         <Route path="/directory" element={
           <ProtectedRoute isAuthenticated={isAuthenticated}>
             <Directory />
+          </ProtectedRoute>
+        } />
+        <Route path="/directory/:id" element={
+          <ProtectedRoute isAuthenticated={isAuthenticated}>
+            <DirectoryListDetail />
           </ProtectedRoute>
         } />
         <Route path="/login" element={<Login />} />
@@ -377,7 +429,7 @@ function AppContent({
           path="/contacts"
           element={
             <ProtectedRoute isAuthenticated={isAuthenticated}>
-              <ContactsOverview />
+              <Network />
             </ProtectedRoute>
           }
         />
@@ -387,15 +439,6 @@ function AppContent({
           element={
             <ProtectedRoute isAuthenticated={isAuthenticated}>
               <ContactsImportHub />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/contacts/legacy"
-          element={
-            <ProtectedRoute isAuthenticated={isAuthenticated}>
-              <ContactsImport />
             </ProtectedRoute>
           }
         />
@@ -464,6 +507,33 @@ function AppContent({
         />
 
         <Route
+          path="/requests/:id/edit"
+          element={
+            <VerifiedRoute isAuthenticated={isAuthenticated} userType={userType}>
+              <RequestEdit />
+            </VerifiedRoute>
+          }
+        />
+
+        <Route
+          path="/requests/:id/review"
+          element={
+            <VerifiedRoute isAuthenticated={isAuthenticated} userType={userType}>
+              <RequestReview />
+            </VerifiedRoute>
+          }
+        />
+
+        <Route
+          path="/requests/:id"
+          element={
+            <ProtectedRoute isAuthenticated={isAuthenticated}>
+              <RequestDetail />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
           path="/admin"
           element={
             <AdminRoute isAuthenticated={isAuthenticated} isAdmin={isAdmin}>
@@ -476,7 +546,7 @@ function AppContent({
           path="/profile-setup"
           element={
             <InternalRoute isAuthenticated={isAuthenticated}>
-              <ProfileSetup />
+              <ProfileSetupEnhanced />
             </InternalRoute>
           }
         />
@@ -490,13 +560,89 @@ function AppContent({
           }
         />
 
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute isAuthenticated={isAuthenticated}>
+              <Profile />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/profile/:userId"
+          element={
+            <ProtectedRoute isAuthenticated={isAuthenticated}>
+              <PublicProfile />
+            </ProtectedRoute>
+          }
+        />
+
         <Route path="/auth/callback" element={<AuthCallback />} />
+        <Route path="/r/:requestId/:token" element={<GuestResponse />} />
+        <Route
+          path="/notifications"
+          element={
+            <ProtectedRoute isAuthenticated={isAuthenticated}>
+              <Notifications />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/network"
+          element={
+            <ProtectedRoute isAuthenticated={isAuthenticated}>
+              <Friends />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute isAuthenticated={isAuthenticated}>
+              <Settings />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/welcome"
+          element={
+            <ProtectedRoute isAuthenticated={isAuthenticated}>
+              <Welcome />
+            </ProtectedRoute>
+          }
+        />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
         <Route path="*" element={<NotFound />} />
       </Routes>
-      <Footer isAuthenticated={isAuthenticated} />
+  );
+
+  if (useShell) {
+    return (
+      <>
+        {routesNode && (
+          <AppShell onLogout={handleLogout}>{routesNode}</AppShell>
+        )}
+      </>
+    );
+  }
+
+  return (
+    <>
+      <Header
+        isAuthenticated={isAuthenticated}
+        isAdmin={isAdmin}
+        userType={userType}
+        onLogout={handleLogout}
+      />
+      {routesNode}
+      {!isGuestPage && <Footer isAuthenticated={isAuthenticated} />}
     </>
   );
+}
+
+function isAuthenticatedShellPath(pathname: string, prefixes: string[]) {
+  return prefixes.some((p) => pathname === p || pathname.startsWith(p + "/"));
 }
 
 export default App;

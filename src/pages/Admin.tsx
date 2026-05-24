@@ -4,50 +4,89 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminDeduplication } from "@/components/AdminDeduplication";
+import { Trash2, Search, Users, Mail } from "lucide-react";
 
-type PendingProfile = {
+type UserProfile = {
   id: string;
   full_name: string | null;
   handle: string;
-  student_id_number: string | null;
-  id_card_image_url: string | null;
+  phone_number: string | null;
+  user_type: string;
+  verification_status: string;
+  created_at: string;
+  email?: string;
+};
+
+type WaitlistEntry = {
+  id: string;
+  email: string;
+  created_at: string;
 };
 
 const Admin = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [items, setItems] = useState<PendingProfile[]>([]);
-  const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
   const [isAdmin, setIsAdmin] = useState(false);
+  const [users, setUsers] = useState<UserProfile[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<UserProfile | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  
+  // Waitlist state
+  const [waitlistEmails, setWaitlistEmails] = useState<WaitlistEntry[]>([]);
+  const [waitlistLoading, setWaitlistLoading] = useState(false);
+  const [waitlistSearch, setWaitlistSearch] = useState("");
+  const [waitlistDeleteDialogOpen, setWaitlistDeleteDialogOpen] = useState(false);
+  const [emailToDelete, setEmailToDelete] = useState<WaitlistEntry | null>(null);
+  const [deletingEmail, setDeletingEmail] = useState(false);
 
-  const loadPending = async () => {
-    const { data, error } = await supabase
+  const loadUsers = async () => {
+    setUsersLoading(true);
+    const { data: profilesData, error: profilesError } = await supabase
       .from("profiles")
-      .select("id, full_name, handle, student_id_number, id_card_image_url")
-      .eq("verification_status", "pending")
-      .order("created_at", { ascending: true });
+      .select("id, full_name, handle, phone_number, user_type, verification_status, created_at")
+      .order("created_at", { ascending: false });
 
-    if (error) {
-      toast.error("Failed to load pending verifications");
+    if (profilesError) {
+      toast.error("Failed to load users");
+      setUsersLoading(false);
       return;
     }
 
-    setItems((data as any) || []);
+    // Map profiles to user format (email will show handle as we can't access auth.users from client)
+    const usersData = (profilesData || []).map(profile => ({
+      ...profile,
+      email: `${profile.handle}@antelog.app` // Placeholder since we can't fetch from auth.users client-side
+    }));
 
-    // Generate signed URLs for images
-    const entries = await Promise.all(
-      (data || []).map(async (p: PendingProfile) => {
-        if (!p.id_card_image_url) return [p.id, ""] as const;
-        const { data: signed } = await supabase
-          .storage
-          .from("id-cards")
-          .createSignedUrl(p.id_card_image_url, 60 * 10); // 10 minutes
-        return [p.id, signed?.signedUrl || ""] as const;
-      })
-    );
-    setImageUrls(Object.fromEntries(entries));
+    setUsers(usersData);
+    setUsersLoading(false);
+  };
+
+  const loadWaitlist = async () => {
+    setWaitlistLoading(true);
+    const { data, error } = await supabase
+      .from("temp_waitlist")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      toast.error("Failed to load waitlist");
+      setWaitlistLoading(false);
+      return;
+    }
+
+    setWaitlistEmails(data || []);
+    setWaitlistLoading(false);
   };
 
   useEffect(() => {
@@ -70,41 +109,92 @@ const Admin = () => {
       setIsAdmin(hasAdminRole);
 
       if (hasAdminRole) {
-        await loadPending();
+        await loadUsers();
+        await loadWaitlist();
       }
 
       setLoading(false);
     })();
     return () => { mounted = false; };
-  }, [navigate, loadPending]);
+  }, [navigate]);
 
-  const updateStatus = async (profileId: string, status: "verified" | "rejected") => {
-    const { error } = await supabase
-      .from("profiles")
-      .update({ verification_status: status })
-      .eq("id", profileId);
+  const handleDeleteUser = async () => {
+    if (!userToDelete) return;
+    
+    setDeleting(true);
+    try {
+      const { error } = await supabase.rpc("admin_delete_user", {
+        user_id_to_delete: userToDelete.id
+      });
 
-    if (error) {
-      toast.error(error.message);
-      return;
+      if (error) throw error;
+
+      toast.success(`User ${userToDelete.full_name || userToDelete.handle} deleted successfully`);
+      setUsers(prev => prev.filter(u => u.id !== userToDelete.id));
+      setDeleteDialogOpen(false);
+      setUserToDelete(null);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to delete user");
+    } finally {
+      setDeleting(false);
     }
-
-    toast.success(status === "verified" ? "Profile approved" : "Profile rejected");
-    setItems((prev) => prev.filter((p) => p.id !== profileId));
   };
+
+  const handleDeleteWaitlistEmail = async () => {
+    if (!emailToDelete) return;
+    
+    setDeletingEmail(true);
+    try {
+      const { error } = await supabase
+        .from("temp_waitlist")
+        .delete()
+        .eq("id", emailToDelete.id);
+
+      if (error) throw error;
+
+      toast.success(`${emailToDelete.email} removed from waitlist`);
+      setWaitlistEmails(prev => prev.filter(e => e.id !== emailToDelete.id));
+      setWaitlistDeleteDialogOpen(false);
+      setEmailToDelete(null);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to delete email");
+    } finally {
+      setDeletingEmail(false);
+    }
+  };
+
+  const filteredUsers = useMemo(() => {
+    if (!searchQuery) return users;
+    const query = searchQuery.toLowerCase();
+    return users.filter(
+      u =>
+        u.full_name?.toLowerCase().includes(query) ||
+        u.handle.toLowerCase().includes(query) ||
+        u.email?.toLowerCase().includes(query)
+    );
+  }, [users, searchQuery]);
+
+  const filteredWaitlist = useMemo(() => {
+    if (!waitlistSearch) return waitlistEmails;
+    const query = waitlistSearch.toLowerCase();
+    return waitlistEmails.filter(e => e.email.toLowerCase().includes(query));
+  }, [waitlistEmails, waitlistSearch]);
+
+  const totalUsers = users.length;
+  const waitlistCount = waitlistEmails.length;
 
   return (
     <>
       <Helmet>
-        <title>Admin — Pending verifications | Antelog</title>
-        <meta name="description" content="Review and approve pending student verifications." />
+        <title>Admin | Antelog</title>
+        <meta name="description" content="Manage users and the waitlist." />
         <link rel="canonical" href={window.location.href} />
       </Helmet>
       <main className="min-h-screen bg-background px-4 py-10">
-        <section className="max-w-5xl mx-auto space-y-6">
+        <section className="max-w-7xl mx-auto space-y-6">
           <header>
-            <h1 className="text-3xl font-bold">Admin — Pending verifications</h1>
-            <p className="text-muted-foreground">Only accessible to admins.</p>
+            <h1 className="text-3xl font-bold">Admin Panel</h1>
+            <p className="text-muted-foreground">Manage users and the waitlist</p>
           </header>
 
           {!isAdmin && (
@@ -118,62 +208,240 @@ const Admin = () => {
 
           {isAdmin && (
             <>
-              <AdminDeduplication />
+              <Tabs defaultValue="users" className="w-full">
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="users" className="gap-2">
+                    <Users className="h-4 w-4" />
+                    User Management
+                    <Badge variant="secondary">{totalUsers}</Badge>
+                  </TabsTrigger>
+                  <TabsTrigger value="waitlist" className="gap-2">
+                    <Mail className="h-4 w-4" />
+                    Waitlist
+                    <Badge variant="secondary">{waitlistCount}</Badge>
+                  </TabsTrigger>
+                  <TabsTrigger value="tools">Admin Tools</TabsTrigger>
+                </TabsList>
 
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {loading && (
-                <Card className="sm:col-span-2 lg:col-span-3">
-                  <CardHeader>
-                    <CardTitle>Loading…</CardTitle>
-                    <CardDescription>Please wait while we fetch pending profiles.</CardDescription>
-                  </CardHeader>
-                </Card>
-              )}
-
-              {!loading && items.length === 0 && (
-                <Card className="sm:col-span-2 lg:col-span-3">
-                  <CardHeader>
-                    <CardTitle>No pending verifications</CardTitle>
-                    <CardDescription>All caught up!</CardDescription>
-                  </CardHeader>
-                </Card>
-              )}
-
-              {!loading && items.map((p) => (
-                <Card key={p.id} className="flex flex-col">
-                  <CardHeader>
-                    <CardTitle className="text-xl">{p.full_name || "(No name)"}</CardTitle>
-                    <CardDescription>@{p.handle}</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    {imageUrls[p.id] ? (
-                      <img
-                        src={imageUrls[p.id]}
-                        alt={`ID card for ${p.full_name || p.handle}`}
-                        className="w-full rounded-md border"
-                        loading="lazy"
-                      />
-                    ) : (
-                      <div className="text-sm text-muted-foreground border rounded-md p-3">
-                        No ID image uploaded
+                <TabsContent value="users" className="space-y-4">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>All Users</CardTitle>
+                      <CardDescription>
+                        Manage all registered users. Search by name, email, or handle.
+                      </CardDescription>
+                      <div className="flex items-center gap-2 pt-4">
+                        <Search className="h-4 w-4 text-muted-foreground" />
+                        <Input
+                          placeholder="Search users..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="max-w-sm"
+                        />
                       </div>
-                    )}
-                    <div className="text-sm">
-                      <div className="text-muted-foreground">Student ID</div>
-                      <div className="font-medium">{p.student_id_number || "—"}</div>
-                    </div>
-                    <div className="flex gap-2 pt-2">
-                      <Button size="sm" onClick={() => updateStatus(p.id, "verified")}>Approve</Button>
-                      <Button size="sm" variant="destructive" onClick={() => updateStatus(p.id, "rejected")}>Reject</Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                    </CardHeader>
+                    <CardContent>
+                      {usersLoading ? (
+                        <p className="text-center text-muted-foreground py-8">Loading users...</p>
+                      ) : (
+                        <div className="rounded-md border">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Name</TableHead>
+                                <TableHead>Email</TableHead>
+                                <TableHead>Handle</TableHead>
+                                <TableHead>Phone</TableHead>
+                                <TableHead>Type</TableHead>
+                                <TableHead>Status</TableHead>
+                                <TableHead>Registered</TableHead>
+                                <TableHead className="text-right">Actions</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {filteredUsers.length === 0 ? (
+                                <TableRow>
+                                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                                    No users found
+                                  </TableCell>
+                                </TableRow>
+                              ) : (
+                                filteredUsers.map((user) => (
+                                  <TableRow key={user.id}>
+                                    <TableCell className="font-medium">
+                                      {user.full_name || "(No name)"}
+                                    </TableCell>
+                                    <TableCell className="text-sm">{user.email}</TableCell>
+                                    <TableCell className="text-sm">@{user.handle}</TableCell>
+                                    <TableCell className="text-sm">{user.phone_number || "—"}</TableCell>
+                                    <TableCell>
+                                      <Badge variant={user.user_type === "verified" ? "default" : "secondary"}>
+                                        {user.user_type}
+                                      </Badge>
+                                    </TableCell>
+                                    <TableCell>
+                                      <Badge
+                                        variant={
+                                          user.verification_status === "verified"
+                                            ? "default"
+                                            : user.verification_status === "rejected"
+                                            ? "destructive"
+                                            : "secondary"
+                                        }
+                                      >
+                                        {user.verification_status}
+                                      </Badge>
+                                    </TableCell>
+                                    <TableCell className="text-sm">
+                                      {new Date(user.created_at).toLocaleDateString()}
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                      <Button
+                                        size="sm"
+                                        variant="destructive"
+                                        onClick={() => {
+                                          setUserToDelete(user);
+                                          setDeleteDialogOpen(true);
+                                        }}
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </TableCell>
+                                  </TableRow>
+                                ))
+                              )}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="waitlist" className="space-y-4">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Waitlist Signups</CardTitle>
+                      <CardDescription>
+                        Manage email addresses from the temporary waitlist. Total: {waitlistCount} signups.
+                      </CardDescription>
+                      <div className="flex items-center gap-2 pt-4">
+                        <Search className="h-4 w-4 text-muted-foreground" />
+                        <Input
+                          placeholder="Search emails..."
+                          value={waitlistSearch}
+                          onChange={(e) => setWaitlistSearch(e.target.value)}
+                          className="max-w-sm"
+                        />
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      {waitlistLoading ? (
+                        <p className="text-center text-muted-foreground py-8">Loading waitlist...</p>
+                      ) : (
+                        <div className="rounded-md border">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Email</TableHead>
+                                <TableHead>Joined Date</TableHead>
+                                <TableHead className="text-right">Actions</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {filteredWaitlist.length === 0 ? (
+                                <TableRow>
+                                  <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
+                                    No waitlist signups yet
+                                  </TableCell>
+                                </TableRow>
+                              ) : (
+                                filteredWaitlist.map((entry) => (
+                                  <TableRow key={entry.id}>
+                                    <TableCell className="font-medium">{entry.email}</TableCell>
+                                    <TableCell className="text-sm">
+                                      {new Date(entry.created_at).toLocaleDateString()}
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                      <Button
+                                        size="sm"
+                                        variant="destructive"
+                                        onClick={() => {
+                                          setEmailToDelete(entry);
+                                          setWaitlistDeleteDialogOpen(true);
+                                        }}
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </TableCell>
+                                  </TableRow>
+                                ))
+                              )}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="tools">
+                  <AdminDeduplication />
+                </TabsContent>
+              </Tabs>
             </>
           )}
         </section>
       </main>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete User Account?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete{" "}
+              <span className="font-semibold">{userToDelete?.full_name || userToDelete?.handle}</span>{" "}
+              and all their data including lists, requests, contacts, and friendships.
+              <br />
+              <br />
+              <span className="text-destructive font-medium">This action cannot be undone.</span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteUser}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? "Deleting..." : "Permanently Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={waitlistDeleteDialogOpen} onOpenChange={setWaitlistDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove from Waitlist?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove{" "}
+              <span className="font-semibold">{emailToDelete?.email}</span>{" "}
+              from the waitlist.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingEmail}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteWaitlistEmail}
+              disabled={deletingEmail}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deletingEmail ? "Removing..." : "Remove"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };

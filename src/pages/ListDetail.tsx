@@ -17,6 +17,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/components/ui/use-toast";
+import ListItemRow from "@/components/ListItemRow";
 
 interface ListRecord {
   id: string;
@@ -164,25 +165,16 @@ const ListDetail = () => {
                     {items.length === 0 ? (
                       <p className="text-muted-foreground">No items in this list yet.</p>
                     ) : (
-                      <ol className="list-decimal pl-6 space-y-2">
-                        {items.map((item) => (
-                          <li key={item.id} className="leading-relaxed">
-                            <div className="flex flex-col gap-1">
-                              <span>{item.content}</span>
-                              {item.url ? (
-                                <a
-                                  href={item.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-primary underline-offset-4 hover:underline"
-                                >
-                                  {item.url}
-                                </a>
-                              ) : null}
-                            </div>
-                          </li>
+                      <div>
+                        {items.map((item, idx) => (
+                          <ListItemRow
+                            key={item.id}
+                            number={idx + 1}
+                            name={item.content}
+                            url={item.url}
+                          />
                         ))}
-                      </ol>
+                      </div>
                     )}
                   </section>
                 </CardContent>

@@ -1,0 +1,119 @@
+import { useEffect, useState } from "react";
+import { Link, NavLink } from "react-router-dom";
+import { Bell, Moon, Sun } from "lucide-react";
+import { useTheme } from "next-themes";
+import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { RightDrawer } from "./RightDrawer";
+
+export function TopNav() {
+  const { theme, resolvedTheme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [initial, setInitial] = useState("?");
+  const [unread, setUnread] = useState(0);
+
+  useEffect(() => { setMounted(true); }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user || cancelled) return;
+      const [{ data: prof }, { count }] = await Promise.all([
+        supabase.from("profiles").select("full_name, handle").eq("id", user.id).maybeSingle(),
+        supabase
+          .from("notifications")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .eq("is_read", false),
+      ]);
+      if (cancelled) return;
+      const base = (prof?.full_name as string) || (prof?.handle as string) || user.email || "?";
+      setInitial(base.trim().charAt(0).toUpperCase());
+      setUnread(count || 0);
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const isDark = mounted && (resolvedTheme || theme) === "dark";
+
+  const navLinkCls = ({ isActive }: { isActive: boolean }) =>
+    cn(
+      "relative text-[13px] transition-colors",
+      isActive
+        ? "font-medium text-foreground after:absolute after:left-0 after:right-0 after:-bottom-[15px] after:h-[1.5px] after:bg-foreground"
+        : "text-muted-foreground hover:text-foreground"
+    );
+
+  return (
+    <>
+      <header className="sticky top-0 z-30 border-b border-border bg-background">
+        <div className="flex items-center justify-between px-7 py-[14px]">
+          <div className="flex items-baseline gap-6">
+            <Link
+              to="/dashboard"
+              className="text-[20px] font-semibold tracking-[-0.02em] text-foreground leading-none"
+            >
+              Antelog
+            </Link>
+            <NavLink
+              to="/directory"
+              className={({ isActive }) =>
+                cn(
+                  "text-[13px] font-medium text-foreground hover:opacity-80",
+                  isActive && "underline underline-offset-[15px] decoration-[1.5px]"
+                )
+              }
+            >
+              Master Directory
+            </NavLink>
+            <span className="self-center h-[14px] w-px bg-border" />
+            <nav className="flex items-baseline gap-5">
+              <NavLink to="/dashboard" className={navLinkCls} end>Dashboard</NavLink>
+              <NavLink to="/for-you" className={navLinkCls}>For You</NavLink>
+              <NavLink to="/requests" className={navLinkCls}>Requests</NavLink>
+            </nav>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Link
+              to="/notifications"
+              aria-label="Notifications"
+              className="relative inline-flex h-8 w-8 items-center justify-center rounded-md text-foreground/70 hover:bg-muted hover:text-foreground"
+            >
+              <Bell className="h-[17px] w-[17px]" strokeWidth={1.5} />
+              {unread > 0 && (
+                <span className="absolute right-[7px] top-[6px] h-[7px] w-[7px] rounded-full border-[1.5px] border-background bg-primary" />
+              )}
+            </Link>
+            <button
+              type="button"
+              aria-label="Toggle theme"
+              onClick={() => setTheme(isDark ? "light" : "dark")}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-md text-foreground/70 hover:bg-muted hover:text-foreground"
+            >
+              {isDark ? (
+                <Sun className="h-[17px] w-[17px]" strokeWidth={1.5} />
+              ) : (
+                <Moon className="h-[17px] w-[17px]" strokeWidth={1.5} />
+              )}
+            </button>
+            <button
+              type="button"
+              aria-label="Open account menu"
+              onClick={() => setDrawerOpen(true)}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border bg-muted text-[12px] font-medium text-foreground transition-colors hover:bg-muted/70"
+            >
+              <span className="flex h-7 w-7 items-center justify-center rounded-full">
+                {initial}
+              </span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <RightDrawer open={drawerOpen} onOpenChange={setDrawerOpen} />
+    </>
+  );
+}

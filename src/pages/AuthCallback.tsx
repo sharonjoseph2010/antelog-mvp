@@ -3,6 +3,7 @@ import { Helmet } from "react-helmet-async";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 
@@ -18,36 +19,33 @@ useEffect(() => {
   const hashParams = new URLSearchParams(url.hash.replace(/^#/, ""));
   const queryParams = url.searchParams;
   const isRecovery = hashParams.get("type") === "recovery" || queryParams.get("type") === "recovery";
-  const hasSupabaseParams =
-    hashParams.has("access_token") ||
-    hashParams.has("refresh_token") ||
-    !!hashParams.get("type") ||
-    !!queryParams.get("code");
 
-  // If accessed directly without expected auth params, make it invisible to users
-  if (!isRecovery && !hasSupabaseParams) {
-    navigate("/", { replace: true });
+  if (isRecovery) {
+    setMode("reset");
     return;
   }
 
+  let redirectHandled = false;
+
+  const handleRedirect = () => {
+    if (redirectHandled) return;
+    redirectHandled = true;
+    navigate("/dashboard", { replace: true });
+  };
+
   const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-    if (event === "PASSWORD_RECOVERY" || isRecovery) {
+    if (event === "PASSWORD_RECOVERY") {
       setMode("reset");
       return;
     }
-    if (session) {
-      navigate("/profile-setup", { replace: true, state: { internal: true } });
+    if (session?.user?.id) {
+      handleRedirect();
     }
   });
 
-  // Handle case where session is already set from URL hash
   supabase.auth.getSession().then(({ data: { session } }) => {
-    if (isRecovery) {
-      setMode("reset");
-      return;
-    }
-    if (session) {
-      navigate("/profile-setup", { replace: true, state: { internal: true } });
+    if (session?.user?.id) {
+      handleRedirect();
     }
   });
 
@@ -89,11 +87,11 @@ useEffect(() => {
               <div className="text-left space-y-3">
                 <div>
                   <label className="block text-sm mb-1">New password</label>
-                  <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
+                  <PasswordInput value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
                 </div>
                 <div>
                   <label className="block text-sm mb-1">Confirm password</label>
-                  <Input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="••••••••" />
+                  <PasswordInput value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="••••••••" />
                 </div>
                 <Button className="w-full" onClick={handleReset} disabled={submitting}>{submitting ? "Saving…" : "Save new password"}</Button>
               </div>

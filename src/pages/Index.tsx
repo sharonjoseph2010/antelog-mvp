@@ -1,166 +1,141 @@
 import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, ShieldCheck } from "lucide-react";
 
 const Index = () => {
-  const isStealthMode = import.meta.env.VITE_STEALTH_MODE === "true";
-
-  const content = {
-    stealth: {
-      title: "A new social platform for students",
-      description: "Connect, share, and discover with your network. Built by students, for students.",
-      metaDescription: "A new social platform for students. Join the waitlist for early access.",
-      buttonText: "Join Waitlist"
-    },
-    public: {
-      title: "Trust-powered recommendations",
-      description: "Discover verified lists from real people. No ads, no influencers, just trusted recommendations from your network.",
-      metaDescription: "Discover verified lists from real people. No ads, no influencers—just trusted recommendations from your network.",
-      buttonText: "Search Master Directory"
-    }
-  };
-
-  const currentContent = isStealthMode ? content.stealth : content.public;
+  const metaDescription =
+    "Antelog is where verified people share real recommendations - with the people they know, and the people they don't.";
 
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "WebSite",
     name: "Antelog",
     url: window.location.origin,
-    description: currentContent.metaDescription,
+    description: metaDescription,
   };
 
   return (
     <>
       <Helmet>
-        <title>{currentContent.title} — Antelog</title>
-        <meta
-          name="description"
-          content={currentContent.metaDescription}
-        />
+        <title>Your network is more powerful than you think. — Antelog</title>
+        <meta name="description" content={metaDescription} />
         <link rel="canonical" href={window.location.href} />
         <script type="application/ld+json">{JSON.stringify(jsonLd)}</script>
       </Helmet>
 
-      <main className="min-h-screen bg-background">
+      <main className="min-h-screen bg-background text-foreground">
         {/* Hero */}
-        <section className="container mx-auto px-4 py-20 text-center">
-          <h1 className="text-4xl md:text-5xl font-bold tracking-tight">
-            {currentContent.title}
-          </h1>
-          <p className="mt-4 text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto">
-            {currentContent.description}
+        <section className="mx-auto max-w-[760px] px-5 pt-12 pb-11 text-center sm:px-6 md:pt-16">
+          <p className="mb-4 text-[11px] uppercase tracking-[0.06em] text-muted-foreground sm:tracking-[0.1em]">
+            Recommendations · text only · people powered
           </p>
-          <div className="mt-8">
+          <h1 className="mx-auto mb-4 max-w-[580px] text-[28px] font-bold leading-[1.15] sm:text-[32px] md:text-[40px]">
+            Your network is more powerful than you think.
+          </h1>
+          <p className="mx-auto mb-6 max-w-[500px] text-[16px] leading-relaxed text-muted-foreground sm:text-[18px]">
+            Antelog is where verified people share real recommendations - with the people they know, and the people they don't.
+          </p>
+          <div className="inline-flex flex-wrap justify-center gap-2.5">
             <Button asChild size="lg">
-              <Link to="/guest-signup">{currentContent.buttonText}</Link>
+              <Link to="/waitlist">Join Waitlist</Link>
+            </Button>
+            <Button asChild size="lg" variant="outline">
+              <Link to="/directory">Browse the Directory</Link>
             </Button>
           </div>
         </section>
 
-        <section id="features" className="container mx-auto px-4 py-12">
-          <div className="grid gap-6 md:grid-cols-3">
-            <Card>
-              <CardHeader>
-                <div className="mb-2 text-muted-foreground">
-                  <Users className="h-5 w-5" aria-hidden />
-                </div>
-                <CardTitle>{isStealthMode ? "Student Network" : "Trust-Based Network"}</CardTitle>
-              </CardHeader>
-              <CardContent className="text-muted-foreground">
-                {isStealthMode 
-                  ? "Connect with fellow students and discover what matters to your network."
-                  : "Connect only with people you know. See recommendations from your contacts and their extended network."
-                }
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <div className="mb-2 text-muted-foreground">
-                  <ShieldCheck className="h-5 w-5" aria-hidden />
-                </div>
-                <CardTitle>{isStealthMode ? "Built for Students" : "Verified Lists"}</CardTitle>
-              </CardHeader>
-              <CardContent className="text-muted-foreground">
-                {isStealthMode
-                  ? "By students, for students. A platform designed with your needs in mind."
-                  : "Text-only lists from verified users. No sponsored content, no fake reviews."
-                }
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <div className="mb-2 text-muted-foreground">
-                  <ShieldCheck className="h-5 w-5" aria-hidden />
-                </div>
-                <CardTitle>{isStealthMode ? "Coming Soon" : "Smart Discovery"}</CardTitle>
-              </CardHeader>
-              <CardContent className="text-muted-foreground">
-                {isStealthMode
-                  ? "Join the waitlist for early access. Launching soon for students."
-                  : "Find recommendations based on your network and interests, not algorithms."
-                }
-              </CardContent>
-            </Card>
-          </div>
-        </section>
-
-        {/* How It Works */}
-        <section className="container mx-auto px-4 py-12">
-          <div className="max-w-4xl mx-auto">
-            <h2 className="text-2xl font-semibold">{isStealthMode ? "Join the community" : "How it works"}</h2>
-            <ol className="mt-6 grid gap-4 md:grid-cols-3 list-decimal list-inside">
-              <li className="p-4 rounded-md border bg-card text-card-foreground">
-                {isStealthMode ? "Get verified as a student" : "Get verified"}
-              </li>
-              <li className="p-4 rounded-md border bg-card text-card-foreground">
-                {isStealthMode ? "Connect with your network" : "Create and share lists"}
-              </li>
-              <li className="p-4 rounded-md border bg-card text-card-foreground">
-                {isStealthMode ? "Discover and share" : "Discover from your network"}
-              </li>
-            </ol>
-          </div>
-        </section>
-
-
-        {/* Final CTA */}
-        <section className="container mx-auto px-4 py-16 text-center">
-          <h2 className="text-3xl font-bold">
-            {isStealthMode ? "Join the waitlist" : "Get Started with Antelog"}
-          </h2>
-          <p className="mt-3 text-muted-foreground max-w-2xl mx-auto">
-            {isStealthMode 
-              ? "Be among the first to experience the new social platform for students."
-              : "Choose how you want to join our community of curated recommendations."
-            }
-          </p>
-          <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center max-w-md mx-auto">
-            {isStealthMode ? (
-              <Button asChild size="lg" className="w-full">
-                <Link to="/signup">Join Waitlist</Link>
-              </Button>
-            ) : (
-              <>
-                <Button asChild variant="outline" size="lg" className="flex-1">
-                  <Link to="/guest-signup">Master Directory</Link>
-                </Button>
-                <Button asChild size="lg" className="flex-1">
-                  <Link to="/signup">Get Verified</Link>
-                </Button>
-              </>
-            )}
-          </div>
-          {!isStealthMode && (
-            <div className="mt-4 text-sm text-muted-foreground space-y-1">
-              <p><strong>Master Directory</strong>: Free access to search all recommendations</p>
-              <p><strong>Get Verified</strong>: Create lists, build network, full platform access</p>
+        {/* Two paths */}
+        <section className="mx-auto max-w-[1120px] px-5 pb-12 sm:px-6">
+          <div className="grid grid-cols-1 gap-3.5 min-[900px]:grid-cols-2">
+            <div className="rounded-lg bg-muted p-6">
+              <p className="mb-2.5 text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
+                Your network and extended network
+              </p>
+              <h3 className="mb-2.5 text-[22px] font-medium">
+                Ask the people who'd actually know.
+              </h3>
+              <p className="text-[15px] leading-[1.55] text-muted-foreground">
+                Send a niche question to your friends and their extended network. Get answers from people who've been there, tried that, done it. Every recommendation traceable to a real person. Every answer is organic and SEO based.
+              </p>
             </div>
-          )}
+            <div className="rounded-lg bg-muted p-6">
+              <p className="mb-2.5 text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
+                Master Directory
+              </p>
+              <h3 className="mb-2.5 text-[22px] font-medium">
+                Browse what verified people use.
+              </h3>
+              <p className="text-[15px] leading-[1.55] text-muted-foreground">
+                A growing library of community-ranked lists across categories — cafes, gear, services, doctors, anything. Free to read. Verify to vote and contribute. No burner accounts. One person - one account.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* Pillars */}
+        <section className="mx-auto max-w-[1120px] border-t border-border px-5 py-11 sm:px-6">
+          <div className="grid grid-cols-1 gap-7 sm:grid-cols-2 lg:grid-cols-3">
+            {[
+              {
+                title: "Real people, verified once",
+                body: "One human, one account. Aadhaar or PAN. The verification is what keeps the answers honest.",
+              },
+              {
+                title: "Quiet by design",
+                body: "See exactly how every recommendation reached you - who asked, who passed it on, who answered.",
+              },
+              {
+                title: "Trust, traceable",
+                body: "See exactly how every recommendation reached you - who asked, who passed it on, who answered.",
+              },
+            ].map((p) => (
+              <div key={p.title}>
+                <h4 className="mb-1.5 text-base font-medium">{p.title}</h4>
+                <p className="text-sm leading-[1.55] text-muted-foreground">{p.body}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* How it works */}
+        <section className="mx-auto max-w-[1120px] border-t border-border px-5 py-11 sm:px-6">
+          <h3 className="mb-7 text-center text-[22px] font-medium">How Antelog works</h3>
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {[
+              {
+                n: "01",
+                title: "Get verified",
+                body: "One verified account. That's how we keep real people in and everything else out.",
+              },
+              {
+                n: "02",
+                title: "Build your network",
+                body: "Your contacts on Antelog are your 1st network. Their friends are your extended. That's where the answers come from.",
+              },
+              {
+                n: "03",
+                title: "Ask, share, browse",
+                body: "Send requests, share your own lists, look up the Directory. Everything text, nothing performative.",
+              },
+            ].map((s) => (
+              <div key={s.n}>
+                <p className="mb-1.5 text-[11px] tracking-[0.04em] text-muted-foreground">{s.n}</p>
+                <p className="mb-1.5 text-base font-medium">{s.title}</p>
+                <p className="text-sm leading-[1.55] text-muted-foreground">{s.body}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Bottom CTA */}
+        <section className="border-t border-border px-5 py-12 text-center sm:px-6">
+          <h3 className="mx-auto mb-[18px] max-w-[460px] font-medium leading-[1.3] text-xl">
+            ​For the things the internet cannot help you with
+          </h3>
+          <Button asChild size="lg">
+            <Link to="/waitlist">Join Waitlist</Link>
+          </Button>
         </section>
       </main>
     </>

@@ -1,0 +1,46 @@
+-- ⚠️ CRITICAL SECURITY WARNING ⚠️
+-- This migration DISABLES Row Level Security on ALL tables
+-- This is ONLY for MVP testing and MUST be re-enabled before production
+-- Without RLS, ANY authenticated user can access/modify ANY data
+
+-- Core user and network tables
+ALTER TABLE profiles DISABLE ROW LEVEL SECURITY;
+ALTER TABLE friendships DISABLE ROW LEVEL SECURITY;
+ALTER TABLE friend_requests DISABLE ROW LEVEL SECURITY;
+ALTER TABLE friend_suggestions DISABLE ROW LEVEL SECURITY;
+ALTER TABLE contact_imports DISABLE ROW LEVEL SECURITY;
+ALTER TABLE anonymous_handles DISABLE ROW LEVEL SECURITY;
+
+-- Request and response tables
+ALTER TABLE requests DISABLE ROW LEVEL SECURITY;
+ALTER TABLE request_responses DISABLE ROW LEVEL SECURITY;
+ALTER TABLE request_forwards DISABLE ROW LEVEL SECURITY;
+ALTER TABLE request_votes DISABLE ROW LEVEL SECURITY;
+
+-- Notification tables
+ALTER TABLE notifications DISABLE ROW LEVEL SECURITY;
+
+-- List tables
+ALTER TABLE lists DISABLE ROW LEVEL SECURITY;
+ALTER TABLE list_items DISABLE ROW LEVEL SECURITY;
+
+-- Group tables
+ALTER TABLE groups DISABLE ROW LEVEL SECURITY;
+ALTER TABLE group_members DISABLE ROW LEVEL SECURITY;
+
+-- Directory and search tables
+ALTER TABLE directory_entries DISABLE ROW LEVEL SECURITY;
+ALTER TABLE directory_votes DISABLE ROW LEVEL SECURITY;
+ALTER TABLE master_directory_entries DISABLE ROW LEVEL SECURITY;
+ALTER TABLE search_analytics DISABLE ROW LEVEL SECURITY;
+
+-- System tables
+ALTER TABLE user_expertise DISABLE ROW LEVEL SECURITY;
+ALTER TABLE user_roles DISABLE ROW LEVEL SECURITY;
+ALTER TABLE colleges DISABLE ROW LEVEL SECURITY;
+ALTER TABLE contact_access_logs DISABLE ROW LEVEL SECURITY;
+
+-- Add comment to track this temporary change
+COMMENT ON TABLE profiles IS '⚠️ RLS DISABLED FOR MVP TESTING - RE-ENABLE BEFORE PRODUCTION';
+COMMENT ON TABLE requests IS '⚠️ RLS DISABLED FOR MVP TESTING - RE-ENABLE BEFORE PRODUCTION';
+COMMENT ON TABLE notifications IS '⚠️ RLS DISABLED FOR MVP TESTING - RE-ENABLE BEFORE PRODUCTION';
