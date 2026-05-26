@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, NavLink } from "react-router-dom";
-import { Bell, Moon, Sun } from "lucide-react";
+import { Bell, Moon, Sun, Home, Users, Inbox, BookOpen, User as UserIcon } from "lucide-react";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -48,7 +48,7 @@ export function TopNav() {
 
   return (
     <>
-      <header className="sticky top-0 z-30 border-b border-border bg-background">
+      <header className="sticky top-0 z-30 hidden border-b border-border bg-background md:block">
         <div className="flex items-center justify-between px-7 py-[14px]">
           <div className="flex items-baseline gap-6">
             <Link
@@ -72,6 +72,7 @@ export function TopNav() {
             <nav className="flex items-baseline gap-5">
               <NavLink to="/dashboard" className={navLinkCls} end>Dashboard</NavLink>
               <NavLink to="/for-you" className={navLinkCls}>For You</NavLink>
+              <NavLink to="/network" className={navLinkCls}>Network</NavLink>
               <NavLink to="/requests" className={navLinkCls}>Requests</NavLink>
             </nav>
           </div>
@@ -113,7 +114,51 @@ export function TopNav() {
         </div>
       </header>
 
+      {/* Mobile bottom tab bar */}
+      <nav className="fixed bottom-0 left-0 right-0 z-30 grid grid-cols-5 border-t border-border bg-background md:hidden">
+        <MobileTab to="/dashboard" icon={Home} label="Home" />
+        <MobileTab to="/network" icon={Users} label="Network" />
+        <MobileTab to="/requests" icon={Inbox} label="Requests" />
+        <MobileTab to="/directory" icon={BookOpen} label="Directory" />
+        <button
+          type="button"
+          onClick={() => setDrawerOpen(true)}
+          className="flex flex-col items-center justify-center gap-1 py-2 text-[10px] text-muted-foreground hover:text-foreground"
+          aria-label="You"
+        >
+          <UserIcon className="h-5 w-5" strokeWidth={1.5} />
+          <span>You</span>
+        </button>
+      </nav>
+      {/* Spacer so content isn't hidden behind the bottom tab bar on mobile */}
+      <div className="h-14 md:hidden" aria-hidden />
+
       <RightDrawer open={drawerOpen} onOpenChange={setDrawerOpen} />
     </>
+  );
+}
+
+function MobileTab({
+  to,
+  icon: Icon,
+  label,
+}: {
+  to: string;
+  icon: typeof Home;
+  label: string;
+}) {
+  return (
+    <NavLink
+      to={to}
+      className={({ isActive }) =>
+        cn(
+          "flex flex-col items-center justify-center gap-1 py-2 text-[10px] transition-colors",
+          isActive ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+        )
+      }
+    >
+      <Icon className="h-5 w-5" strokeWidth={1.5} />
+      <span>{label}</span>
+    </NavLink>
   );
 }
