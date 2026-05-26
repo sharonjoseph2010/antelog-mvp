@@ -4,6 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { ArrowRight, GitMerge, Mail, Network as NetworkIcon, Plus, Search, Send, Trash2, Upload, Users, UsersRound, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import ImportContactsDialog from "@/components/ImportContactsDialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,7 +26,7 @@ import { cn } from "@/lib/utils";
  * Button text:       12-13px / 500
  */
 
-type TabKey = "friends" | "to_add" | "to_invite" | "groups";
+type TabKey = "on_antelog" | "to_invite" | "connected";
 
 interface FriendRow {
   friendshipId: string;
@@ -75,8 +76,8 @@ const Network = () => {
   const [hasAnyContacts, setHasAnyContacts] = useState(true);
 
   const [removing, setRemoving] = useState<FriendRow | null>(null);
-  const [groups, setGroups] = useState<Group[]>([]);
-  const [groupsLoading, setGroupsLoading] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importTab, setImportTab] = useState<"google" | "file" | "manual">("manual");
 
   useEffect(() => {
     (async () => {
