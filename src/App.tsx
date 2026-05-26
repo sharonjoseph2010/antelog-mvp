@@ -463,7 +463,16 @@ function AppContent({
           path="/contacts/import"
           element={
             <ProtectedRoute isAuthenticated={isAuthenticated}>
-              <ContactsImportHub />
+              <Network />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/friend-request/:userId"
+          element={
+            <ProtectedRoute isAuthenticated={isAuthenticated}>
+              <FriendRequestPage />
             </ProtectedRoute>
           }
         />
