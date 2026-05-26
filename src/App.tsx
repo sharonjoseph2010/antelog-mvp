@@ -640,6 +640,28 @@ function AppContent({
     );
   }
 
+  if (isOnboarding) {
+    return (
+      <>
+        <header className="sticky top-0 z-30 border-b border-border bg-background">
+          <div className="flex items-center justify-between px-7 py-[14px]">
+            <Link to="/" className="text-[20px] font-semibold tracking-[-0.02em] text-foreground leading-none">
+              Antelog
+            </Link>
+            <button
+              type="button"
+              onClick={handleSkipOnboarding}
+              className="text-[13px] text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Skip for now
+            </button>
+          </div>
+        </header>
+        {routesNode}
+      </>
+    );
+  }
+
   return (
     <>
       <Header
