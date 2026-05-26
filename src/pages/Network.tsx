@@ -748,7 +748,7 @@ function EmptyTab({ message }: { message: string }) {
   );
 }
 
-function ImportCards({ onNavigate }: { onNavigate: () => void }) {
+function ImportCards({ onPick }: { onPick: (tab: "google" | "file" | "manual") => void }) {
   return (
     <div className="mt-8 grid gap-4 md:grid-cols-3">
       <ImportCard
@@ -758,7 +758,7 @@ function ImportCards({ onNavigate }: { onNavigate: () => void }) {
         primary
         actionLabel="Connect Google"
         helper="Most popular · easiest option"
-        onClick={onNavigate}
+        onClick={() => onPick("google")}
       />
       <ImportCard
         icon={<Upload className="h-5 w-5" strokeWidth={1.5} />}
@@ -766,7 +766,7 @@ function ImportCards({ onNavigate }: { onNavigate: () => void }) {
         description="Import from a CSV or vCard (.vcf) file."
         actionLabel="Choose file"
         helper="Works on iPhone and Android"
-        onClick={onNavigate}
+        onClick={() => onPick("file")}
       />
       <ImportCard
         icon={<Plus className="h-5 w-5" strokeWidth={1.5} />}
@@ -774,7 +774,7 @@ function ImportCards({ onNavigate }: { onNavigate: () => void }) {
         description="Enter contacts one by one."
         actionLabel="Add contact"
         helper="For 1–5 contacts"
-        onClick={onNavigate}
+        onClick={() => onPick("manual")}
       />
     </div>
   );
