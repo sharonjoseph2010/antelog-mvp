@@ -200,6 +200,7 @@ function AppContent({
   const navigate = useNavigate();
   const location = useLocation();
   const isGuestPage = location.pathname.startsWith("/r/");
+  const isOnboarding = location.pathname === "/welcome";
 
   // Routes that live inside the authenticated app shell (sidebar nav).
   // Landing, auth, guest, and onboarding pages keep the top Header.
