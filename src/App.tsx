@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation, Link } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import { ThemeProvider } from "next-themes";
 import { useEffect, useState } from "react";
@@ -200,6 +200,7 @@ function AppContent({
   const navigate = useNavigate();
   const location = useLocation();
   const isGuestPage = location.pathname.startsWith("/r/");
+  const isOnboarding = location.pathname === "/welcome";
 
   // Routes that live inside the authenticated app shell (sidebar nav).
   // Landing, auth, guest, and onboarding pages keep the top Header.
@@ -340,6 +341,18 @@ function AppContent({
       setUserType(null);
       console.log("[Auth] Logout complete; session cleared");
     }
+  };
+
+  const handleSkipOnboarding = async () => {
+    if (!user?.id) {
+      navigate("/dashboard", { replace: true });
+      return;
+    }
+    await supabase
+      .from("profiles")
+      .update({ questionnaire_completed: true })
+      .eq("id", user.id);
+    navigate("/dashboard", { replace: true });
   };
 
   const useShell = isShellRoute && isAuthenticated && userType === "verified";
@@ -623,6 +636,28 @@ function AppContent({
         {routesNode && (
           <AppShell onLogout={handleLogout}>{routesNode}</AppShell>
         )}
+      </>
+    );
+  }
+
+  if (isOnboarding) {
+    return (
+      <>
+        <header className="sticky top-0 z-30 border-b border-border bg-background">
+          <div className="flex items-center justify-between px-7 py-[14px]">
+            <Link to="/" className="text-[20px] font-semibold tracking-[-0.02em] text-foreground leading-none">
+              Antelog
+            </Link>
+            <button
+              type="button"
+              onClick={handleSkipOnboarding}
+              className="text-[13px] text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Skip for now
+            </button>
+          </div>
+        </header>
+        {routesNode}
       </>
     );
   }
