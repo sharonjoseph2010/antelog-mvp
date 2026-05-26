@@ -65,7 +65,7 @@ const Profile = () => {
           .from("profiles")
           .select("full_name, handle, phone_number, location, occupation, bio, interests, expertise_domains, expertise_cities, user_type, verification_status, is_verified")
           .eq("id", user.id)
-          .single();
+          .maybeSingle();
 
         if (error) {
           toast({ title: "Error loading profile", description: error.message, variant: "destructive" });
