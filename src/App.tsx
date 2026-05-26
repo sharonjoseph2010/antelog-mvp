@@ -201,6 +201,8 @@ function AppContent({
   const location = useLocation();
   const isGuestPage = location.pathname.startsWith("/r/");
   const isOnboarding = location.pathname === "/welcome";
+  const AUTH_PATHS = ["/login", "/signup", "/guest-signup", "/register", "/signin"];
+  const isAuthPage = AUTH_PATHS.includes(location.pathname);
 
   // Guard: don't render any navigation until auth state is fully resolved.
   // This prevents the nav from flashing before the session is confirmed.
@@ -646,6 +648,21 @@ function AppContent({
         {routesNode && (
           <AppShell onLogout={handleLogout}>{routesNode}</AppShell>
         )}
+      </>
+    );
+  }
+
+  if (isAuthPage) {
+    return (
+      <>
+        <header className="sticky top-0 z-30 border-b border-border bg-background">
+          <div className="flex items-center px-7 py-[14px]">
+            <Link to="/" className="text-[20px] font-semibold tracking-[-0.02em] text-foreground leading-none">
+              Antelog
+            </Link>
+          </div>
+        </header>
+        {routesNode}
       </>
     );
   }
