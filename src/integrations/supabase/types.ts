@@ -1714,20 +1714,6 @@ export type Database = {
           recommendation_count: number
         }[]
       }
-      get_safe_profile_data: {
-        Args: { profile_id: string }
-        Returns: {
-          batch: string
-          full_name: string
-          handle: string
-          id: string
-          id_card_image_url: string
-          is_verified: boolean
-          phone_number: string
-          student_id_number: string
-          user_type: Database["public"]["Enums"]["user_type"]
-        }[]
-      }
       get_safe_profile_view: {
         Args: { profile_id: string }
         Returns: {
@@ -1743,6 +1729,7 @@ export type Database = {
           occupation: string
           phone_number: string
           relationship: string
+          user_type: string
         }[]
       }
       has_role: {
