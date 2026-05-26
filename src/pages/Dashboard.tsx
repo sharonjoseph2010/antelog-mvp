@@ -343,7 +343,7 @@ const Dashboard = () => {
         .activity-scroll::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground) / 0.4); }
       `}</style>
 
-      <div className="mx-auto w-full max-w-[1240px] px-6 py-10 lg:px-10 lg:py-12">
+      <div className="mx-auto w-full max-w-[1240px] px-6 py-10 lg:px-10 lg:py-12" style={{ minHeight: "calc(100vh - 200px)" }}>
         {loading ? (
           <p className="text-sm text-muted-foreground">Loading…</p>
         ) : (
@@ -476,7 +476,7 @@ const Dashboard = () => {
                   </div>
                   {pendingRequests.length === 0 ? (
                     <p className="text-[13px] text-muted-foreground">
-                      All caught up. No requests waiting for your input.
+                      When someone in your network asks a question you can answer, it'll show up here.
                     </p>
                   ) : (
                     <ul className="divide-y divide-border rounded-lg border border-border">
@@ -509,12 +509,16 @@ const Dashboard = () => {
                     </Link>
                   </div>
                   {recentLists.length === 0 ? (
-                    <p className="text-[13px] text-muted-foreground">
-                      No lists yet.{" "}
-                      <Link to="/lists/new" className="underline underline-offset-2 hover:text-foreground">
-                        Save your first recommendations →
-                      </Link>
-                    </p>
+                    <div className="space-y-2">
+                      <p className="text-[13px] text-muted-foreground">
+                        Lists are your saved recommendations — best cafes, gear you trust, places to stay.
+                      </p>
+                      <p className="text-[13px] text-muted-foreground">
+                        <Link to="/lists/new" className="underline underline-offset-2 hover:text-foreground">
+                          Save your first recommendations →
+                        </Link>
+                      </p>
+                    </div>
                   ) : (
                     <ul className="divide-y divide-border rounded-lg border border-border">
                       {recentLists.map((l) => (
