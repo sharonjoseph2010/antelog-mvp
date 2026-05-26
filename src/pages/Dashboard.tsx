@@ -343,11 +343,12 @@ const Dashboard = () => {
         .activity-scroll::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground) / 0.4); }
       `}</style>
 
-      <div className="mx-auto w-full max-w-[1240px] px-6 py-10 lg:px-10 lg:py-12" style={{ minHeight: "calc(100vh - 200px)" }}>
+      <div className="mx-auto flex w-full max-w-[1240px] flex-col px-6 py-10 lg:px-10 lg:py-12" style={{ minHeight: "100vh" }}>
         {loading ? (
           <p className="text-sm text-muted-foreground">Loading…</p>
         ) : (
-          <div className="space-y-10">
+          <div className="flex flex-1 flex-col space-y-10">
+            <div className="flex-1 space-y-10">
             {/* Welcome header */}
             <header className="space-y-2">
               <h1 className="text-[26px] font-medium tracking-tight text-foreground">
@@ -499,7 +500,7 @@ const Dashboard = () => {
                 </section>
 
                 {/* Your recent lists */}
-                <section className="space-y-3">
+                <section className="space-y-3 rounded-lg border border-border bg-background p-5">
                   <div className="flex items-center justify-between">
                     <h2 className="text-[15px] font-medium text-foreground">
                       Your recent lists
@@ -539,6 +540,7 @@ const Dashboard = () => {
                   )}
                 </section>
               </div>
+            </div>
             </div>
 
             <footer className="flex flex-col items-start justify-between gap-2 border-t border-border pt-6 text-[12px] text-muted-foreground sm:flex-row sm:items-center">
