@@ -57,8 +57,9 @@ function getNotifLink(type: string, metadata: any, relatedUserId: string | null)
     case "forward_suggestion":
       return meta.request_id ? `/requests/${meta.request_id}/respond` : "/requests";
     case "friend_request":
-    case "friend_request_accepted":
     case "connection_request":
+      return relatedUserId ? `/friend-request/${relatedUserId}` : "/friends";
+    case "friend_request_accepted":
     case "connection_accepted":
       return relatedUserId ? `/profile/${relatedUserId}` : "/friends";
     case "contact_joined":
