@@ -343,6 +343,18 @@ function AppContent({
     }
   };
 
+  const handleSkipOnboarding = async () => {
+    if (!user?.id) {
+      navigate("/dashboard", { replace: true });
+      return;
+    }
+    await supabase
+      .from("profiles")
+      .update({ questionnaire_completed: true })
+      .eq("id", user.id);
+    navigate("/dashboard", { replace: true });
+  };
+
   const useShell = isShellRoute && isAuthenticated && userType === "verified";
 
   const routesNode = (
