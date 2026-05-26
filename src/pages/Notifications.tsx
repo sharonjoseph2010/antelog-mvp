@@ -30,6 +30,7 @@ function getLink(n: Notif): string {
     case "forward_suggestion":
       return meta.request_id ? `/requests/${meta.request_id}/respond` : "/requests";
     case "friend_request":
+      return n.related_user_id ? `/friend-request/${n.related_user_id}` : "/friends";
     case "friend_request_accepted":
     case "connection_request":
     case "connection_accepted":
