@@ -211,8 +211,10 @@ const Header = ({ isAuthenticated, isAdmin, userType, onLogout }: HeaderProps) =
       case 'contact_joined':
       case 'network_addition':
       case 'friend_suggestion':
-      case 'friend_request':
         return '/friends';
+      case 'friend_request':
+      case 'connection_request':
+        return notification.related_user_id ? `/friend-request/${notification.related_user_id}` : '/friends';
       default:
         return '/dashboard';
     }
