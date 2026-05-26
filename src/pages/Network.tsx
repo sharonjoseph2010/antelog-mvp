@@ -232,11 +232,7 @@ const Network = () => {
     );
   }, [toInvite, search]);
 
-  const filteredGroups = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return groups;
-    return groups.filter((g) => g.name.toLowerCase().includes(q));
-  }, [groups, search]);
+  // (Groups now live on the /groups page.)
 
   const confirmRemove = async () => {
     if (!removing) return;
@@ -326,31 +322,34 @@ const Network = () => {
         <title>Contacts — Antelog</title>
         </Helmet>
         <div className="mx-auto w-full max-w-[1240px] px-6 py-10">
-          <PageHeader showImport={false} onImport={() => navigate("/contacts/import")} subtitle="Build your trusted network. Import your contacts to find who's already on Antelog." />
-          <ImportCards onNavigate={() => navigate("/contacts/import")} />
+          <PageHeader showImport={false} onImport={() => { setImportTab("manual"); setImportOpen(true); }} subtitle="Build your trusted network. Import your contacts to find who's already on Antelog." />
+          <ImportCards onPick={(t) => { setImportTab(t); setImportOpen(true); }} />
           <p className="mt-10 text-center text-[12px] text-muted-foreground">
             Your contacts are private. We only use them to match you with friends already on Antelog.
           </p>
         </div>
+        <ImportContactsDialog
+          open={importOpen}
+          onOpenChange={setImportOpen}
+          defaultTab={importTab}
+          onImported={() => userId && loadAll(userId)}
+        />
       </>
     );
   }
 
   const counts = {
-    friends: friends.length,
-    to_add: toAdd.filter((r) => !dismissed.has(r.contactId)).length,
+    connected: friends.length,
+    on_antelog: toAdd.filter((r) => !dismissed.has(r.contactId)).length,
     to_invite: toInvite.length,
-    groups: groups.length,
   };
 
   const placeholder =
-    tab === "friends"
-      ? "Search your friends"
-      : tab === "to_add"
+    tab === "connected"
+      ? "Search your connections"
+      : tab === "on_antelog"
       ? "Search contacts on Antelog"
-      : tab === "to_invite"
-      ? "Search contacts to invite"
-      : "Search your groups";
+      : "Search contacts to invite";
 
   return (
     <>
@@ -361,17 +360,16 @@ const Network = () => {
       <div className="mx-auto w-full max-w-[1240px] px-6 py-10">
         <PageHeader
           showImport
-          onImport={() => navigate("/contacts/import")}
+          onImport={() => { setImportTab("manual"); setImportOpen(true); }}
           subtitle="Manage your imported contacts and grow your network."
         />
 
         {/* Tabs */}
         <div className="mt-7 border-b border-border/70">
           <div className="flex items-center gap-1">
-            <TabBtn active={tab === "friends"} onClick={() => setTab("friends")} label="1st network" count={counts.friends} icon={Users} />
-            <TabBtn active={tab === "to_add"} onClick={() => setTab("to_add")} label="2nd network" count={counts.to_add} icon={GitMerge} />
-            <TabBtn active={tab === "to_invite"} onClick={() => setTab("to_invite")} label="3rd+ network" count={counts.to_invite} icon={NetworkIcon} />
-            <TabBtn active={tab === "groups"} onClick={() => setTab("groups")} label="Groups" count={counts.groups} icon={UsersRound} />
+            <TabBtn active={tab === "on_antelog"} onClick={() => setTab("on_antelog")} label="On Antelog" count={counts.on_antelog} icon={Users} />
+            <TabBtn active={tab === "to_invite"} onClick={() => setTab("to_invite")} label="Invited / Not yet joined" count={counts.to_invite} icon={Send} />
+            <TabBtn active={tab === "connected"} onClick={() => setTab("connected")} label="Connected" count={counts.connected} icon={NetworkIcon} />
           </div>
         </div>
 
@@ -389,13 +387,11 @@ const Network = () => {
 
         {/* Tab contents */}
         <div className="mt-6">
-          {loading && tab !== "groups" ? (
+          {loading ? (
             <p className="py-10 text-center text-[13px] text-muted-foreground">Loading…</p>
-          ) : tab === "friends" ? (
-            <FriendsList rows={filteredFriends} onRemove={(row) => setRemoving(row)} />
-          ) : tab === "to_add" ? (
+          ) : tab === "on_antelog" ? (
             <ToAddList
-              total={counts.to_add}
+              total={counts.on_antelog}
               rows={filteredToAdd}
               onConnect={handleConnect}
               onDismiss={handleDismiss}
@@ -403,10 +399,17 @@ const Network = () => {
           ) : tab === "to_invite" ? (
             <ToInviteList rows={filteredToInvite} buildInviteUrl={buildInviteUrl} />
           ) : (
-            <GroupsList groups={filteredGroups} loading={groupsLoading} />
+            <FriendsList rows={filteredFriends} onRemove={(row) => setRemoving(row)} />
           )}
         </div>
       </div>
+
+      <ImportContactsDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        defaultTab={importTab}
+        onImported={() => userId && loadAll(userId)}
+      />
 
       <AlertDialog open={!!removing} onOpenChange={(o) => !o && setRemoving(null)}>
         <AlertDialogContent>
