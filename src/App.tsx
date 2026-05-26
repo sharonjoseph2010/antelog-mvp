@@ -22,7 +22,7 @@ import ListsNew from "./pages/ListsNew";
 import ListDetail from "./pages/ListDetail";
 import ListEdit from "./pages/ListEdit";
 import Friends from "./pages/Friends";
-import ContactsImportHub from "./pages/ContactsImportHub";
+import FriendRequestPage from "./pages/FriendRequest";
 import ExtendedNetwork from "./pages/ExtendedNetwork";
 import Groups from "./pages/Groups";
 import GroupsNew from "./pages/GroupsNew";
