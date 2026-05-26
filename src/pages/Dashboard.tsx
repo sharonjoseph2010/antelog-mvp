@@ -466,7 +466,7 @@ const Dashboard = () => {
                 )}
 
                 {/* Requests waiting on you */}
-                <section className="space-y-3">
+                <section className="space-y-3 rounded-lg border border-border bg-background p-5">
                   <div className="flex items-center justify-between">
                     <h2 className="text-[15px] font-medium text-foreground">
                       Requests waiting on you
