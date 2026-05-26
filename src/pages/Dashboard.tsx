@@ -7,14 +7,17 @@ import {
   Inbox,
   List as ListIcon,
   MessageSquare,
-  Shield,
   Users,
+  UserCheck,
+  UserPlus,
+  Star,
   type LucideIcon,
 } from "lucide-react";
 
 interface ActivityItem {
   id: string;
   kind: "response" | "notification";
+  iconType: "response" | "vote" | "friend_accepted" | "contact_joined" | "other";
   title: string;
   subtitle?: string;
   href: string;
@@ -40,6 +43,31 @@ interface RecentList {
   id: string;
   title: string;
   updated_at: string;
+}
+
+function getIconType(notifType: string): ActivityItem["iconType"] {
+  switch (notifType) {
+    case "friend_request_accepted":
+    case "connection_accepted":
+      return "friend_accepted";
+    case "contact_joined":
+    case "network_addition":
+    case "friend_suggestion":
+      return "contact_joined";
+    case "recommendation_voted":
+    case "vote":
+    case "endorsement":
+      return "vote";
+    case "request_response":
+    case "response":
+    case "new_request":
+    case "forwarded_request":
+    case "request_forwarded":
+    case "forward":
+      return "response";
+    default:
+      return "other";
+  }
 }
 
 function getNotifLink(type: string, metadata: any, relatedUserId: string | null): string {
@@ -79,6 +107,7 @@ const Dashboard = () => {
   const [openRequestCount, setOpenRequestCount] = useState(0);
   const [listCount, setListCount] = useState(0);
   const [networkCount, setNetworkCount] = useState(0);
+  const [latestConnection, setLatestConnection] = useState<{ name: string; at: Date } | null>(null);
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [openRequests, setOpenRequests] = useState<OpenRequest[]>([]);
   const [pendingRequests, setPendingRequests] = useState<PendingRequest[]>([]);
@@ -161,6 +190,27 @@ const Dashboard = () => {
       setNetworkCount(friendships.length);
       const friendIds = friendships.map((f) => (f.user1_id === userId ? f.user2_id : f.user1_id));
 
+      // Most recently connected friend
+      if (friendIds.length > 0) {
+        const { data: latestFr } = await supabase
+          .from("friendships")
+          .select("user1_id, user2_id, created_at")
+          .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (latestFr) {
+          const otherId = latestFr.user1_id === userId ? latestFr.user2_id : latestFr.user1_id;
+          const { data: op } = await supabase
+            .from("profiles")
+            .select("full_name, handle")
+            .eq("id", otherId)
+            .maybeSingle();
+          const name = (op?.full_name as string) || (op?.handle as string) || "Someone";
+          setLatestConnection({ name, at: new Date(latestFr.created_at) });
+        }
+      }
+
       // Recent lists
       setRecentLists((recentListsRes.data || []) as RecentList[]);
 
@@ -236,6 +286,7 @@ const Dashboard = () => {
         activityItems.push({
           id: `resp-${r.id}`,
           kind: "response",
+          iconType: "response",
           title: `${responderMap[r.responder_id] || "Someone"} responded`,
           subtitle: reqTitleMap[r.request_id],
           href: `/requests/${r.request_id}/respond`,
@@ -255,6 +306,7 @@ const Dashboard = () => {
         activityItems.push({
           id: `notif-${n.id}`,
           kind: "notification",
+          iconType: getIconType(n.type),
           title: n.title,
           subtitle: n.message,
           href: getNotifLink(n.type, n.metadata, n.related_user_id),
@@ -302,13 +354,11 @@ const Dashboard = () => {
                 Welcome back, {firstName}.
               </h1>
               <p className="text-[14px] text-muted-foreground">
-                {newResponses > 0
-                  ? `${newResponses} new ${newResponses === 1 ? "response" : "responses"} this week`
-                  : "No new activity this week"}
-                {" · "}
-                {openRequestCount} open {openRequestCount === 1 ? "request" : "requests"}
-                {" · "}
-                {networkCount} in your network
+                {networkCount === 0
+                  ? "You have no connections yet. Import your contacts to get started."
+                  : openRequestCount === 0
+                  ? `You have ${networkCount} ${networkCount === 1 ? "person" : "people"} in your network. Ask them something.`
+                  : `You have ${openRequestCount} open ${openRequestCount === 1 ? "request" : "requests"} and ${networkCount} ${networkCount === 1 ? "person" : "people"} in your network.`}
               </p>
             </header>
 
@@ -324,16 +374,37 @@ const Dashboard = () => {
                 {openRequestCount === 1 ? "request" : "requests"}
               </span>
               <span className="flex items-center gap-1.5 text-[13px]">
-                Ask your network
+                Get recommendations from people you trust
                 <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" strokeWidth={1.5} />
               </span>
             </Link>
 
             {/* Stat cards */}
-            <div className="grid grid-cols-3 gap-3">
-              <StatCard icon={MessageSquare} label="New Responses" value={newResponses} to="/requests?status=open" />
-              <StatCard icon={Inbox} label="Open Requests" value={openRequestCount} to="/requests?status=open" />
-              <StatCard icon={Users} label="Your Network" value={networkCount} to="/friends" />
+            <div className="grid gap-3 md:grid-cols-[1.6fr_1fr_1fr]">
+              <Link
+                to="/friends"
+                className="flex flex-col justify-between gap-4 rounded-lg border border-border bg-background p-5 transition-colors hover:bg-muted/40"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="flex h-11 w-11 items-center justify-center rounded-[10px] border border-border bg-background text-muted-foreground">
+                    <Users className="h-5 w-5" strokeWidth={1.5} />
+                  </span>
+                  <span className="flex flex-col">
+                    <span className="text-[10px] font-normal uppercase tracking-wider text-muted-foreground">
+                      Your Network
+                    </span>
+                    <span className="text-[28px] font-normal leading-tight text-foreground">{networkCount}</span>
+                  </span>
+                </div>
+                {latestConnection && (
+                  <div className="text-[12px] text-muted-foreground">
+                    <span className="text-foreground">{latestConnection.name}</span>
+                    {" · "}connected {formatRelative(latestConnection.at)}
+                  </div>
+                )}
+              </Link>
+              <StatCardSmall icon={MessageSquare} label="New Responses" value={newResponses} to="/requests?status=open" />
+              <StatCardSmall icon={Inbox} label="Open Requests" value={openRequestCount} to="/requests?status=open" />
             </div>
 
             {/* Two-column body */}
@@ -396,7 +467,7 @@ const Dashboard = () => {
                 {/* Requests waiting on you */}
                 <section className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <h2 className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                    <h2 className="text-[15px] font-medium text-foreground">
                       Requests waiting on you
                     </h2>
                     <Link to="/requests" className="text-[12px] text-muted-foreground hover:text-foreground">
@@ -430,7 +501,7 @@ const Dashboard = () => {
                 {/* Your recent lists */}
                 <section className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <h2 className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                    <h2 className="text-[15px] font-medium text-foreground">
                       Your recent lists
                     </h2>
                     <Link to="/lists" className="text-[12px] text-muted-foreground hover:text-foreground">
@@ -439,7 +510,10 @@ const Dashboard = () => {
                   </div>
                   {recentLists.length === 0 ? (
                     <p className="text-[13px] text-muted-foreground">
-                      No lists yet. <Link to="/lists/new" className="underline underline-offset-2 hover:text-foreground">Create one</Link>.
+                      No lists yet.{" "}
+                      <Link to="/lists/new" className="underline underline-offset-2 hover:text-foreground">
+                        Save your first recommendations →
+                      </Link>
                     </p>
                   ) : (
                     <ul className="divide-y divide-border rounded-lg border border-border">
@@ -462,28 +536,6 @@ const Dashboard = () => {
                 </section>
               </div>
             </div>
-
-            {/* Trust band */}
-            <section className="rounded-lg border border-border bg-muted/30 p-6">
-              <div className="flex items-start gap-4">
-                <Shield className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" strokeWidth={1.5} />
-                <div className="space-y-2">
-                  <h3 className="text-[14px] font-medium text-foreground">Built on real trust</h3>
-                  <p className="text-[13px] leading-relaxed text-muted-foreground">
-                    Every recommendation on Antelog comes from someone in your network — friends, friends of friends, real people.
-                    {" "}No ads. No influencers. No fake reviews.
-                    {" "}Just answers from people you'd actually listen to.
-                  </p>
-                  <Link
-                    to="/"
-                    className="inline-flex items-center gap-1 text-[13px] text-foreground underline-offset-4 hover:underline"
-                  >
-                    Learn about trust
-                    <ArrowRight className="h-3 w-3" strokeWidth={1.5} />
-                  </Link>
-                </div>
-              </div>
-            </section>
 
             <footer className="flex flex-col items-start justify-between gap-2 border-t border-border pt-6 text-[12px] text-muted-foreground sm:flex-row sm:items-center">
               <span>© 2026 Antelog · People powered</span>
@@ -515,11 +567,7 @@ function ActivityGroup({ label, items }: { label: string; items: ActivityItem[] 
               className="-mx-2 flex items-start gap-3 rounded-md px-2 py-2 transition-colors hover:bg-muted/60"
             >
               <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground">
-                {a.kind === "response" ? (
-                  <MessageSquare className="h-3.5 w-3.5" strokeWidth={1.5} />
-                ) : (
-                  <Inbox className="h-3.5 w-3.5" strokeWidth={1.5} />
-                )}
+                <ActivityIcon type={a.iconType} />
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[14px] text-foreground">{a.title}</span>
@@ -538,7 +586,23 @@ function ActivityGroup({ label, items }: { label: string; items: ActivityItem[] 
   );
 }
 
-function StatCard({
+function ActivityIcon({ type }: { type: ActivityItem["iconType"] }) {
+  const cls = "h-3.5 w-3.5";
+  switch (type) {
+    case "friend_accepted":
+      return <UserCheck className={cls} strokeWidth={1.5} />;
+    case "contact_joined":
+      return <UserPlus className={cls} strokeWidth={1.5} />;
+    case "vote":
+      return <Star className={cls} strokeWidth={1.5} />;
+    case "response":
+      return <MessageSquare className={cls} strokeWidth={1.5} />;
+    default:
+      return <Inbox className={cls} strokeWidth={1.5} />;
+  }
+}
+
+function StatCardSmall({
   icon: Icon,
   label,
   value,
@@ -552,9 +616,9 @@ function StatCard({
   return (
     <Link
       to={to}
-      className="flex items-center gap-4 rounded-lg border border-border bg-background p-5 transition-colors hover:bg-muted/60"
+      className="flex items-center gap-4 rounded-lg bg-muted/50 p-5 transition-colors hover:bg-muted"
     >
-      <span className="flex h-11 w-11 items-center justify-center rounded-[10px] border border-border bg-background text-muted-foreground">
+      <span className="flex h-11 w-11 items-center justify-center rounded-[10px] bg-background text-muted-foreground">
         <Icon className="h-5 w-5" strokeWidth={1.5} />
       </span>
       <span className="flex flex-col">
