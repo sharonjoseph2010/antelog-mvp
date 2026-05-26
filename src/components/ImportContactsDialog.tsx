@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { normalizePhone } from "@/lib/phone-utils";
@@ -77,11 +77,9 @@ export default function ImportContactsDialog({ open, onOpenChange, defaultTab = 
   const [fileContacts, setFileContacts] = useState<ManualContact[]>([]);
   const [manual, setManual] = useState<ManualContact[]>([{ name: "", phone: "", email: "" }]);
 
-  // Keep dialog in sync with the trigger that opened it
-  if (open && tab !== defaultTab && fileContacts.length === 0 && manual.every((m) => !m.name && !m.phone && !m.email)) {
-    // safe re-sync on first open
-    setTab(defaultTab);
-  }
+  useEffect(() => {
+    if (open) setTab(defaultTab);
+  }, [open, defaultTab]);
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
