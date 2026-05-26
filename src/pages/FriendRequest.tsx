@@ -177,7 +177,7 @@ const FriendRequestPage = () => {
                 </p>
                 <div className="mt-6 flex gap-3">
                   <Link
-                    to="/contacts"
+                    to="/network"
                     className="rounded-md bg-foreground px-4 py-2 text-[13px] font-medium text-background hover:opacity-90"
                   >
                     View your network
