@@ -202,6 +202,16 @@ function AppContent({
   const isGuestPage = location.pathname.startsWith("/r/");
   const isOnboarding = location.pathname === "/welcome";
 
+  // Guard: don't render any navigation until auth state is fully resolved.
+  // This prevents the nav from flashing before the session is confirmed.
+  if (initializing) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-pulse text-sm text-muted-foreground">Loading...</div>
+      </div>
+    );
+  }
+
   // Routes that live inside the authenticated app shell (sidebar nav).
   // Landing, auth, guest, and onboarding pages keep the top Header.
   const SHELL_ROUTES = [
