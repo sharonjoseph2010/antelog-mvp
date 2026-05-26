@@ -4,6 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { ArrowRight, GitMerge, Mail, Network as NetworkIcon, Plus, Search, Send, Trash2, Upload, Users, UsersRound, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import ImportContactsDialog from "@/components/ImportContactsDialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,7 +26,7 @@ import { cn } from "@/lib/utils";
  * Button text:       12-13px / 500
  */
 
-type TabKey = "friends" | "to_add" | "to_invite" | "groups";
+type TabKey = "on_antelog" | "to_invite" | "connected";
 
 interface FriendRow {
   friendshipId: string;
@@ -65,7 +66,7 @@ const Network = () => {
   const [userId, setUserId] = useState<string | null>(null);
   const [userHandle, setUserHandle] = useState<string>("");
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<TabKey>("friends");
+  const [tab, setTab] = useState<TabKey>("on_antelog");
   const [search, setSearch] = useState("");
 
   const [friends, setFriends] = useState<FriendRow[]>([]);
@@ -75,8 +76,8 @@ const Network = () => {
   const [hasAnyContacts, setHasAnyContacts] = useState(true);
 
   const [removing, setRemoving] = useState<FriendRow | null>(null);
-  const [groups, setGroups] = useState<Group[]>([]);
-  const [groupsLoading, setGroupsLoading] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importTab, setImportTab] = useState<"google" | "file" | "manual">("manual");
 
   useEffect(() => {
     (async () => {
@@ -94,41 +95,7 @@ const Network = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    if (!userId) return;
-    (async () => {
-      setGroupsLoading(true);
-      try {
-        const { data: groupsData } = await supabase
-          .from("groups")
-          .select("*")
-          .eq("creator_id", userId)
-          .order("created_at", { ascending: false });
-        if (groupsData && groupsData.length > 0) {
-          const groupIds = groupsData.map((g: any) => g.id);
-          const { data: memberCounts } = await supabase
-            .from("group_members")
-            .select("group_id")
-            .in("group_id", groupIds);
-          const countsByGroup = (memberCounts || []).reduce((acc: Record<string, number>, member: any) => {
-            acc[member.group_id] = (acc[member.group_id] || 0) + 1;
-            return acc;
-          }, {} as Record<string, number>);
-          const groupsWithCounts = groupsData.map((group: any) => ({
-            ...group,
-            member_count: countsByGroup[group.id] || 0,
-          }));
-          setGroups(groupsWithCounts);
-        } else {
-          setGroups([]);
-        }
-      } catch (err) {
-        console.error("[Network] groups fetch error", err);
-      } finally {
-        setGroupsLoading(false);
-      }
-    })();
-  }, [userId]);
+  // Groups are managed on the dedicated /groups page.
 
   const loadAll = async (uid: string) => {
     setLoading(true);
@@ -265,11 +232,7 @@ const Network = () => {
     );
   }, [toInvite, search]);
 
-  const filteredGroups = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return groups;
-    return groups.filter((g) => g.name.toLowerCase().includes(q));
-  }, [groups, search]);
+  // (Groups now live on the /groups page.)
 
   const confirmRemove = async () => {
     if (!removing) return;
@@ -359,31 +322,34 @@ const Network = () => {
         <title>Contacts — Antelog</title>
         </Helmet>
         <div className="mx-auto w-full max-w-[1240px] px-6 py-10">
-          <PageHeader showImport={false} onImport={() => navigate("/contacts/import")} subtitle="Build your trusted network. Import your contacts to find who's already on Antelog." />
-          <ImportCards onNavigate={() => navigate("/contacts/import")} />
+          <PageHeader showImport={false} onImport={() => { setImportTab("manual"); setImportOpen(true); }} subtitle="Build your trusted network. Import your contacts to find who's already on Antelog." />
+          <ImportCards onPick={(t) => { setImportTab(t); setImportOpen(true); }} />
           <p className="mt-10 text-center text-[12px] text-muted-foreground">
             Your contacts are private. We only use them to match you with friends already on Antelog.
           </p>
         </div>
+        <ImportContactsDialog
+          open={importOpen}
+          onOpenChange={setImportOpen}
+          defaultTab={importTab}
+          onImported={() => userId && loadAll(userId)}
+        />
       </>
     );
   }
 
   const counts = {
-    friends: friends.length,
-    to_add: toAdd.filter((r) => !dismissed.has(r.contactId)).length,
+    connected: friends.length,
+    on_antelog: toAdd.filter((r) => !dismissed.has(r.contactId)).length,
     to_invite: toInvite.length,
-    groups: groups.length,
   };
 
   const placeholder =
-    tab === "friends"
-      ? "Search your friends"
-      : tab === "to_add"
+    tab === "connected"
+      ? "Search your connections"
+      : tab === "on_antelog"
       ? "Search contacts on Antelog"
-      : tab === "to_invite"
-      ? "Search contacts to invite"
-      : "Search your groups";
+      : "Search contacts to invite";
 
   return (
     <>
@@ -394,17 +360,16 @@ const Network = () => {
       <div className="mx-auto w-full max-w-[1240px] px-6 py-10">
         <PageHeader
           showImport
-          onImport={() => navigate("/contacts/import")}
+          onImport={() => { setImportTab("manual"); setImportOpen(true); }}
           subtitle="Manage your imported contacts and grow your network."
         />
 
         {/* Tabs */}
         <div className="mt-7 border-b border-border/70">
           <div className="flex items-center gap-1">
-            <TabBtn active={tab === "friends"} onClick={() => setTab("friends")} label="1st network" count={counts.friends} icon={Users} />
-            <TabBtn active={tab === "to_add"} onClick={() => setTab("to_add")} label="2nd network" count={counts.to_add} icon={GitMerge} />
-            <TabBtn active={tab === "to_invite"} onClick={() => setTab("to_invite")} label="3rd+ network" count={counts.to_invite} icon={NetworkIcon} />
-            <TabBtn active={tab === "groups"} onClick={() => setTab("groups")} label="Groups" count={counts.groups} icon={UsersRound} />
+            <TabBtn active={tab === "on_antelog"} onClick={() => setTab("on_antelog")} label="On Antelog" count={counts.on_antelog} icon={Users} />
+            <TabBtn active={tab === "to_invite"} onClick={() => setTab("to_invite")} label="Invited / Not yet joined" count={counts.to_invite} icon={Send} />
+            <TabBtn active={tab === "connected"} onClick={() => setTab("connected")} label="Connected" count={counts.connected} icon={NetworkIcon} />
           </div>
         </div>
 
@@ -422,13 +387,11 @@ const Network = () => {
 
         {/* Tab contents */}
         <div className="mt-6">
-          {loading && tab !== "groups" ? (
+          {loading ? (
             <p className="py-10 text-center text-[13px] text-muted-foreground">Loading…</p>
-          ) : tab === "friends" ? (
-            <FriendsList rows={filteredFriends} onRemove={(row) => setRemoving(row)} />
-          ) : tab === "to_add" ? (
+          ) : tab === "on_antelog" ? (
             <ToAddList
-              total={counts.to_add}
+              total={counts.on_antelog}
               rows={filteredToAdd}
               onConnect={handleConnect}
               onDismiss={handleDismiss}
@@ -436,10 +399,17 @@ const Network = () => {
           ) : tab === "to_invite" ? (
             <ToInviteList rows={filteredToInvite} buildInviteUrl={buildInviteUrl} />
           ) : (
-            <GroupsList groups={filteredGroups} loading={groupsLoading} />
+            <FriendsList rows={filteredFriends} onRemove={(row) => setRemoving(row)} />
           )}
         </div>
       </div>
+
+      <ImportContactsDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        defaultTab={importTab}
+        onImported={() => userId && loadAll(userId)}
+      />
 
       <AlertDialog open={!!removing} onOpenChange={(o) => !o && setRemoving(null)}>
         <AlertDialogContent>
@@ -778,7 +748,7 @@ function EmptyTab({ message }: { message: string }) {
   );
 }
 
-function ImportCards({ onNavigate }: { onNavigate: () => void }) {
+function ImportCards({ onPick }: { onPick: (tab: "google" | "file" | "manual") => void }) {
   return (
     <div className="mt-8 grid gap-4 md:grid-cols-3">
       <ImportCard
@@ -788,7 +758,7 @@ function ImportCards({ onNavigate }: { onNavigate: () => void }) {
         primary
         actionLabel="Connect Google"
         helper="Most popular · easiest option"
-        onClick={onNavigate}
+        onClick={() => onPick("google")}
       />
       <ImportCard
         icon={<Upload className="h-5 w-5" strokeWidth={1.5} />}
@@ -796,7 +766,7 @@ function ImportCards({ onNavigate }: { onNavigate: () => void }) {
         description="Import from a CSV or vCard (.vcf) file."
         actionLabel="Choose file"
         helper="Works on iPhone and Android"
-        onClick={onNavigate}
+        onClick={() => onPick("file")}
       />
       <ImportCard
         icon={<Plus className="h-5 w-5" strokeWidth={1.5} />}
@@ -804,7 +774,7 @@ function ImportCards({ onNavigate }: { onNavigate: () => void }) {
         description="Enter contacts one by one."
         actionLabel="Add contact"
         helper="For 1–5 contacts"
-        onClick={onNavigate}
+        onClick={() => onPick("manual")}
       />
     </div>
   );
