@@ -71,9 +71,10 @@ export function TopNav() {
             <span className="self-center h-[14px] w-px bg-border" />
             <nav className="flex items-baseline gap-5">
               <NavLink to="/dashboard" className={navLinkCls} end>Dashboard</NavLink>
-              <NavLink to="/for-you" className={navLinkCls}>For You</NavLink>
               <NavLink to="/network" className={navLinkCls}>Network</NavLink>
               <NavLink to="/requests" className={navLinkCls}>Requests</NavLink>
+              <NavLink to="/lists" className={navLinkCls}>My Lists</NavLink>
+              <NavLink to="/for-you" className={navLinkCls}>For You</NavLink>
             </nav>
           </div>
 
