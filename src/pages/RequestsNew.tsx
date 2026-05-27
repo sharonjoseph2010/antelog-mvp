@@ -232,8 +232,8 @@ export default function RequestsNew() {
     return () => clearTimeout(timer);
   }, [formData.title, expertNudgeDismissed]);
 
-  const frostedAmber = "relative rounded-lg border border-[rgba(245,158,11,0.4)] bg-[rgba(245,158,11,0.10)] backdrop-blur-sm p-4";
-  const frostedSky = "relative rounded-lg border border-[rgba(56,189,248,0.4)] bg-[rgba(56,189,248,0.10)] backdrop-blur-sm p-4";
+  const frostedAmber = "relative rounded-lg border border-amber-200 border-l-[3px] border-l-amber-500 bg-amber-50 p-4 dark:bg-amber-950/30 dark:border-amber-700/50 dark:border-l-amber-400";
+  const frostedSky = "relative rounded-lg border border-blue-200 border-l-[3px] border-l-[#3B82F6] bg-[#EFF6FF] p-4 dark:bg-sky-950/30 dark:border-sky-700/50 dark:border-l-sky-400";
 
   const loadUserGroups = async () => {
     try {
