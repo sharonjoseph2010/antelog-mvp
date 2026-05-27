@@ -1020,40 +1020,40 @@ export default function RequestsNew() {
                     )}
 
                     {/* Expert nudge (suppressed when unified to avoid duplication) */}
-                    {showExperts && !unified && (
-                      <div className={frostedSky}>
-                        <button
-                          type="button"
-                          onClick={() => setExpertNudgeDismissed(true)}
-                          className="absolute top-2 right-2 text-sky-300/70 hover:text-sky-200"
-                          aria-label="Dismiss"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                        <div className="flex items-start gap-2 pr-6">
-                          <Brain className="h-4 w-4 mt-0.5 text-sky-300 shrink-0" />
-                          <div className="space-y-2 flex-1">
-                            <p className="text-sm font-medium text-sky-200">
-                              People in your network know about this
-                            </p>
-                            <ul className="space-y-1">
-                              {networkExperts.map((expert) => {
-                                const label = expert.degree === 1 ? "friend" : "friend of a friend";
-                                const name = expert.full_name || (expert.handle ? `@${expert.handle}` : "Someone");
-                                return (
-                                  <li key={expert.profile_id} className="text-sm text-sky-100/90">
-                                    {name} <span className="text-sky-200/70">({label})</span> · knows: {expert.matching_domains.join(", ")}
-                                  </li>
-                                );
-                              })}
-                            </ul>
-                            <p className="text-xs text-sky-100/70 italic">
-                              They'll be able to answer this well.
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
+                     {showExperts && !unified && (
+                       <div className={frostedSky}>
+                         <button
+                           type="button"
+                           onClick={() => setExpertNudgeDismissed(true)}
+                           className="absolute top-2 right-2 text-blue-400 hover:text-blue-600 dark:text-sky-400/70 dark:hover:text-sky-300"
+                           aria-label="Dismiss"
+                         >
+                           <X className="h-4 w-4" />
+                         </button>
+                         <div className="flex items-start gap-2 pr-6">
+                           <Brain className="h-4 w-4 mt-0.5 text-blue-600 dark:text-sky-300 shrink-0" />
+                           <div className="space-y-2 flex-1">
+                             <p className="text-sm font-medium text-blue-900 dark:text-sky-200">
+                               People in your network know about this
+                             </p>
+                             <ul className="space-y-1">
+                               {networkExperts.map((expert) => {
+                                 const label = expert.degree === 1 ? "friend" : "friend of a friend";
+                                 const name = expert.full_name || (expert.handle ? `@${expert.handle}` : "Someone");
+                                 return (
+                                   <li key={expert.profile_id} className="text-sm text-blue-800 dark:text-sky-100">
+                                     {name} <span className="text-blue-600/80 dark:text-sky-200/70">({label})</span> · knows: {expert.matching_domains.join(", ")}
+                                   </li>
+                                 );
+                               })}
+                             </ul>
+                             <p className="text-xs text-blue-600/80 dark:text-sky-100/70 italic">
+                               They'll be able to answer this well.
+                             </p>
+                           </div>
+                         </div>
+                       </div>
+                     )}
                   </div>
                 );
               })()}
