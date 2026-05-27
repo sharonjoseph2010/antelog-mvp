@@ -915,32 +915,32 @@ export default function RequestsNew() {
                   <div className="space-y-3">
                     {/* Unified panel: contributor IS also a matching expert */}
                     {showDirectory && unified && similarDirectoryList && matchedExpert && (
-                      <div className={frostedAmber}>
-                        <button
-                          type="button"
-                          onClick={() => { setDirectoryNudgeDismissed(true); setExpertNudgeDismissed(true); }}
-                          className="absolute top-2 right-2 text-amber-300/70 hover:text-amber-200"
-                          aria-label="Dismiss"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                        <div className="flex items-start gap-2 pr-6">
-                          <Brain className="h-4 w-4 mt-0.5 text-amber-300 shrink-0" />
-                          <div className="space-y-2 flex-1">
-                            <p className="text-sm font-medium text-amber-200">
-                              {similarDirectoryList.contributor_name || (matchedExpert.full_name ?? "Someone")} in your network already made this list
-                            </p>
-                            <p className="text-sm text-amber-100/90">
-                              "{similarDirectoryList.title}" — {similarDirectoryList.total_votes} {similarDirectoryList.total_votes === 1 ? "vote" : "votes"}
-                            </p>
-                            <p className="text-sm text-amber-100/90">
-                              {(similarDirectoryList.contributor_name || matchedExpert.full_name || "They").split(" ")[0]} knows: {matchedExpert.matching_domains.join(", ")}
-                            </p>
-                            {directoryForwardMessage && (
-                              <p className="text-sm text-amber-100 bg-amber-500/10 border border-amber-400/30 rounded p-2">
-                                {directoryForwardMessage}
-                              </p>
-                            )}
+                       <div className={frostedAmber}>
+                         <button
+                           type="button"
+                           onClick={() => { setDirectoryNudgeDismissed(true); setExpertNudgeDismissed(true); }}
+                           className="absolute top-2 right-2 text-amber-500 hover:text-amber-700 dark:text-amber-400/70 dark:hover:text-amber-300"
+                           aria-label="Dismiss"
+                         >
+                           <X className="h-4 w-4" />
+                         </button>
+                         <div className="flex items-start gap-2 pr-6">
+                           <Brain className="h-4 w-4 mt-0.5 text-amber-600 dark:text-amber-300 shrink-0" />
+                           <div className="space-y-2 flex-1">
+                             <p className="text-sm font-medium text-amber-900 dark:text-amber-200">
+                               {similarDirectoryList.contributor_name || (matchedExpert.full_name ?? "Someone")} in your network already made this list
+                             </p>
+                             <p className="text-sm text-amber-800 dark:text-amber-100">
+                               "{similarDirectoryList.title}" — {similarDirectoryList.total_votes} {similarDirectoryList.total_votes === 1 ? "vote" : "votes"}
+                             </p>
+                             <p className="text-sm text-amber-800 dark:text-amber-100">
+                               {(similarDirectoryList.contributor_name || matchedExpert.full_name || "They").split(" ")[0]} knows: {matchedExpert.matching_domains.join(", ")}
+                             </p>
+                             {directoryForwardMessage && (
+                               <p className="text-sm text-amber-800 bg-amber-100/50 border border-amber-300/50 rounded p-2 dark:text-amber-100 dark:bg-amber-500/10 dark:border-amber-400/30">
+                                 {directoryForwardMessage}
+                               </p>
+                             )}
                             <div className="flex flex-wrap gap-2 pt-1">
                               <Button type="button" variant="outline" size="sm" onClick={() => window.open(`/directory/${similarDirectoryList.id}`, '_blank')}>
                                 View their list
