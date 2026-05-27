@@ -1581,9 +1581,9 @@ export type Database = {
       estimate_anonymous_expertise_reach:
         | {
             Args: {
-              p_category: string
+              p_category?: string
               p_keywords?: string[]
-              p_location: string
+              p_location?: string
             }
             Returns: number
           }
