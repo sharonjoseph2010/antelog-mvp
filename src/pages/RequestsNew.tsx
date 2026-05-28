@@ -100,6 +100,8 @@ export default function RequestsNew() {
   const [expertNudgeDismissed, setExpertNudgeDismissed] = useState(false);
   // Inline message shown inside the directory nudge after "Send request to them"
   const [directoryForwardMessage, setDirectoryForwardMessage] = useState<string | null>(null);
+  // V5C: pending forwards queued from expert pills (target profile_id)
+  const [pendingForwards, setPendingForwards] = useState<Set<string>>(new Set());
   const [formData, setFormData] = useState({
     title: '',
     category: '' as 'films' | 'places' | 'products' | 'services' | 'other',
