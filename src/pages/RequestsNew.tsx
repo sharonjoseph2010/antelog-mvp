@@ -777,9 +777,99 @@ export default function RequestsNew() {
 
       console.log('=== REQUEST CREATION DEBUG END ===\n');
 
+      // V5C: execute queued forwards from expert pills
+      let forwardedCount = 0;
+      if (pendingForwards.size > 0) {
+        try {
+          const targetIds = Array.from(pendingForwards);
+          const { data: vf } = await supabase
+            .from('friendships')
+            .select('user1_id, user2_id')
+            .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`);
+          const viewerFriendIds = (vf || []).map((f) =>
+            f.user1_id === user.id ? f.user2_id : f.user1_id
+          );
+
+          const forwardRows: any[] = [];
+          const forwardNotifs: any[] = [];
+          const creatorFirst = (creatorName || 'Someone').split(' ')[0];
+
+          for (const targetId of targetIds) {
+            const expert = networkExperts.find((e) => e.profile_id === targetId);
+            if (!expert) continue;
+
+            let network_path: string[] = [user.id, targetId];
+            let network_depth = 1;
+            let mutualName: string | null = null;
+
+            if (expert.degree === 2) {
+              const { data: tf } = await supabase
+                .from('friendships')
+                .select('user1_id, user2_id')
+                .or(`user1_id.eq.${targetId},user2_id.eq.${targetId}`);
+              const targetFriendIds = new Set(
+                (tf || []).map((f) =>
+                  f.user1_id === targetId ? f.user2_id : f.user1_id
+                )
+              );
+              const mutualId = viewerFriendIds.find((id) => targetFriendIds.has(id));
+              if (mutualId) {
+                network_path = [user.id, mutualId, targetId];
+                network_depth = 2;
+                const { data: mp } = await supabase
+                  .from('profiles')
+                  .select('full_name, handle')
+                  .eq('id', mutualId)
+                  .maybeSingle();
+                mutualName = mp?.full_name || mp?.handle || 'a mutual friend';
+              }
+            }
+
+            forwardRows.push({
+              request_id: newRequest.id,
+              forwarded_by_user_id: user.id,
+              forwarded_to: [targetId],
+              network_path,
+              network_depth,
+              forwarded_to_audience: 'first_network',
+            });
+
+            const pathText =
+              network_depth === 2 && mutualName
+                ? `${creatorFirst} asked · forwarded via ${mutualName} · to you`
+                : `${creatorFirst} asked · forwarded directly to you`;
+
+            forwardNotifs.push({
+              user_id: targetId,
+              type: 'request_forwarded',
+              title: `${creatorName} asked about something you'd know`,
+              message: `${pathText}: ${formData.title}`,
+              related_user_id: user.id,
+              metadata: { request_id: newRequest.id, network_path, network_depth },
+            });
+          }
+
+          if (forwardRows.length > 0) {
+            const { error: fwdErr } = await supabase
+              .from('request_forwards')
+              .insert(forwardRows);
+            if (fwdErr) {
+              console.error('Forward insert failed:', fwdErr);
+            } else {
+              forwardedCount = forwardRows.length;
+              await supabase.from('notifications').insert(forwardNotifs);
+            }
+          }
+        } catch (err) {
+          console.error('Pending forwards execution failed:', err);
+        }
+      }
+
       toast({
         title: "Request Created!",
-        description: `Your request has been sent to ${formData.audience_types.length} ${formData.audience_types.length === 1 ? 'audience' : 'audiences'}`
+        description: forwardedCount > 0
+          ? `Sent to ${formData.audience_types.length} ${formData.audience_types.length === 1 ? 'audience' : 'audiences'} · forwarded to ${forwardedCount} ${forwardedCount === 1 ? 'person' : 'people'}`
+          : `Your request has been sent to ${formData.audience_types.length} ${formData.audience_types.length === 1 ? 'audience' : 'audiences'}`
       });
 
       navigate('/requests');
