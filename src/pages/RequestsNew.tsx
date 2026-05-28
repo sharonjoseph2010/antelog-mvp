@@ -1023,37 +1023,87 @@ export default function RequestsNew() {
 
                     {/* Expert nudge (suppressed when unified to avoid duplication) */}
                      {showExperts && !unified && (
-                       <div className={frostedSky}>
-                         <button
-                           type="button"
-                           onClick={() => setExpertNudgeDismissed(true)}
-                           className="absolute top-2 right-2 text-blue-400 hover:text-blue-600 dark:text-sky-400/70 dark:hover:text-sky-300"
-                           aria-label="Dismiss"
-                         >
-                           <X className="h-4 w-4" />
-                         </button>
-                         <div className="flex items-start gap-2 pr-6">
-                           <Brain className="h-4 w-4 mt-0.5 text-blue-600 dark:text-sky-300 shrink-0" />
-                           <div className="space-y-2 flex-1">
-                             <p className="text-sm font-medium text-blue-900 dark:text-sky-200">
-                               People in your network know about this
-                             </p>
-                             <ul className="space-y-1">
-                               {networkExperts.map((expert) => {
-                                 const label = expert.degree === 1 ? "friend" : "friend of a friend";
-                                 const name = expert.full_name || (expert.handle ? `@${expert.handle}` : "Someone");
-                                 return (
-                                   <li key={expert.profile_id} className="text-sm text-blue-800 dark:text-sky-100">
-                                     {name} <span className="text-blue-600/80 dark:text-sky-200/70">({label})</span> · knows: {expert.matching_domains.join(", ")}
-                                   </li>
-                                 );
-                               })}
-                             </ul>
-                             <p className="text-xs text-blue-600/80 dark:text-sky-100/70 italic">
-                               They'll be able to answer this well.
-                             </p>
-                           </div>
+                       <div className="space-y-2">
+                         <div className="flex items-center gap-1.5">
+                           <Users className="h-3 w-3" style={{ color: '#27500A' }} />
+                           <span style={{ color: '#27500A', fontSize: 11, fontWeight: 500 }}>
+                             {networkExperts.length} {networkExperts.length === 1 ? 'person' : 'people'} in your network know about this
+                           </span>
                          </div>
+                         {networkExperts.map((expert) => {
+                           const name = expert.full_name || (expert.handle ? `@${expert.handle}` : 'Someone');
+                           const initials = (expert.full_name || expert.handle || '?')
+                             .split(/\s+/)
+                             .map((p) => p.charAt(0).toUpperCase())
+                             .slice(0, 2)
+                             .join('');
+                           const degreeLabel = expert.degree === 1 ? '1st' : '2nd';
+                           const queued = pendingForwards.has(expert.profile_id);
+                           return (
+                             <div
+                               key={expert.profile_id}
+                               className="flex items-center gap-2 px-2 py-1.5"
+                               style={{
+                                 background: '#EAF3DE',
+                                 border: '0.5px solid #C0DD97',
+                                 borderRadius: 999,
+                               }}
+                             >
+                               <div
+                                 className="flex items-center justify-center shrink-0"
+                                 style={{
+                                   width: 28,
+                                   height: 28,
+                                   borderRadius: '9999px',
+                                   background: '#97C459',
+                                   color: '#173404',
+                                   fontSize: 11,
+                                   fontWeight: 600,
+                                 }}
+                               >
+                                 {initials || '?'}
+                               </div>
+                               <div className="flex-1 min-w-0">
+                                 <div
+                                   className="truncate"
+                                   style={{ color: '#27500A', fontSize: 12, fontWeight: 500 }}
+                                 >
+                                   {name}
+                                 </div>
+                                 <div
+                                   className="truncate"
+                                   style={{ color: '#3B6D11', fontSize: 10 }}
+                                 >
+                                   {degreeLabel} · {expert.matching_domains.join(', ')}
+                                 </div>
+                               </div>
+                               <button
+                                 type="button"
+                                 disabled={queued}
+                                 onClick={() => {
+                                   setPendingForwards((prev) => {
+                                     const next = new Set(prev);
+                                     next.add(expert.profile_id);
+                                     return next;
+                                   });
+                                 }}
+                                 style={{
+                                   border: '0.5px solid #97C459',
+                                   borderRadius: 999,
+                                   color: '#3B6D11',
+                                   fontSize: 10,
+                                   background: 'transparent',
+                                   padding: '4px 10px',
+                                   opacity: queued ? 0.5 : 1,
+                                   cursor: queued ? 'default' : 'pointer',
+                                   whiteSpace: 'nowrap',
+                                 }}
+                               >
+                                 {queued ? 'Forwarding after send ✓' : 'Forward →'}
+                               </button>
+                             </div>
+                           );
+                         })}
                        </div>
                      )}
                   </div>
