@@ -96,7 +96,7 @@ export default function RequestsNew() {
   } | null>(null);
   const [directoryNudgeDismissed, setDirectoryNudgeDismissed] = useState(false);
   // Nudge 2: network experts
-  const [networkExperts, setNetworkExperts] = useState<Array<{ profile_id: string; full_name: string | null; handle: string | null; matching_domains: string[]; degree: number }>>([]);
+  const [networkExperts, setNetworkExperts] = useState<Array<{ profile_id: string; full_name: string | null; handle: string | null; matching_domains: string[]; degree: number; expertise_cities: string[] }>>([]);
   const [expertNudgeDismissed, setExpertNudgeDismissed] = useState(false);
   // Inline message shown inside the directory nudge after "Send request to them"
   const [directoryForwardMessage, setDirectoryForwardMessage] = useState<string | null>(null);
@@ -226,7 +226,22 @@ export default function RequestsNew() {
           query_domains: domains,
         });
         if (error) throw error;
-        setNetworkExperts((data || []).slice(0, 3));
+        const base = (data || []).slice(0, 3) as Array<any>;
+        const ids = base.map((e) => e.profile_id);
+        let citiesById: Record<string, string[]> = {};
+        if (ids.length > 0) {
+          const { data: profs } = await supabase
+            .from('profiles')
+            .select('id, expertise_cities')
+            .in('id', ids);
+          (profs || []).forEach((p: any) => {
+            const arr = Array.isArray(p.expertise_cities) ? p.expertise_cities.map(String) : [];
+            citiesById[p.id] = arr;
+          });
+        }
+        setNetworkExperts(
+          base.map((e) => ({ ...e, expertise_cities: citiesById[e.profile_id] || [] }))
+        );
       } catch (err) {
         console.error("find_network_experts error", err);
       }
@@ -1120,7 +1135,19 @@ export default function RequestsNew() {
                              {networkExperts.length} {networkExperts.length === 1 ? 'person' : 'people'} in your network know about this
                            </span>
                          </div>
-                         {networkExperts.map((expert) => {
+                          {(() => {
+                            const titleLower = (formData.title || '').toLowerCase();
+                            const enriched = networkExperts.map((expert) => {
+                              const matchedCity = (expert.expertise_cities || []).find(
+                                (c) => c && titleLower.includes(c.toLowerCase())
+                              ) || null;
+                              const hasDomain = (expert.matching_domains || []).length > 0;
+                              const rank = hasDomain && matchedCity ? 0 : hasDomain ? 1 : matchedCity ? 2 : 3;
+                              return { ...expert, matchedCity, rank };
+                            });
+                            enriched.sort((a, b) => a.rank - b.rank);
+                            return enriched;
+                          })().map((expert) => {
                            const name = expert.full_name || (expert.handle ? `@${expert.handle}` : 'Someone');
                            const initials = (expert.full_name || expert.handle || '?')
                              .split(/\s+/)
@@ -1160,12 +1187,34 @@ export default function RequestsNew() {
                                  >
                                    {name}
                                  </div>
-                                 <div
-                                   className="truncate"
-                                   style={{ color: '#3B6D11', fontSize: 10 }}
-                                 >
-                                   {degreeLabel} · {expert.matching_domains.join(', ')}
-                                 </div>
+                                  <div className="flex items-center gap-1.5 flex-wrap" style={{ fontSize: 10 }}>
+                                    <span style={{ color: '#3B6D11' }}>{degreeLabel}</span>
+                                    {expert.matching_domains.length > 0 && (
+                                      <span
+                                        style={{
+                                          color: '#3B6D11',
+                                          border: '0.5px solid #C0DD97',
+                                          borderRadius: 999,
+                                          padding: '1px 6px',
+                                        }}
+                                      >
+                                        {expert.matching_domains.join(', ')}
+                                      </span>
+                                    )}
+                                    {expert.matchedCity && (
+                                      <span
+                                        style={{
+                                          color: '#27500A',
+                                          border: '0.5px solid #97C459',
+                                          borderRadius: 999,
+                                          padding: '1px 6px',
+                                          fontWeight: 500,
+                                        }}
+                                      >
+                                        knows {expert.matchedCity}
+                                      </span>
+                                    )}
+                                  </div>
                                </div>
                                <button
                                  type="button"
