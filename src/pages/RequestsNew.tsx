@@ -1135,7 +1135,19 @@ export default function RequestsNew() {
                              {networkExperts.length} {networkExperts.length === 1 ? 'person' : 'people'} in your network know about this
                            </span>
                          </div>
-                         {networkExperts.map((expert) => {
+                          {(() => {
+                            const titleLower = (formData.title || '').toLowerCase();
+                            const enriched = networkExperts.map((expert) => {
+                              const matchedCity = (expert.expertise_cities || []).find(
+                                (c) => c && titleLower.includes(c.toLowerCase())
+                              ) || null;
+                              const hasDomain = (expert.matching_domains || []).length > 0;
+                              const rank = hasDomain && matchedCity ? 0 : hasDomain ? 1 : matchedCity ? 2 : 3;
+                              return { ...expert, matchedCity, rank };
+                            });
+                            enriched.sort((a, b) => a.rank - b.rank);
+                            return enriched;
+                          })().map((expert) => {
                            const name = expert.full_name || (expert.handle ? `@${expert.handle}` : 'Someone');
                            const initials = (expert.full_name || expert.handle || '?')
                              .split(/\s+/)
@@ -1175,12 +1187,34 @@ export default function RequestsNew() {
                                  >
                                    {name}
                                  </div>
-                                 <div
-                                   className="truncate"
-                                   style={{ color: '#3B6D11', fontSize: 10 }}
-                                 >
-                                   {degreeLabel} · {expert.matching_domains.join(', ')}
-                                 </div>
+                                  <div className="flex items-center gap-1.5 flex-wrap" style={{ fontSize: 10 }}>
+                                    <span style={{ color: '#3B6D11' }}>{degreeLabel}</span>
+                                    {expert.matching_domains.length > 0 && (
+                                      <span
+                                        style={{
+                                          color: '#3B6D11',
+                                          border: '0.5px solid #C0DD97',
+                                          borderRadius: 999,
+                                          padding: '1px 6px',
+                                        }}
+                                      >
+                                        {expert.matching_domains.join(', ')}
+                                      </span>
+                                    )}
+                                    {expert.matchedCity && (
+                                      <span
+                                        style={{
+                                          color: '#27500A',
+                                          border: '0.5px solid #97C459',
+                                          borderRadius: 999,
+                                          padding: '1px 6px',
+                                          fontWeight: 500,
+                                        }}
+                                      >
+                                        knows {expert.matchedCity}
+                                      </span>
+                                    )}
+                                  </div>
                                </div>
                                <button
                                  type="button"
