@@ -96,7 +96,7 @@ export default function RequestsNew() {
   } | null>(null);
   const [directoryNudgeDismissed, setDirectoryNudgeDismissed] = useState(false);
   // Nudge 2: network experts
-  const [networkExperts, setNetworkExperts] = useState<Array<{ profile_id: string; full_name: string | null; handle: string | null; matching_domains: string[]; degree: number }>>([]);
+  const [networkExperts, setNetworkExperts] = useState<Array<{ profile_id: string; full_name: string | null; handle: string | null; matching_domains: string[]; degree: number; expertise_cities: string[] }>>([]);
   const [expertNudgeDismissed, setExpertNudgeDismissed] = useState(false);
   // Inline message shown inside the directory nudge after "Send request to them"
   const [directoryForwardMessage, setDirectoryForwardMessage] = useState<string | null>(null);
@@ -226,7 +226,22 @@ export default function RequestsNew() {
           query_domains: domains,
         });
         if (error) throw error;
-        setNetworkExperts((data || []).slice(0, 3));
+        const base = (data || []).slice(0, 3) as Array<any>;
+        const ids = base.map((e) => e.profile_id);
+        let citiesById: Record<string, string[]> = {};
+        if (ids.length > 0) {
+          const { data: profs } = await supabase
+            .from('profiles')
+            .select('id, expertise_cities')
+            .in('id', ids);
+          (profs || []).forEach((p: any) => {
+            const arr = Array.isArray(p.expertise_cities) ? p.expertise_cities.map(String) : [];
+            citiesById[p.id] = arr;
+          });
+        }
+        setNetworkExperts(
+          base.map((e) => ({ ...e, expertise_cities: citiesById[e.profile_id] || [] }))
+        );
       } catch (err) {
         console.error("find_network_experts error", err);
       }
