@@ -1134,13 +1134,13 @@ export default function RequestsNew() {
 
                     {/* Expert nudge (suppressed when unified to avoid duplication) */}
                      {showExperts && !unified && (
-                       <div className="space-y-2">
-                         <div className="flex items-center gap-1.5">
-                           <Users className="h-3 w-3" style={{ color: '#27500A' }} />
-                            <span style={{ color: '#27500A', fontSize: 11, fontWeight: 500 }}>
-                              {networkExperts.length} {networkExperts.length === 1 ? 'person' : 'people'} across your network know about this
-                            </span>
-                         </div>
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-1.5">
+                            <Users className="h-3 w-3" style={{ color: 'var(--color-text-secondary)' }} />
+                             <span style={{ color: 'var(--color-text-secondary)', fontSize: 11, fontWeight: 500 }}>
+                               {networkExperts.length} {networkExperts.length === 1 ? 'person' : 'people'} across your network know about this
+                             </span>
+                          </div>
                           {(() => {
                             const titleLower = (formData.title || '').toLowerCase();
                             const enriched = networkExperts.map((expert) => {
