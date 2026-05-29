@@ -45,6 +45,14 @@ const DOMAIN_KEYWORDS: Record<string, string[]> = {
   "Real Estate": ["real estate", "apartment", "flat", "house", "rent", "broker", "property", "pg"],
 };
 
+const REQUEST_PLACEHOLDERS = [
+  "e.g., Best noise-cancelling headphones under ₹5,000?",
+  "e.g., Good dermatologist in Bengaluru you'd actually recommend?",
+  "e.g., Most reliable second-hand car dealer in Delhi?",
+  "e.g., Best biryani in Hyderabad — not the tourist traps?",
+  "e.g., Accountant who's good with freelancer taxes in India?",
+];
+
 function deriveDomainsFromTitle(title: string): string[] {
   const lower = ` ${title.toLowerCase()} `;
   const matched: string[] = [];
