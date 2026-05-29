@@ -17,6 +17,7 @@ import { z } from "zod";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Drawer, DrawerContent, DrawerFooter } from "@/components/ui/drawer";
 import PublicProfile from "@/pages/PublicProfile";
+import ExpertProfileModal from "@/components/ExpertProfileModal";
 
 interface Group {
   id: string;
