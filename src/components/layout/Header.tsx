@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useFypUnread } from "@/hooks/useFypUnread";
 
 interface HeaderProps {
   isAuthenticated: boolean;
@@ -38,6 +39,7 @@ const Header = ({ isAuthenticated, isAdmin, userType, onLogout }: HeaderProps) =
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const fypUnread = useFypUnread();
 
   useEffect(() => {
     console.log('[Header] Component mounted, checking authentication...');
