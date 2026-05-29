@@ -45,6 +45,14 @@ const DOMAIN_KEYWORDS: Record<string, string[]> = {
   "Real Estate": ["real estate", "apartment", "flat", "house", "rent", "broker", "property", "pg"],
 };
 
+const REQUEST_PLACEHOLDERS = [
+  "e.g., Best noise-cancelling headphones under ₹5,000?",
+  "e.g., Good dermatologist in Bengaluru you'd actually recommend?",
+  "e.g., Most reliable second-hand car dealer in Delhi?",
+  "e.g., Best biryani in Hyderabad — not the tourist traps?",
+  "e.g., Accountant who's good with freelancer taxes in India?",
+];
+
 function deriveDomainsFromTitle(title: string): string[] {
   const lower = ` ${title.toLowerCase()} `;
   const matched: string[] = [];
@@ -87,6 +95,10 @@ export default function RequestsNew() {
   const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
   const [duplicateResults, setDuplicateResults] = useState<any[]>([]);
   const [expiryDays, setExpiryDays] = useState("7");
+  const [randomPlaceholder] = useState(() => {
+    const idx = Math.floor(Math.random() * REQUEST_PLACEHOLDERS.length);
+    return REQUEST_PLACEHOLDERS[idx];
+  });
   const [anonReach, setAnonReach] = useState<number | null>(null);
   // Nudge 1: similar directory lists
   const [similarDirectoryList, setSimilarDirectoryList] = useState<{
@@ -1004,7 +1016,7 @@ export default function RequestsNew() {
               <Label htmlFor="title">Your Request *</Label>
               <Textarea
                 id="title"
-                placeholder="e.g., Can someone recommend good coffee shops near SRFTI campus?"
+                placeholder={randomPlaceholder}
                 value={formData.title}
                 onChange={(e) => setFormData({...formData, title: e.target.value})}
                 onBlur={handleTitleBlur}
