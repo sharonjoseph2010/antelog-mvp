@@ -230,26 +230,63 @@ export default function RequestsNew() {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
-        const { data, error } = await supabase.rpc("find_network_experts", {
-          viewer_id: user.id,
-          query_domains: domains,
+
+        // Query across all degrees, one call per derived domain, then merge.
+        const results = await Promise.all(
+          domains.map((dom) =>
+            supabase.rpc("find_network_experts_all_degrees", {
+              viewer_id: user.id,
+              domain_filter: dom,
+              max_depth: 4,
+            })
+          )
+        );
+        const merged = new Map<string, any>();
+        for (const { data, error } of results) {
+          if (error) {
+            console.error("find_network_experts_all_degrees error", error);
+            continue;
+          }
+          for (const r of (data || []) as any[]) {
+            const existing = merged.get(r.expert_user_id);
+            if (!existing || r.degree < existing.degree) merged.set(r.expert_user_id, r);
+          }
+        }
+        const base = Array.from(merged.values())
+          .sort((a, b) => a.degree - b.degree)
+          .slice(0, 8);
+
+        // Resolve names for intermediate hops in connection paths.
+        const interIds = new Set<string>();
+        base.forEach((r) => {
+          const path: string[] = Array.isArray(r.connection_path) ? r.connection_path : [];
+          path.slice(1, -1).forEach((id) => interIds.add(id));
         });
-        if (error) throw error;
-        const base = (data || []).slice(0, 3) as Array<any>;
-        const ids = base.map((e) => e.profile_id);
-        let citiesById: Record<string, string[]> = {};
-        if (ids.length > 0) {
+        const nameById = new Map<string, string>();
+        if (interIds.size > 0) {
           const { data: profs } = await supabase
-            .from('profiles')
-            .select('id, expertise_cities')
-            .in('id', ids);
+            .from("profiles")
+            .select("id, full_name, handle")
+            .in("id", Array.from(interIds));
           (profs || []).forEach((p: any) => {
-            const arr = Array.isArray(p.expertise_cities) ? p.expertise_cities.map(String) : [];
-            citiesById[p.id] = arr;
+            nameById.set(p.id, p.full_name || (p.handle ? `@${p.handle}` : "Someone"));
           });
         }
+
         setNetworkExperts(
-          base.map((e) => ({ ...e, expertise_cities: citiesById[e.profile_id] || [] }))
+          base.map((r: any) => {
+            const path: string[] = Array.isArray(r.connection_path) ? r.connection_path : [];
+            return {
+              profile_id: r.expert_user_id,
+              full_name: r.expert_name ?? null,
+              handle: r.expert_handle ?? null,
+              matching_domains: r.matched_domains || [],
+              expertise_cities: r.matched_cities || [],
+              degree: r.degree,
+              connection_path: path,
+              intermediate_names: path.slice(1, -1).map((id) => nameById.get(id) || "Someone"),
+            };
+          })
         );
       } catch (err) {
         console.error("find_network_experts error", err);
