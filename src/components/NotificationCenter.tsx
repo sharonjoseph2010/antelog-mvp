@@ -45,12 +45,12 @@ const getNotificationRoute = (notification: Notification): string => {
     case 'contact_joined':
     case 'network_addition':
     case 'friend_suggestion':
-      return '/friends';
+      return '/contacts';
     case 'friend_request':
     case 'connection_request':
       return notification.related_user_id ? `/friend-request/${notification.related_user_id}` : '/friends';
     case 'friend_request_accepted':
-      return notification.related_user_id ? `/profile/${notification.related_user_id}` : '/friends';
+      return '/friends';
     default:
       return '/dashboard';
   }
