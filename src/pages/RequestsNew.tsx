@@ -248,12 +248,13 @@ export default function RequestsNew() {
             continue;
           }
           for (const r of (data || []) as any[]) {
+            const nd = r.network_degree ?? r.degree;
             const existing = merged.get(r.expert_user_id);
-            if (!existing || r.degree < existing.degree) merged.set(r.expert_user_id, r);
+            if (!existing || nd < (existing.network_degree ?? existing.degree)) merged.set(r.expert_user_id, r);
           }
         }
         const base = Array.from(merged.values())
-          .sort((a, b) => a.degree - b.degree)
+          .sort((a, b) => (a.network_degree ?? a.degree) - (b.network_degree ?? b.degree))
           .slice(0, 8);
 
         // Resolve names for intermediate hops in connection paths.
@@ -282,7 +283,7 @@ export default function RequestsNew() {
               handle: r.expert_handle ?? null,
               matching_domains: r.matched_domains || [],
               expertise_cities: r.matched_cities || [],
-              degree: r.degree,
+              degree: r.network_degree ?? r.degree,
               connection_path: path,
               intermediate_names: path.slice(1, -1).map((id) => nameById.get(id) || "Someone"),
             };

@@ -1615,12 +1615,12 @@ export type Database = {
         }
         Returns: {
           connection_path: string[]
-          degree: number
           expert_handle: string
           expert_name: string
           expert_user_id: string
           matched_cities: string[]
           matched_domains: string[]
+          network_degree: number
         }[]
       }
       find_profile_by_normalized_phone: {
