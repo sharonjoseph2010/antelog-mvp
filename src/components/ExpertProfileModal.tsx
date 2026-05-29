@@ -77,9 +77,9 @@ export default function ExpertProfileModal({ expert, requestText, onClose, onFor
   const tagStyle = (matched: boolean): React.CSSProperties =>
     matched
       ? {
-          background: "#EAF3DE",
-          border: "0.5px solid #C0DD97",
-          color: "#27500A",
+          background: "hsl(var(--trust-bg))",
+          border: "0.5px solid hsl(var(--trust-border))",
+          color: "hsl(var(--trust-fg))",
           borderRadius: 999,
           padding: "2px 8px",
           fontSize: 11,
@@ -96,7 +96,7 @@ export default function ExpertProfileModal({ expert, requestText, onClose, onFor
   const chainNodes = [
     { label: "You", color: "var(--color-text-primary)", textColor: "var(--color-background-primary)" },
     ...expert.intermediate_names.map((nm) => ({ label: nm, color: "hsl(var(--muted))", textColor: "hsl(var(--foreground))" })),
-    { label: name, color: "#97C459", textColor: "#173404" },
+    { label: name, color: "hsl(var(--trust-avatar-bg))", textColor: "hsl(var(--trust-avatar-fg))" },
   ];
 
   return (
@@ -113,8 +113,8 @@ export default function ExpertProfileModal({ expert, requestText, onClose, onFor
               width: 40,
               height: 40,
               borderRadius: "9999px",
-              background: "#97C459",
-              color: "#173404",
+              background: "hsl(var(--trust-avatar-bg))",
+              color: "hsl(var(--trust-avatar-fg))",
               fontSize: 14,
               fontWeight: 600,
             }}
@@ -132,9 +132,9 @@ export default function ExpertProfileModal({ expert, requestText, onClose, onFor
               <span
                 style={{
                   display: "inline-block",
-                  background: "#EAF3DE",
-                  border: "0.5px solid #C0DD97",
-                  color: "#27500A",
+                  background: "hsl(var(--trust-bg))",
+                  border: "0.5px solid hsl(var(--trust-border))",
+                  color: "hsl(var(--trust-fg))",
                   borderRadius: 999,
                   padding: "2px 8px",
                   fontSize: 10,
