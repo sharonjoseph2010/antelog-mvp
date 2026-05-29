@@ -165,7 +165,7 @@ function App() {
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <TooltipProvider>
             <Toaster />
-            <Sonner />
+            <Sonner position="top-right" />
             <BrowserRouter>
               <AppContent 
                 session={session} 
