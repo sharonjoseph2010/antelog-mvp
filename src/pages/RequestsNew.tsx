@@ -15,6 +15,8 @@ import { checkForDuplicates } from "@/lib/masterDirectory";
 import { MessageSquare, ArrowLeft, Users, User, UserCheck, Globe, X, CircleCheck, ExternalLink, AlertTriangle, Search, ClipboardList, Brain, Sparkles } from "lucide-react";
 import { z } from "zod";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Drawer, DrawerContent, DrawerFooter } from "@/components/ui/drawer";
+import PublicProfile from "@/pages/PublicProfile";
 
 interface Group {
   id: string;
@@ -111,6 +113,7 @@ export default function RequestsNew() {
   const [directoryForwardMessage, setDirectoryForwardMessage] = useState<string | null>(null);
   // V5C: pending forwards queued from expert pills (target profile_id)
   const [pendingForwards, setPendingForwards] = useState<Set<string>>(new Set());
+  const [profileSheetExpertId, setProfileSheetExpertId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     title: '',
     category: '' as 'films' | 'places' | 'products' | 'services' | 'other',
@@ -1208,13 +1211,15 @@ export default function RequestsNew() {
                                >
                                  {initials || '?'}
                                </div>
-                               <div className="flex-1 min-w-0">
-                                 <div
-                                   className="truncate"
-                                   style={{ color: '#27500A', fontSize: 12, fontWeight: 500 }}
-                                 >
-                                   {name}
-                                 </div>
+                                <div className="flex-1 min-w-0">
+                                  <button
+                                    type="button"
+                                    onClick={() => setProfileSheetExpertId(expert.profile_id)}
+                                    className="truncate text-left hover:underline"
+                                    style={{ color: '#27500A', fontSize: 12, fontWeight: 500, background: 'transparent', border: 'none', padding: 0, cursor: 'pointer' }}
+                                  >
+                                    {name}
+                                  </button>
                                  {intermediates.length > 0 && (
                                    <div
                                      className="truncate"
@@ -1638,6 +1643,46 @@ export default function RequestsNew() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <Drawer open={!!profileSheetExpertId} onOpenChange={(o) => !o && setProfileSheetExpertId(null)}>
+        <DrawerContent className="max-h-[92vh]">
+          {profileSheetExpertId && (() => {
+            const expert = networkExperts.find((e) => e.profile_id === profileSheetExpertId);
+            const name = expert?.full_name || (expert?.handle ? `@${expert.handle}` : 'this person');
+            const queued = expert ? pendingForwards.has(expert.profile_id) : false;
+            return (
+              <>
+                <div className="overflow-y-auto flex-1">
+                  <PublicProfile userIdOverride={profileSheetExpertId} embedded />
+                </div>
+                <DrawerFooter className="border-t bg-background">
+                  <Button
+                    type="button"
+                    disabled={queued}
+                    onClick={() => {
+                      if (!expert) return;
+                      setPendingForwards((prev) => {
+                        const next = new Set(prev);
+                        next.add(expert.profile_id);
+                        return next;
+                      });
+                      setProfileSheetExpertId(null);
+                    }}
+                    style={{
+                      background: '#97C459',
+                      color: '#173404',
+                      borderRadius: 999,
+                    }}
+                    className="w-full hover:opacity-90"
+                  >
+                    {queued ? 'Queued for forward ✓' : `Forward request to ${name} →`}
+                  </Button>
+                </DrawerFooter>
+              </>
+            );
+          })()}
+        </DrawerContent>
+      </Drawer>
     </div>
   );
 }
