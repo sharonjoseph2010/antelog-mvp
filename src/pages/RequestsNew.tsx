@@ -15,6 +15,8 @@ import { checkForDuplicates } from "@/lib/masterDirectory";
 import { MessageSquare, ArrowLeft, Users, User, UserCheck, Globe, X, CircleCheck, ExternalLink, AlertTriangle, Search, ClipboardList, Brain, Sparkles } from "lucide-react";
 import { z } from "zod";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Drawer, DrawerContent, DrawerFooter } from "@/components/ui/drawer";
+import PublicProfile from "@/pages/PublicProfile";
 
 interface Group {
   id: string;
@@ -111,6 +113,7 @@ export default function RequestsNew() {
   const [directoryForwardMessage, setDirectoryForwardMessage] = useState<string | null>(null);
   // V5C: pending forwards queued from expert pills (target profile_id)
   const [pendingForwards, setPendingForwards] = useState<Set<string>>(new Set());
+  const [profileSheetExpertId, setProfileSheetExpertId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     title: '',
     category: '' as 'films' | 'places' | 'products' | 'services' | 'other',
