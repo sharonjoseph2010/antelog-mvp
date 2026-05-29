@@ -217,6 +217,32 @@ const Friends = () => {
     }
   };
 
+  const loadThirdPlusNetwork = async () => {
+    if (!currentUserId || thirdPlusLoaded) return;
+    setThirdPlusLoading(true);
+    try {
+      const { data, error } = await (supabase.rpc as any)('get_third_plus_network', {
+        viewer_id: currentUserId,
+        max_depth: 6,
+      });
+      if (error) throw error;
+      setThirdPlusNetwork((data || []) as ThirdPlusMember[]);
+      setThirdPlusLoaded(true);
+    } catch (error) {
+      console.error('Error loading 3rd+ network:', error);
+      setThirdPlusNetwork([]);
+    } finally {
+      setThirdPlusLoading(false);
+    }
+  };
+
+  const degreeLabel = (deg: number) => {
+    if (deg === 3) return '3rd';
+    if (deg === 4) return '4th';
+    if (deg === 5) return '5th';
+    return '6+';
+  };
+
   const loadGroups = async () => {
     if (!currentUserId) return;
 
