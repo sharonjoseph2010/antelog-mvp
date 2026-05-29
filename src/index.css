@@ -63,6 +63,32 @@ All colors MUST be HSL.
     --color-text-secondary: hsl(var(--muted-foreground));
     --color-border-secondary: hsl(var(--border));
     --color-background-primary: hsl(var(--background));
+
+    /* ===== Antelog semantic colour system =====
+       Four colours, one job each. Surfaces always use the lightest stop;
+       colour lives in border + text, never in a saturated fill. */
+
+    /* Trust — relevant person found in user's network. Trust signal only. */
+    --trust-bg: 86 45% 91%;        /* #EAF3DE */
+    --trust-border: 86 53% 73%;    /* #C0DD97 */
+    --trust-fg: 94 78% 18%;        /* #27500A */
+    --trust-avatar-bg: 86 47% 68%; /* #97C459 */
+    --trust-avatar-fg: 94 86% 11%; /* #173404 */
+
+    /* Info — system messages, tips, notification dots. Never trust/success. */
+    --info-bg: 210 76% 94%;        /* #E6F1FB */
+    --info-border: 210 75% 83%;    /* #B5D4F4 */
+    --info-fg: 210 82% 27%;        /* #0C447C */
+
+    /* Attention — pending, expiring, not-yet-done. Never errors. */
+    --attention-bg: 36 81% 92%;    /* #FAEEDA */
+    --attention-border: 33 93% 72%;/* #FAC775 */
+    --attention-fg: 32 88% 21%;    /* #633806 */
+
+    /* Danger — destructive/error only. Sparingly. */
+    --danger-bg: 0 78% 95%;        /* #FCEBEB */
+    --danger-border: 0 78% 87%;    /* #F7C1C1 */
+    --danger-fg: 0 60% 29%;        /* #791F1F */
   }
 
   .dark {
@@ -108,6 +134,26 @@ All colors MUST be HSL.
     --color-text-secondary: hsl(var(--muted-foreground));
     --color-border-secondary: hsl(var(--border));
     --color-background-primary: hsl(var(--background));
+
+    /* Brand semantic colours are intentionally identical across themes —
+       they are signals, not surfaces, and must read the same everywhere. */
+    --trust-bg: 86 45% 91%;
+    --trust-border: 86 53% 73%;
+    --trust-fg: 94 78% 18%;
+    --trust-avatar-bg: 86 47% 68%;
+    --trust-avatar-fg: 94 86% 11%;
+
+    --info-bg: 210 76% 94%;
+    --info-border: 210 75% 83%;
+    --info-fg: 210 82% 27%;
+
+    --attention-bg: 36 81% 92%;
+    --attention-border: 33 93% 72%;
+    --attention-fg: 32 88% 21%;
+
+    --danger-bg: 0 78% 95%;
+    --danger-border: 0 78% 87%;
+    --danger-fg: 0 60% 29%;
   }
 }
 
@@ -118,5 +164,30 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+@layer components {
+  /* Semantic surfaces — soft fill, defined border, readable text.
+     Usage:  <div class="trust-surface">…</div> */
+  .trust-surface {
+    background-color: hsl(var(--trust-bg));
+    border: 0.5px solid hsl(var(--trust-border));
+    color: hsl(var(--trust-fg));
+  }
+  .info-surface {
+    background-color: hsl(var(--info-bg));
+    border: 0.5px solid hsl(var(--info-border));
+    color: hsl(var(--info-fg));
+  }
+  .attention-surface {
+    background-color: hsl(var(--attention-bg));
+    border: 0.5px solid hsl(var(--attention-border));
+    color: hsl(var(--attention-fg));
+  }
+  .danger-surface {
+    background-color: hsl(var(--danger-bg));
+    border: 0.5px solid hsl(var(--danger-border));
+    color: hsl(var(--danger-fg));
   }
 }

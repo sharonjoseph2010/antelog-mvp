@@ -24,6 +24,32 @@ export default {
 				ring: 'hsl(var(--ring))',
 				background: 'hsl(var(--background))',
 				foreground: 'hsl(var(--foreground))',
+				trust: {
+					DEFAULT: 'hsl(var(--trust-fg))',
+					bg: 'hsl(var(--trust-bg))',
+					border: 'hsl(var(--trust-border))',
+					fg: 'hsl(var(--trust-fg))',
+					'avatar-bg': 'hsl(var(--trust-avatar-bg))',
+					'avatar-fg': 'hsl(var(--trust-avatar-fg))',
+				},
+				info: {
+					DEFAULT: 'hsl(var(--info-fg))',
+					bg: 'hsl(var(--info-bg))',
+					border: 'hsl(var(--info-border))',
+					fg: 'hsl(var(--info-fg))',
+				},
+				attention: {
+					DEFAULT: 'hsl(var(--attention-fg))',
+					bg: 'hsl(var(--attention-bg))',
+					border: 'hsl(var(--attention-border))',
+					fg: 'hsl(var(--attention-fg))',
+				},
+				danger: {
+					DEFAULT: 'hsl(var(--danger-fg))',
+					bg: 'hsl(var(--danger-bg))',
+					border: 'hsl(var(--danger-border))',
+					fg: 'hsl(var(--danger-fg))',
+				},
 				primary: {
 					DEFAULT: 'hsl(var(--primary))',
 					foreground: 'hsl(var(--primary-foreground))'
