@@ -85,15 +85,16 @@ export default function ExpertProfileModal({ expert, requestText, onClose, onFor
           fontSize: 11,
         }
       : {
-          background: "hsl(var(--secondary))",
-          color: "hsl(var(--secondary-foreground))",
+          background: "var(--color-background-secondary)",
+          border: "0.5px solid var(--color-border-tertiary)",
+          color: "var(--color-text-secondary)",
           borderRadius: 999,
           padding: "2px 8px",
           fontSize: 11,
         };
 
   const chainNodes = [
-    { label: "You", color: "#0a0a0a", textColor: "#fff" },
+    { label: "You", color: "var(--color-text-primary)", textColor: "var(--color-background-primary)" },
     ...expert.intermediate_names.map((nm) => ({ label: nm, color: "hsl(var(--muted))", textColor: "hsl(var(--foreground))" })),
     { label: name, color: "#97C459", textColor: "#173404" },
   ];
@@ -237,8 +238,8 @@ export default function ExpertProfileModal({ expert, requestText, onClose, onFor
             onClick={onForward}
             style={{
               width: "100%",
-              background: "#27500A",
-              color: "#EAF3DE",
+              background: "var(--color-text-primary)",
+              color: "var(--color-background-primary)",
               borderRadius: 8,
               padding: "10px 12px",
               fontSize: 12,
