@@ -1177,9 +1177,9 @@ export default function RequestsNew() {
                        <div className="space-y-2">
                          <div className="flex items-center gap-1.5">
                            <Users className="h-3 w-3" style={{ color: '#27500A' }} />
-                           <span style={{ color: '#27500A', fontSize: 11, fontWeight: 500 }}>
-                             {networkExperts.length} {networkExperts.length === 1 ? 'person' : 'people'} in your network know about this
-                           </span>
+                            <span style={{ color: '#27500A', fontSize: 11, fontWeight: 500 }}>
+                              {networkExperts.length} {networkExperts.length === 1 ? 'person' : 'people'} across your network know about this
+                            </span>
                          </div>
                           {(() => {
                             const titleLower = (formData.title || '').toLowerCase();
@@ -1200,7 +1200,15 @@ export default function RequestsNew() {
                              .map((p) => p.charAt(0).toUpperCase())
                              .slice(0, 2)
                              .join('');
-                           const degreeLabel = expert.degree === 1 ? '1st' : '2nd';
+                           const ordinal = (n: number) => {
+                             const s = ['th', 'st', 'nd', 'rd'];
+                             const v = n % 100;
+                             return n + (s[(v - 20) % 10] || s[v] || s[0]);
+                           };
+                           const degreeLabel = ordinal(expert.degree);
+                           const degreeOpacity =
+                             expert.degree <= 1 ? 1 : expert.degree === 2 ? 0.95 : expert.degree === 3 ? 0.9 : 0.85;
+                           const intermediates = expert.intermediate_names || [];
                            const queued = pendingForwards.has(expert.profile_id);
                            return (
                              <div
@@ -1210,6 +1218,7 @@ export default function RequestsNew() {
                                  background: '#EAF3DE',
                                  border: '0.5px solid #C0DD97',
                                  borderRadius: 999,
+                                 opacity: degreeOpacity,
                                }}
                              >
                                <div
@@ -1233,6 +1242,14 @@ export default function RequestsNew() {
                                  >
                                    {name}
                                  </div>
+                                 {intermediates.length > 0 && (
+                                   <div
+                                     className="truncate"
+                                     style={{ color: '#3B6D11', fontSize: 10 }}
+                                   >
+                                     via {intermediates.join(' → ')}
+                                   </div>
+                                 )}
                                   <div className="flex items-center gap-1.5 flex-wrap" style={{ fontSize: 10 }}>
                                     <span style={{ color: '#3B6D11' }}>{degreeLabel}</span>
                                     {expert.matching_domains.length > 0 && (
