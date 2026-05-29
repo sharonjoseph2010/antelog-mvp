@@ -34,11 +34,11 @@ function getLink(n: Notif): string {
       return n.related_user_id ? `/friend-request/${n.related_user_id}` : "/friends";
     case "friend_request_accepted":
     case "connection_accepted":
-      return n.related_user_id ? `/profile/${n.related_user_id}` : "/friends";
+      return "/friends";
     case "contact_joined":
     case "network_addition":
     case "friend_suggestion":
-      return "/friends";
+      return "/contacts";
     default:
       return "/notifications";
   }
