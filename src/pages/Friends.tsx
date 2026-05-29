@@ -334,7 +334,13 @@ const Friends = () => {
             </Button>
           </div>
 
-          <Tabs defaultValue="friends" className="space-y-6">
+          <Tabs
+            defaultValue="friends"
+            className="space-y-6"
+            onValueChange={(v) => {
+              if (v === 'third-plus') loadThirdPlusNetwork();
+            }}
+          >
             <TabsList className="h-auto p-0 bg-transparent flex gap-2 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
               <TabsTrigger 
                 value="friends" 
