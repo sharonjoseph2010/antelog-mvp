@@ -261,23 +261,6 @@ export default function RequestsNew() {
           .sort((a, b) => (a.network_degree ?? a.degree) - (b.network_degree ?? b.degree))
           .slice(0, 8);
 
-        // Resolve names for intermediate hops in connection paths.
-        const interIds = new Set<string>();
-        base.forEach((r) => {
-          const path: string[] = Array.isArray(r.connection_path) ? r.connection_path : [];
-          path.slice(1, -1).forEach((id) => interIds.add(id));
-        });
-        const nameById = new Map<string, string>();
-        if (interIds.size > 0) {
-          const { data: profs } = await supabase
-            .from("profiles")
-            .select("id, full_name, handle")
-            .in("id", Array.from(interIds));
-          (profs || []).forEach((p: any) => {
-            nameById.set(p.id, p.full_name || (p.handle ? `@${p.handle}` : "Someone"));
-          });
-        }
-
         setNetworkExperts(
           base.map((r: any) => {
             const path: string[] = Array.isArray(r.connection_path) ? r.connection_path : [];
@@ -289,7 +272,7 @@ export default function RequestsNew() {
               expertise_cities: r.matched_cities || [],
               degree: r.network_degree ?? r.degree,
               connection_path: path,
-              intermediate_names: path.slice(1, -1).map((id) => nameById.get(id) || "Someone"),
+              intermediate_names: path.slice(1, -1).filter((n) => typeof n === "string" && n.trim().length > 0),
             };
           })
         );
