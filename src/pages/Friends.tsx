@@ -106,7 +106,9 @@ const Friends = () => {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [friendships, setFriendships] = useState<Friendship[]>([]);
   const [extendedNetwork, setExtendedNetwork] = useState<ExtendedNetworkMember[]>([]);
-  const [thirdPlusNetwork, setThirdPlusNetwork] = useState<ExtendedNetworkMember[]>([]);
+  const [thirdPlusNetwork, setThirdPlusNetwork] = useState<ThirdPlusMember[]>([]);
+  const [thirdPlusLoaded, setThirdPlusLoaded] = useState(false);
+  const [thirdPlusLoading, setThirdPlusLoading] = useState(false);
   const [groups, setGroups] = useState<Group[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
