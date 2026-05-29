@@ -1639,45 +1639,21 @@ export default function RequestsNew() {
         </DialogContent>
       </Dialog>
 
-      <Drawer open={!!profileSheetExpertId} onOpenChange={(o) => !o && setProfileSheetExpertId(null)}>
-        <DrawerContent className="max-h-[92vh]">
-          {profileSheetExpertId && (() => {
-            const expert = networkExperts.find((e) => e.profile_id === profileSheetExpertId);
-            const name = expert?.full_name || (expert?.handle ? `@${expert.handle}` : 'this person');
-            const queued = expert ? pendingForwards.has(expert.profile_id) : false;
-            return (
-              <>
-                <div className="overflow-y-auto flex-1">
-                  <PublicProfile userIdOverride={profileSheetExpertId} embedded />
-                </div>
-                <DrawerFooter className="border-t bg-background">
-                  <Button
-                    type="button"
-                    disabled={queued}
-                    onClick={() => {
-                      if (!expert) return;
-                      setPendingForwards((prev) => {
-                        const next = new Set(prev);
-                        next.add(expert.profile_id);
-                        return next;
-                      });
-                      setProfileSheetExpertId(null);
-                    }}
-                    style={{
-                      background: '#97C459',
-                      color: '#173404',
-                      borderRadius: 999,
-                    }}
-                    className="w-full hover:opacity-90"
-                  >
-                    {queued ? 'Queued for forward ✓' : `Forward request to ${name} →`}
-                  </Button>
-                </DrawerFooter>
-              </>
-            );
-          })()}
-        </DrawerContent>
-      </Drawer>
+      <ExpertProfileModal
+        expert={profileSheetExpertId ? networkExperts.find((e) => e.profile_id === profileSheetExpertId) || null : null}
+        requestText={formData.title}
+        queued={profileSheetExpertId ? pendingForwards.has(profileSheetExpertId) : false}
+        onClose={() => setProfileSheetExpertId(null)}
+        onForward={() => {
+          if (!profileSheetExpertId) return;
+          setPendingForwards((prev) => {
+            const next = new Set(prev);
+            next.add(profileSheetExpertId);
+            return next;
+          });
+          setProfileSheetExpertId(null);
+        }}
+      />
     </div>
   );
 }
