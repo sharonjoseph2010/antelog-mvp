@@ -94,7 +94,7 @@ export default function ExpertProfileModal({ expert, requestText, onClose, onFor
         };
 
   const chainNodes = [
-    { label: "You", color: "#0a0a0a", textColor: "#fff" },
+    { label: "You", color: "var(--color-text-primary)", textColor: "var(--color-background-primary)" },
     ...expert.intermediate_names.map((nm) => ({ label: nm, color: "hsl(var(--muted))", textColor: "hsl(var(--foreground))" })),
     { label: name, color: "#97C459", textColor: "#173404" },
   ];
