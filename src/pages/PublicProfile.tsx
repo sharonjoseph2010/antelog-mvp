@@ -6,7 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, ShieldCheck, MapPin, Briefcase, Pencil, Lock } from "lucide-react";
-import { FriendRequestButton } from "@/components/FriendRequestButton";
 
 interface SafeProfile {
   id: string;
@@ -36,8 +35,14 @@ const relationshipLabel: Record<string, string> = {
   second_degree: "Friend of a friend",
 };
 
-const PublicProfile = () => {
-  const { userId } = useParams<{ userId: string }>();
+interface PublicProfileProps {
+  userIdOverride?: string;
+  embedded?: boolean;
+}
+
+const PublicProfile = ({ userIdOverride, embedded = false }: PublicProfileProps = {}) => {
+  const params = useParams<{ userId: string }>();
+  const userId = userIdOverride ?? params.userId;
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<SafeProfile | null>(null);
@@ -51,14 +56,19 @@ const PublicProfile = () => {
       setError(null);
       try {
         const { data: { user } } = await supabase.auth.getUser();
-        if (!user) { navigate("/login"); return; }
+        if (!user) {
+          if (!embedded) navigate("/login");
+          return;
+        }
         if (cancelled) return;
         setViewerId(user.id);
 
         // Self → redirect to /profile
         if (userId && userId === user.id) {
-          navigate("/profile", { replace: true });
-          return;
+          if (!embedded) {
+            navigate("/profile", { replace: true });
+            return;
+          }
         }
 
         const { data, error } = await supabase.rpc("get_safe_profile_view", {
@@ -83,11 +93,11 @@ const PublicProfile = () => {
     };
     if (userId) load();
     return () => { cancelled = true; };
-  }, [userId, navigate]);
+  }, [userId, navigate, embedded]);
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className={`${embedded ? "py-16" : "min-h-screen"} flex items-center justify-center`}>
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     );
@@ -95,11 +105,13 @@ const PublicProfile = () => {
 
   if (error || !profile) {
     return (
-      <main className="container mx-auto px-4 py-8 max-w-2xl">
+      <main className={embedded ? "px-4 py-6" : "container mx-auto px-4 py-8 max-w-2xl"}>
         <Card>
           <CardContent className="py-12 text-center">
             <p className="text-muted-foreground">{error ?? "Profile unavailable"}</p>
-            <Button variant="outline" className="mt-4" onClick={() => navigate(-1)}>Go back</Button>
+            {!embedded && (
+              <Button variant="outline" className="mt-4" onClick={() => navigate(-1)}>Go back</Button>
+            )}
           </CardContent>
         </Card>
       </main>
@@ -116,12 +128,12 @@ const PublicProfile = () => {
 
   return (
     <>
-      <Helmet>
+      {!embedded && <Helmet>
         <title>{displayName} | Antelog</title>
         <meta name="description" content={`View ${displayName}'s profile on Antelog`} />
-      </Helmet>
+      </Helmet>}
 
-      <main className="container mx-auto px-4 py-8 max-w-2xl">
+      <main className={embedded ? "px-4 py-4" : "container mx-auto px-4 py-8 max-w-2xl"}>
         <Card>
           <CardContent className="p-6 space-y-6">
             {/* 1. Connection context bar */}
@@ -130,12 +142,6 @@ const PublicProfile = () => {
                 <Badge variant="secondary" className="text-xs font-normal text-muted-foreground">
                   {ctxLabel}
                 </Badge>
-                {profile.relationship === "second_degree" && viewerId && profile.id && (
-                  <FriendRequestButton
-                    currentUserId={viewerId}
-                    targetUserId={profile.id}
-                  />
-                )}
               </div>
             )}
 
