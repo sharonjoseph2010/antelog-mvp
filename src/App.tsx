@@ -230,6 +230,7 @@ function AppContent({
     "/notifications",
     "/settings",
     "/admin",
+    "/friend-request",
   ];
   const isShellRoute =
     isAuthenticatedShellPath(location.pathname, SHELL_ROUTES);
