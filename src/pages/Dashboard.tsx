@@ -89,11 +89,11 @@ function getNotifLink(type: string, metadata: any, relatedUserId: string | null)
       return relatedUserId ? `/friend-request/${relatedUserId}` : "/friends";
     case "friend_request_accepted":
     case "connection_accepted":
-      return relatedUserId ? `/profile/${relatedUserId}` : "/friends";
+      return "/friends";
     case "contact_joined":
     case "network_addition":
     case "friend_suggestion":
-      return "/friends";
+      return "/contacts";
     default:
       return "/notifications";
   }
