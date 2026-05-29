@@ -295,8 +295,10 @@ export default function RequestsNew() {
     return () => clearTimeout(timer);
   }, [formData.title, expertNudgeDismissed]);
 
-  const frostedAmber = "relative rounded-lg border border-amber-200 border-l-[3px] border-l-amber-500 bg-amber-50 p-4 dark:bg-amber-950/30 dark:border-amber-700/50 dark:border-l-amber-400";
-  const frostedSky = "relative rounded-lg border border-blue-200 border-l-[3px] border-l-[#3B82F6] bg-[#EFF6FF] p-4 dark:bg-sky-950/30 dark:border-sky-700/50 dark:border-l-sky-400";
+  // Semantic surfaces — see src/index.css. Attention = pending/not-yet-done.
+  // Info = system messages/tips. Both use soft fills + coloured border + readable text.
+  const frostedAmber = "attention-surface relative rounded-lg border-l-[3px] p-4";
+  const frostedSky = "info-surface relative rounded-lg border-l-[3px] p-4";
 
   const loadUserGroups = async () => {
     try {
@@ -1044,25 +1046,25 @@ export default function RequestsNew() {
                          <button
                            type="button"
                            onClick={() => { setDirectoryNudgeDismissed(true); setExpertNudgeDismissed(true); }}
-                           className="absolute top-2 right-2 text-amber-500 hover:text-amber-700 dark:text-amber-400/70 dark:hover:text-amber-300"
+                           className="absolute top-2 right-2 opacity-70 hover:opacity-100"
                            aria-label="Dismiss"
                          >
                            <X className="h-4 w-4" />
                          </button>
                          <div className="flex items-start gap-2 pr-6">
-                           <Brain className="h-4 w-4 mt-0.5 text-amber-600 dark:text-amber-300 shrink-0" />
+                           <Brain className="h-4 w-4 mt-0.5 shrink-0" />
                            <div className="space-y-2 flex-1">
-                             <p className="text-sm font-medium text-amber-900 dark:text-amber-200">
+                             <p className="text-sm font-medium">
                                {similarDirectoryList.contributor_name || (matchedExpert.full_name ?? "Someone")} in your network already made this list
                              </p>
-                             <p className="text-sm text-amber-800 dark:text-amber-100">
+                             <p className="text-sm">
                                "{similarDirectoryList.title}" — {similarDirectoryList.total_votes} {similarDirectoryList.total_votes === 1 ? "vote" : "votes"}
                              </p>
-                             <p className="text-sm text-amber-800 dark:text-amber-100">
+                             <p className="text-sm">
                                {(similarDirectoryList.contributor_name || matchedExpert.full_name || "They").split(" ")[0]} knows: {matchedExpert.matching_domains.join(", ")}
                              </p>
                              {directoryForwardMessage && (
-                               <p className="text-sm text-amber-800 bg-amber-100/50 border border-amber-300/50 rounded p-2 dark:text-amber-100 dark:bg-amber-500/10 dark:border-amber-400/30">
+                               <p className="text-sm rounded p-2" style={{ background: 'hsl(var(--attention-bg) / 0.6)', border: '0.5px solid hsl(var(--attention-border))' }}>
                                  {directoryForwardMessage}
                                </p>
                              )}
@@ -1088,24 +1090,24 @@ export default function RequestsNew() {
                          <button
                            type="button"
                            onClick={() => setDirectoryNudgeDismissed(true)}
-                           className="absolute top-2 right-2 text-amber-500 hover:text-amber-700 dark:text-amber-400/70 dark:hover:text-amber-300"
+                           className="absolute top-2 right-2 opacity-70 hover:opacity-100"
                            aria-label="Dismiss"
                          >
                            <X className="h-4 w-4" />
                          </button>
                          <div className="flex items-start gap-2 pr-6">
-                           <ClipboardList className="h-4 w-4 mt-0.5 text-amber-600 dark:text-amber-300 shrink-0" />
+                           <ClipboardList className="h-4 w-4 mt-0.5 shrink-0" />
                            <div className="space-y-2 flex-1">
                              {similarDirectoryList.contributor_name ? (
                                <>
-                                 <p className="text-sm font-medium text-amber-900 dark:text-amber-200">
+                                 <p className="text-sm font-medium">
                                    {similarDirectoryList.contributor_name} in your network already made this list
                                  </p>
-                                 <p className="text-sm text-amber-800 dark:text-amber-100">
+                                 <p className="text-sm">
                                    "{similarDirectoryList.title}" — {similarDirectoryList.total_votes} {similarDirectoryList.total_votes === 1 ? "vote" : "votes"}
                                  </p>
                                  {directoryForwardMessage && (
-                                   <p className="text-sm text-amber-800 bg-amber-100/50 border border-amber-300/50 rounded p-2 dark:text-amber-100 dark:bg-amber-500/10 dark:border-amber-400/30">
+                                   <p className="text-sm rounded p-2" style={{ background: 'hsl(var(--attention-bg) / 0.6)', border: '0.5px solid hsl(var(--attention-border))' }}>
                                      {directoryForwardMessage}
                                    </p>
                                  )}
@@ -1123,10 +1125,10 @@ export default function RequestsNew() {
                                </>
                              ) : (
                                <>
-                                 <p className="text-sm font-medium text-amber-900 dark:text-amber-200">
+                                 <p className="text-sm font-medium">
                                    This might already exist in the Master Directory
                                  </p>
-                                 <p className="text-sm text-amber-800 dark:text-amber-100">
+                                 <p className="text-sm">
                                    "{similarDirectoryList.title}" — {similarDirectoryList.total_votes} {similarDirectoryList.total_votes === 1 ? "vote" : "votes"}
                                  </p>
                                  <div className="flex flex-wrap gap-2 pt-1">
@@ -1200,8 +1202,8 @@ export default function RequestsNew() {
                                     width: 32,
                                     height: 32,
                                    borderRadius: '9999px',
-                                   background: '#97C459',
-                                   color: '#173404',
+                                    background: 'hsl(var(--trust-avatar-bg))',
+                                    color: 'hsl(var(--trust-avatar-fg))',
                                     fontSize: 12,
                                    fontWeight: 600,
                                  }}
@@ -1282,8 +1284,8 @@ export default function RequestsNew() {
 
               {/* Duplicate Warning */}
               {showDuplicateWarning && duplicateResults.length > 0 && (
-                <Alert variant="default" className="border-yellow-500/50 bg-yellow-50 dark:bg-yellow-950/20">
-                  <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                <Alert variant="default" className="attention-surface">
+                  <AlertTriangle className="h-4 w-4" />
                   <AlertTitle>Similar lists already exist</AlertTitle>
                   <AlertDescription className="space-y-3">
                     <p className="text-sm">These might already have what you're looking for:</p>
@@ -1548,15 +1550,15 @@ export default function RequestsNew() {
             {/* On Antelog */}
             <div className="space-y-3">
               <div className="flex items-center gap-2">
-                <CircleCheck className="h-4 w-4 text-green-600" />
+                <CircleCheck className="h-4 w-4" style={{ color: 'hsl(var(--trust-fg))' }} />
                 <h3 className="font-semibold">On Antelog ({antelogContacts.length})</h3>
               </div>
               <p className="text-xs text-muted-foreground">These people will be notified in-app</p>
               {antelogContacts.length > 0 ? (
                 <div className="space-y-2">
                   {antelogContacts.map((contact) => (
-                    <div key={contact.id} className="flex items-center gap-3 p-2 rounded-lg border border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/30">
-                      <div className="h-8 w-8 rounded-full bg-green-200 dark:bg-green-800 flex items-center justify-center text-sm font-medium">
+                    <div key={contact.id} className="flex items-center gap-3 p-2 rounded-lg border border-border bg-secondary/50">
+                      <div className="h-8 w-8 rounded-full flex items-center justify-center text-sm font-medium" style={{ background: 'hsl(var(--trust-avatar-bg))', color: 'hsl(var(--trust-avatar-fg))' }}>
                         {contact.full_name?.charAt(0) || '?'}
                       </div>
                       <div className="flex-1 min-w-0">
@@ -1575,7 +1577,7 @@ export default function RequestsNew() {
             {/* Not on Antelog */}
             <div className="space-y-3">
               <div className="flex items-center gap-2">
-                <ExternalLink className="h-4 w-4 text-orange-600" />
+                <ExternalLink className="h-4 w-4 text-muted-foreground" />
                 <h3 className="font-semibold">Not on Antelog ({externalContacts.length})</h3>
               </div>
               <p className="text-xs text-muted-foreground">Generate a share link for these contacts</p>
@@ -1583,8 +1585,8 @@ export default function RequestsNew() {
                 <>
                   <div className="space-y-2">
                     {externalContacts.slice(0, 10).map((contact, idx) => (
-                      <div key={idx} className="flex items-center gap-3 p-2 rounded-lg border border-orange-200 bg-orange-50 dark:border-orange-900 dark:bg-orange-950/30">
-                        <div className="h-8 w-8 rounded-full bg-orange-200 dark:bg-orange-800 flex items-center justify-center text-sm font-medium">
+                      <div key={idx} className="flex items-center gap-3 p-2 rounded-lg border border-border bg-secondary/30">
+                        <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-sm font-medium text-muted-foreground">
                           {contact.contact_name?.charAt(0) || '?'}
                         </div>
                         <div className="flex-1 min-w-0">
