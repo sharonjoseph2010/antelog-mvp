@@ -96,7 +96,16 @@ export default function RequestsNew() {
   } | null>(null);
   const [directoryNudgeDismissed, setDirectoryNudgeDismissed] = useState(false);
   // Nudge 2: network experts
-  const [networkExperts, setNetworkExperts] = useState<Array<{ profile_id: string; full_name: string | null; handle: string | null; matching_domains: string[]; degree: number; expertise_cities: string[] }>>([]);
+  const [networkExperts, setNetworkExperts] = useState<Array<{
+    profile_id: string;
+    full_name: string | null;
+    handle: string | null;
+    matching_domains: string[];
+    degree: number;
+    expertise_cities: string[];
+    connection_path: string[];
+    intermediate_names: string[];
+  }>>([]);
   const [expertNudgeDismissed, setExpertNudgeDismissed] = useState(false);
   // Inline message shown inside the directory nudge after "Send request to them"
   const [directoryForwardMessage, setDirectoryForwardMessage] = useState<string | null>(null);
