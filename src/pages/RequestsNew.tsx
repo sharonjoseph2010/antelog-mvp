@@ -1217,49 +1217,49 @@ export default function RequestsNew() {
                                        .join(' · ')}
                                    </div>
                                  </div>
-                                <div className="flex items-center gap-1.5 shrink-0">
-                                  <button
-                                    type="button"
-                                    onClick={() => setProfileSheetExpertId(expert.profile_id)}
-                                    style={{
-                                      border: '0.5px solid #97C459',
-                                      borderRadius: 6,
-                                      color: '#3B6D11',
-                                      fontSize: 10,
-                                      background: 'transparent',
-                                      padding: '4px 8px',
-                                      cursor: 'pointer',
-                                      whiteSpace: 'nowrap',
-                                    }}
-                                  >
-                                    View →
-                                  </button>
-                                  <button
-                                    type="button"
-                                    disabled={queued}
-                                    onClick={() => {
-                                      setPendingForwards((prev) => {
-                                        const next = new Set(prev);
-                                        next.add(expert.profile_id);
-                                        return next;
-                                      });
-                                    }}
-                                    style={{
-                                      border: 'none',
-                                      borderRadius: 6,
-                                      color: '#EAF3DE',
-                                      fontSize: 10,
-                                      background: '#3B6D11',
-                                      padding: '4px 8px',
-                                      opacity: queued ? 0.5 : 1,
-                                      cursor: queued ? 'default' : 'pointer',
-                                      whiteSpace: 'nowrap',
-                                    }}
-                                  >
-                                    {queued ? 'Forwarding ✓' : 'Forward →'}
-                                  </button>
-                                </div>
-                             </div>
+                                 <div className="flex items-center gap-1.5 shrink-0">
+                                   <button
+                                     type="button"
+                                     onClick={() => setProfileSheetExpertId(expert.profile_id)}
+                                     style={{
+                                       border: '0.5px solid var(--color-border-secondary)',
+                                       borderRadius: 6,
+                                       color: 'var(--color-text-secondary)',
+                                       fontSize: 10,
+                                       background: 'transparent',
+                                       padding: '4px 8px',
+                                       cursor: 'pointer',
+                                       whiteSpace: 'nowrap',
+                                     }}
+                                   >
+                                     View →
+                                   </button>
+                                   <button
+                                     type="button"
+                                     disabled={queued}
+                                     onClick={() => {
+                                       setPendingForwards((prev) => {
+                                         const next = new Set(prev);
+                                         next.add(expert.profile_id);
+                                         return next;
+                                       });
+                                     }}
+                                     style={{
+                                       border: 'none',
+                                       borderRadius: 6,
+                                       color: 'var(--color-background-primary)',
+                                       fontSize: 10,
+                                       background: 'var(--color-text-primary)',
+                                       padding: '4px 8px',
+                                       opacity: queued ? 0.5 : 1,
+                                       cursor: queued ? 'default' : 'pointer',
+                                       whiteSpace: 'nowrap',
+                                     }}
+                                   >
+                                     {queued ? 'Forwarding ✓' : 'Forward →'}
+                                   </button>
+                                 </div>
+                              </div>
                            );
                          })}
                        </div>
