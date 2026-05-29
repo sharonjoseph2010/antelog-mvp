@@ -85,8 +85,9 @@ export default function ExpertProfileModal({ expert, requestText, onClose, onFor
           fontSize: 11,
         }
       : {
-          background: "hsl(var(--secondary))",
-          color: "hsl(var(--secondary-foreground))",
+          background: "var(--color-background-secondary)",
+          border: "0.5px solid var(--color-border-tertiary)",
+          color: "var(--color-text-secondary)",
           borderRadius: 999,
           padding: "2px 8px",
           fontSize: 11,
