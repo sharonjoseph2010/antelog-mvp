@@ -349,7 +349,7 @@ function TreeSection({ rows, isLoading }: { rows: TreeRow[] | null; isLoading: b
         {/* Legend rows */}
         <div className="flex gap-4 mb-2 text-xs text-muted-foreground flex-wrap">
           <span className="inline-flex items-center gap-1.5">
-            <span className="px-1.5 py-px rounded-full text-[9px] font-semibold uppercase tracking-wider bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-200">
+            <span className="info-surface px-1.5 py-px rounded-full text-[9px] font-semibold uppercase tracking-wider">
               Antelog
             </span>
             Verified user
@@ -364,11 +364,11 @@ function TreeSection({ rows, isLoading }: { rows: TreeRow[] | null; isLoading: b
 
         <div className="flex gap-4 pt-2 border-t border-dashed border-border text-xs text-muted-foreground flex-wrap">
           <span className="inline-flex items-center gap-1.5">
-            <span className="w-[7px] h-[7px] rounded-full bg-emerald-600 dark:bg-emerald-400" />
+            <span className="w-[7px] h-[7px] rounded-full" style={{ background: 'hsl(var(--info-fg))' }} />
             Responded
           </span>
           <span className="inline-flex items-center gap-1.5">
-            <span className="w-[7px] h-[7px] rounded-full bg-amber-600 dark:bg-amber-400" />
+            <span className="w-[7px] h-[7px] rounded-full" style={{ background: 'hsl(var(--attention-fg))' }} />
             Forwarded, didn't respond
           </span>
           <span className="inline-flex items-center gap-1.5">
@@ -379,7 +379,7 @@ function TreeSection({ rows, isLoading }: { rows: TreeRow[] | null; isLoading: b
 
         <div className="flex gap-4 pt-2 mt-2 border-t border-dashed border-border text-xs text-muted-foreground flex-wrap">
           <span className="inline-flex items-center gap-1.5">
-            <span className="inline-block w-5 h-[2px] rounded-sm bg-emerald-600 dark:bg-emerald-400" />
+            <span className="inline-block w-5 h-[2px] rounded-sm" style={{ background: 'hsl(var(--info-fg))' }} />
             Connection led to a response
           </span>
           <span className="inline-flex items-center gap-1.5">
@@ -481,12 +481,15 @@ function NodeRow({
       </div>
       <span
         className={`w-[7px] h-[7px] rounded-full flex-shrink-0 ${
-          status === "responded"
-            ? "bg-emerald-600 dark:bg-emerald-400"
-            : status === "forwarded"
-            ? "bg-amber-600 dark:bg-amber-400"
-            : "border border-border bg-transparent"
+          status === "responded" || status === "forwarded" ? "" : "border border-border bg-transparent"
         }`}
+        style={
+          status === "responded"
+            ? { background: 'hsl(var(--info-fg))' }
+            : status === "forwarded"
+            ? { background: 'hsl(var(--attention-fg))' }
+            : undefined
+        }
       />
       <span
         className={`text-sm font-medium ${
@@ -497,9 +500,7 @@ function NodeRow({
       </span>
       <span
         className={`inline-flex items-center px-1.5 py-px rounded-full text-[10px] font-semibold uppercase tracking-wider flex-shrink-0 ${
-          node.is_antelog_user
-            ? "bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-200"
-            : "bg-muted text-muted-foreground"
+          node.is_antelog_user ? "info-surface" : "bg-muted text-muted-foreground"
         }`}
       >
         {node.is_antelog_user ? "Antelog" : "Guest"}

@@ -530,7 +530,8 @@ export default function GuestResponse() {
     if (daysLeft !== null && daysLeft <= 0) {
       return (
         <span
-          className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400"
+          className="inline-flex items-center gap-1"
+          style={{ color: 'hsl(var(--attention-fg))' }}
         >
           <Clock className="h-3 w-3" /> Closes today
         </span>
@@ -662,7 +663,7 @@ export default function GuestResponse() {
           <div className="space-y-7 sm:space-y-10">
             {/* Success banner */}
             <div
-              className="flex items-center gap-3 rounded-[10px] px-[14px] py-3 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"
+              className="flex items-center gap-3 rounded-[10px] px-[14px] py-3 bg-secondary text-secondary-foreground"
             >
               <CheckCircle2 className="h-5 w-5 shrink-0" aria-hidden />
               <div>
@@ -760,7 +761,7 @@ export default function GuestResponse() {
               ) : (
                 <div className="space-y-3">
                   <div
-                    className="inline-flex items-center gap-2 rounded-[10px] px-3 py-2 text-sm bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"
+                    className="inline-flex items-center gap-2 rounded-[10px] px-3 py-2 text-sm bg-secondary text-secondary-foreground"
                   >
                     <CheckCircle2 className="h-4 w-4" /> Your link is ready.
                   </div>

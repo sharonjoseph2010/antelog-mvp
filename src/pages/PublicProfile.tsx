@@ -25,10 +25,9 @@ interface SafeProfile {
 const toArray = (v: any): string[] =>
   Array.isArray(v) ? v.map(String) : [];
 
-const expertiseChip =
-  "border border-[rgba(245,158,11,0.6)] bg-[rgba(245,158,11,0.15)] text-amber-300";
-const interestChip =
-  "border border-[rgba(56,189,248,0.6)] bg-[rgba(56,189,248,0.15)] text-sky-300";
+// Profile tag styling is decorative metadata, not a semantic signal. Stay neutral.
+const expertiseChip = "border border-border bg-secondary text-secondary-foreground";
+const interestChip = "border border-border bg-secondary text-secondary-foreground";
 
 const relationshipLabel: Record<string, string> = {
   first_degree: "Friend",

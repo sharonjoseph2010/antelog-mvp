@@ -312,8 +312,8 @@ const ContactsImport = () => {
                     <div className="flex items-center gap-2">
                       {contact.consentGiven ? (
                         <div className="flex items-center gap-2">
-                          <Shield className="h-3 w-3 text-green-600" />
-                          <span className="text-sm text-green-600 font-medium">Consent Given</span>
+                          <Shield className="h-3 w-3" style={{ color: 'hsl(var(--trust-fg))' }} />
+                          <span className="text-sm font-medium" style={{ color: 'hsl(var(--trust-fg))' }}>Consent Given</span>
                           {contact.isOnAntelog ? (
                             <Button
                               size="sm"
@@ -329,8 +329,8 @@ const ContactsImport = () => {
                         </div>
                       ) : (
                         <div className="flex items-center gap-2">
-                          <AlertTriangle className="h-3 w-3 text-orange-500" />
-                          <span className="text-sm text-orange-600">Consent Required</span>
+                          <AlertTriangle className="h-3 w-3" style={{ color: 'hsl(var(--attention-fg))' }} />
+                          <span className="text-sm" style={{ color: 'hsl(var(--attention-fg))' }}>Consent Required</span>
                         </div>
                       )}
                     </div>
@@ -346,7 +346,7 @@ const ContactsImport = () => {
           <DialogContent>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <Shield className="h-5 w-5 text-blue-600" />
+                <Shield className="h-5 w-5 text-muted-foreground" />
                 Privacy & Consent
               </DialogTitle>
               <DialogDescription className="space-y-2">

@@ -88,14 +88,14 @@ const Waitlist = () => {
             </form>
 
             {status === "success" && (
-              <div className="mt-4 flex items-center gap-2 text-green-600 dark:text-green-400">
+              <div className="mt-4 flex items-center gap-2 text-foreground">
                 <CheckCircle className="h-5 w-5 flex-shrink-0" />
                 <p className="text-sm">You're on the list! We'll email you when we launch.</p>
               </div>
             )}
 
             {status === "already_joined" && (
-              <div className="mt-4 flex items-center gap-2 text-orange-600 dark:text-orange-400">
+              <div className="info-surface mt-4 flex items-center gap-2 rounded-md p-2">
                 <Info className="h-5 w-5 flex-shrink-0" />
                 <p className="text-sm">You're already on the waitlist!</p>
               </div>
