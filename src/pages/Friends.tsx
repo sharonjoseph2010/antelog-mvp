@@ -85,6 +85,14 @@ interface ExtendedNetworkMember {
   mutual_friends: string[];
 }
 
+interface ThirdPlusMember {
+  profile_id: string;
+  full_name: string;
+  handle: string;
+  network_degree: number;
+  connection_path: string[];
+}
+
 interface Group {
   id: string;
   creator_id: string;
@@ -98,7 +106,9 @@ const Friends = () => {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [friendships, setFriendships] = useState<Friendship[]>([]);
   const [extendedNetwork, setExtendedNetwork] = useState<ExtendedNetworkMember[]>([]);
-  const [thirdPlusNetwork, setThirdPlusNetwork] = useState<ExtendedNetworkMember[]>([]);
+  const [thirdPlusNetwork, setThirdPlusNetwork] = useState<ThirdPlusMember[]>([]);
+  const [thirdPlusLoaded, setThirdPlusLoaded] = useState(false);
+  const [thirdPlusLoading, setThirdPlusLoading] = useState(false);
   const [groups, setGroups] = useState<Group[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
@@ -112,6 +122,7 @@ const Friends = () => {
       loadFriendships();
       loadExtendedNetwork();
       loadGroups();
+      loadThirdPlusNetwork();
     }
   }, [currentUserId]);
 
@@ -207,6 +218,32 @@ const Friends = () => {
     }
   };
 
+  const loadThirdPlusNetwork = async () => {
+    if (!currentUserId || thirdPlusLoaded) return;
+    setThirdPlusLoading(true);
+    try {
+      const { data, error } = await (supabase.rpc as any)('get_third_plus_network', {
+        viewer_id: currentUserId,
+        max_depth: 6,
+      });
+      if (error) throw error;
+      setThirdPlusNetwork((data || []) as ThirdPlusMember[]);
+      setThirdPlusLoaded(true);
+    } catch (error) {
+      console.error('Error loading 3rd+ network:', error);
+      setThirdPlusNetwork([]);
+    } finally {
+      setThirdPlusLoading(false);
+    }
+  };
+
+  const degreeLabel = (deg: number) => {
+    if (deg === 3) return '3rd';
+    if (deg === 4) return '4th';
+    if (deg === 5) return '5th';
+    return '6+';
+  };
+
   const loadGroups = async () => {
     if (!currentUserId) return;
 
@@ -298,7 +335,13 @@ const Friends = () => {
             </Button>
           </div>
 
-          <Tabs defaultValue="friends" className="space-y-6">
+          <Tabs
+            defaultValue="friends"
+            className="space-y-6"
+            onValueChange={(v) => {
+              if (v === 'third-plus') loadThirdPlusNetwork();
+            }}
+          >
             <TabsList className="h-auto p-0 bg-transparent flex gap-2 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
               <TabsTrigger 
                 value="friends" 
@@ -468,15 +511,56 @@ const Friends = () => {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-center py-12">
-                    <div className="mx-auto w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
-                      <ThreePersonChain className="h-8 w-8 text-muted-foreground" />
+                  {thirdPlusLoading ? (
+                    <div className="text-center py-12 text-muted-foreground">Loading…</div>
+                  ) : thirdPlusNetwork.length === 0 ? (
+                    <div className="text-center py-12">
+                      <div className="mx-auto w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
+                        <ThreePersonChain className="h-8 w-8 text-muted-foreground" />
+                      </div>
+                      <h3 className="text-xl font-semibold mb-2">No 3rd+ Connections Yet</h3>
+                      <p className="text-muted-foreground max-w-md mx-auto">
+                        Extended network connections will appear here as your network grows
+                      </p>
                     </div>
-                    <h3 className="text-xl font-semibold mb-2">3rd+ Degree Connections</h3>
-                    <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                      Extended network connections will appear here as your network grows
-                    </p>
-                  </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {thirdPlusNetwork.map((member) => {
+                        // connection_path includes viewer at index 0 and destination at end.
+                        // Display intermediate nodes + destination (exclude viewer).
+                        const displayPath = (member.connection_path || []).slice(1);
+                        return (
+                          <div
+                            key={member.profile_id}
+                            className="flex items-center justify-between p-4 border rounded-lg"
+                          >
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h3 className="font-medium">
+                                  <Link
+                                    to={`/profile/${member.profile_id}`}
+                                    className="hover:underline"
+                                  >
+                                    {member.full_name}
+                                  </Link>
+                                </h3>
+                                <Badge variant="secondary">{degreeLabel(member.network_degree)}</Badge>
+                              </div>
+                              <p className="text-sm text-muted-foreground">@{member.handle}</p>
+                              {displayPath.length > 0 && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  via {displayPath.join(' → ')}
+                                </p>
+                              )}
+                            </div>
+                            <Button variant="outline" size="sm" asChild>
+                              <Link to={`/profile/${member.profile_id}`}>View Profile</Link>
+                            </Button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>

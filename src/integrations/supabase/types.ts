@@ -1753,6 +1753,16 @@ export type Database = {
           user_type: string
         }[]
       }
+      get_third_plus_network: {
+        Args: { max_depth?: number; viewer_id: string }
+        Returns: {
+          connection_path: string[]
+          full_name: string
+          handle: string
+          network_degree: number
+          profile_id: string
+        }[]
+      }
       has_fyp_unread: { Args: never; Returns: boolean }
       has_role: {
         Args: {
