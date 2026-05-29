@@ -15,6 +15,7 @@ import {
 import { MoreHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
+import { markFypVisited } from "@/hooks/useFypUnread";
 
 interface ForYouRequest {
   request_id: string;
@@ -47,6 +48,7 @@ export default function ForYou() {
       const { data, error } = await supabase.rpc("get_for_you_requests", { p_limit: 20 });
       if (error) throw error;
       setItems((data || []) as ForYouRequest[]);
+      markFypVisited(user.id);
     } catch (e) {
       console.error(e);
       toast.error("Couldn't load For You");

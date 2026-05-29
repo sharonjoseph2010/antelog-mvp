@@ -1697,6 +1697,7 @@ export type Database = {
           title: string
         }[]
       }
+      get_fyp_latest_surfaced_at: { Args: never; Returns: string }
       get_guest_page_preview: {
         Args: { p_request_id: string }
         Returns: {
