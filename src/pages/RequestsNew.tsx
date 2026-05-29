@@ -1196,27 +1196,27 @@ export default function RequestsNew() {
                                >
                                  {initials || '?'}
                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <div
-                                    className="truncate"
-                                    style={{ color: '#27500A', fontSize: 12, fontWeight: 500 }}
-                                  >
-                                    {name}
-                                  </div>
-                                  <div
-                                    className="truncate"
-                                    style={{ color: '#5A8A2A', fontSize: 10 }}
-                                  >
-                                    {[
-                                      degreeLabel,
-                                      intermediates.length > 0 ? `via ${intermediates.join(' → ')}` : null,
-                                      expert.matching_domains.length > 0 ? expert.matching_domains.join(', ') : null,
-                                      expert.matchedCity ? `knows ${expert.matchedCity}` : null,
-                                    ]
-                                      .filter(Boolean)
-                                      .join(' · ')}
-                                  </div>
-                                </div>
+                                 <div className="flex-1 min-w-0">
+                                   <div
+                                     className="truncate"
+                                     style={{ color: 'var(--color-text-primary)', fontSize: 12, fontWeight: 500 }}
+                                   >
+                                     {name}
+                                   </div>
+                                   <div
+                                     className="truncate"
+                                     style={{ color: 'var(--color-text-secondary)', fontSize: 10 }}
+                                   >
+                                     {[
+                                       degreeLabel,
+                                       intermediates.length > 0 ? `via ${intermediates.join(' → ')}` : null,
+                                       expert.matching_domains.length > 0 ? expert.matching_domains.join(', ') : null,
+                                       expert.matchedCity ? `knows ${expert.matchedCity}` : null,
+                                     ]
+                                       .filter(Boolean)
+                                       .join(' · ')}
+                                   </div>
+                                 </div>
                                 <div className="flex items-center gap-1.5 shrink-0">
                                   <button
                                     type="button"
