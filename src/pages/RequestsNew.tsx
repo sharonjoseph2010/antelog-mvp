@@ -1171,17 +1171,17 @@ export default function RequestsNew() {
                            const intermediates = expert.intermediate_names || [];
                            const queued = pendingForwards.has(expert.profile_id);
                            return (
-                             <div
-                               key={expert.profile_id}
-                                className="flex items-center gap-2.5"
-                                style={{
-                                  background: '#EAF3DE',
-                                  border: '0.5px solid #C0DD97',
-                                  borderRadius: 12,
-                                  padding: '10px 12px',
-                                  opacity: degreeOpacity,
-                                }}
-                             >
+                              <div
+                                key={expert.profile_id}
+                                 className="flex items-center gap-2.5"
+                                 style={{
+                                   background: 'var(--color-background-secondary)',
+                                   border: '0.5px solid var(--color-border-tertiary)',
+                                   borderRadius: 12,
+                                   padding: '10px 12px',
+                                   opacity: degreeOpacity,
+                                 }}
+                              >
                                <div
                                  className="flex items-center justify-center shrink-0"
                                  style={{
