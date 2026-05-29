@@ -843,14 +843,6 @@ export default function RequestsNew() {
       if (pendingForwards.size > 0) {
         try {
           const targetIds = Array.from(pendingForwards);
-          const { data: vf } = await supabase
-            .from('friendships')
-            .select('user1_id, user2_id')
-            .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`);
-          const viewerFriendIds = (vf || []).map((f) =>
-            f.user1_id === user.id ? f.user2_id : f.user1_id
-          );
-
           const forwardRows: any[] = [];
           const forwardNotifs: any[] = [];
           const creatorFirst = (creatorName || 'Someone').split(' ')[0];
@@ -859,32 +851,12 @@ export default function RequestsNew() {
             const expert = networkExperts.find((e) => e.profile_id === targetId);
             if (!expert) continue;
 
-            let network_path: string[] = [user.id, targetId];
-            let network_depth = 1;
-            let mutualName: string | null = null;
-
-            if (expert.degree === 2) {
-              const { data: tf } = await supabase
-                .from('friendships')
-                .select('user1_id, user2_id')
-                .or(`user1_id.eq.${targetId},user2_id.eq.${targetId}`);
-              const targetFriendIds = new Set(
-                (tf || []).map((f) =>
-                  f.user1_id === targetId ? f.user2_id : f.user1_id
-                )
-              );
-              const mutualId = viewerFriendIds.find((id) => targetFriendIds.has(id));
-              if (mutualId) {
-                network_path = [user.id, mutualId, targetId];
-                network_depth = 2;
-                const { data: mp } = await supabase
-                  .from('profiles')
-                  .select('full_name, handle')
-                  .eq('id', mutualId)
-                  .maybeSingle();
-                mutualName = mp?.full_name || mp?.handle || 'a mutual friend';
-              }
-            }
+            const network_path =
+              expert.connection_path && expert.connection_path.length >= 2
+                ? expert.connection_path
+                : [user.id, targetId];
+            const network_depth = network_path.length - 1;
+            const intermediates = expert.intermediate_names || [];
 
             forwardRows.push({
               request_id: newRequest.id,
@@ -896,8 +868,8 @@ export default function RequestsNew() {
             });
 
             const pathText =
-              network_depth === 2 && mutualName
-                ? `${creatorFirst} asked · forwarded via ${mutualName} · to you`
+              intermediates.length > 0
+                ? `${creatorFirst} asked · forwarded via ${intermediates.join(' → ')} · to you`
                 : `${creatorFirst} asked · forwarded directly to you`;
 
             forwardNotifs.push({
