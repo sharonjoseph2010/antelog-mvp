@@ -1202,8 +1202,8 @@ export default function RequestsNew() {
                                     width: 32,
                                     height: 32,
                                    borderRadius: '9999px',
-                                   background: '#97C459',
-                                   color: '#173404',
+                                    background: 'hsl(var(--trust-avatar-bg))',
+                                    color: 'hsl(var(--trust-avatar-fg))',
                                     fontSize: 12,
                                    fontWeight: 600,
                                  }}
@@ -1284,8 +1284,8 @@ export default function RequestsNew() {
 
               {/* Duplicate Warning */}
               {showDuplicateWarning && duplicateResults.length > 0 && (
-                <Alert variant="default" className="border-yellow-500/50 bg-yellow-50 dark:bg-yellow-950/20">
-                  <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                <Alert variant="default" className="attention-surface">
+                  <AlertTriangle className="h-4 w-4" />
                   <AlertTitle>Similar lists already exist</AlertTitle>
                   <AlertDescription className="space-y-3">
                     <p className="text-sm">These might already have what you're looking for:</p>
@@ -1550,15 +1550,15 @@ export default function RequestsNew() {
             {/* On Antelog */}
             <div className="space-y-3">
               <div className="flex items-center gap-2">
-                <CircleCheck className="h-4 w-4 text-green-600" />
+                <CircleCheck className="h-4 w-4" style={{ color: 'hsl(var(--trust-fg))' }} />
                 <h3 className="font-semibold">On Antelog ({antelogContacts.length})</h3>
               </div>
               <p className="text-xs text-muted-foreground">These people will be notified in-app</p>
               {antelogContacts.length > 0 ? (
                 <div className="space-y-2">
                   {antelogContacts.map((contact) => (
-                    <div key={contact.id} className="flex items-center gap-3 p-2 rounded-lg border border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/30">
-                      <div className="h-8 w-8 rounded-full bg-green-200 dark:bg-green-800 flex items-center justify-center text-sm font-medium">
+                    <div key={contact.id} className="flex items-center gap-3 p-2 rounded-lg border border-border bg-secondary/50">
+                      <div className="h-8 w-8 rounded-full flex items-center justify-center text-sm font-medium" style={{ background: 'hsl(var(--trust-avatar-bg))', color: 'hsl(var(--trust-avatar-fg))' }}>
                         {contact.full_name?.charAt(0) || '?'}
                       </div>
                       <div className="flex-1 min-w-0">
@@ -1577,7 +1577,7 @@ export default function RequestsNew() {
             {/* Not on Antelog */}
             <div className="space-y-3">
               <div className="flex items-center gap-2">
-                <ExternalLink className="h-4 w-4 text-orange-600" />
+                <ExternalLink className="h-4 w-4 text-muted-foreground" />
                 <h3 className="font-semibold">Not on Antelog ({externalContacts.length})</h3>
               </div>
               <p className="text-xs text-muted-foreground">Generate a share link for these contacts</p>
@@ -1585,8 +1585,8 @@ export default function RequestsNew() {
                 <>
                   <div className="space-y-2">
                     {externalContacts.slice(0, 10).map((contact, idx) => (
-                      <div key={idx} className="flex items-center gap-3 p-2 rounded-lg border border-orange-200 bg-orange-50 dark:border-orange-900 dark:bg-orange-950/30">
-                        <div className="h-8 w-8 rounded-full bg-orange-200 dark:bg-orange-800 flex items-center justify-center text-sm font-medium">
+                      <div key={idx} className="flex items-center gap-3 p-2 rounded-lg border border-border bg-secondary/30">
+                        <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-sm font-medium text-muted-foreground">
                           {contact.contact_name?.charAt(0) || '?'}
                         </div>
                         <div className="flex-1 min-w-0">
