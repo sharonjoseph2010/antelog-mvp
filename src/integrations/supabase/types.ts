@@ -861,6 +861,7 @@ export type Database = {
           id: string
           interests: Json | null
           is_verified: boolean
+          last_for_you_visit: string | null
           location: string | null
           occupation: string | null
           phone_number: string | null
@@ -881,6 +882,7 @@ export type Database = {
           id: string
           interests?: Json | null
           is_verified?: boolean
+          last_for_you_visit?: string | null
           location?: string | null
           occupation?: string | null
           phone_number?: string | null
@@ -901,6 +903,7 @@ export type Database = {
           id?: string
           interests?: Json | null
           is_verified?: boolean
+          last_for_you_visit?: string | null
           location?: string | null
           occupation?: string | null
           phone_number?: string | null
@@ -1750,6 +1753,7 @@ export type Database = {
           user_type: string
         }[]
       }
+      has_fyp_unread: { Args: never; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1782,6 +1786,7 @@ export type Database = {
         Args: { action_type: string; contact_id?: string }
         Returns: undefined
       }
+      mark_for_you_visited: { Args: never; Returns: undefined }
       match_contacts_by_phone: {
         Args: { user_id_input: string }
         Returns: {
