@@ -122,6 +122,7 @@ const Friends = () => {
       loadFriendships();
       loadExtendedNetwork();
       loadGroups();
+      loadThirdPlusNetwork();
     }
   }, [currentUserId]);
 
