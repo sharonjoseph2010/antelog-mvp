@@ -96,7 +96,16 @@ export default function RequestsNew() {
   } | null>(null);
   const [directoryNudgeDismissed, setDirectoryNudgeDismissed] = useState(false);
   // Nudge 2: network experts
-  const [networkExperts, setNetworkExperts] = useState<Array<{ profile_id: string; full_name: string | null; handle: string | null; matching_domains: string[]; degree: number; expertise_cities: string[] }>>([]);
+  const [networkExperts, setNetworkExperts] = useState<Array<{
+    profile_id: string;
+    full_name: string | null;
+    handle: string | null;
+    matching_domains: string[];
+    degree: number;
+    expertise_cities: string[];
+    connection_path: string[];
+    intermediate_names: string[];
+  }>>([]);
   const [expertNudgeDismissed, setExpertNudgeDismissed] = useState(false);
   // Inline message shown inside the directory nudge after "Send request to them"
   const [directoryForwardMessage, setDirectoryForwardMessage] = useState<string | null>(null);
@@ -221,26 +230,63 @@ export default function RequestsNew() {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
-        const { data, error } = await supabase.rpc("find_network_experts", {
-          viewer_id: user.id,
-          query_domains: domains,
+
+        // Query across all degrees, one call per derived domain, then merge.
+        const results = await Promise.all(
+          domains.map((dom) =>
+            supabase.rpc("find_network_experts_all_degrees", {
+              viewer_id: user.id,
+              domain_filter: dom,
+              max_depth: 4,
+            })
+          )
+        );
+        const merged = new Map<string, any>();
+        for (const { data, error } of results) {
+          if (error) {
+            console.error("find_network_experts_all_degrees error", error);
+            continue;
+          }
+          for (const r of (data || []) as any[]) {
+            const existing = merged.get(r.expert_user_id);
+            if (!existing || r.degree < existing.degree) merged.set(r.expert_user_id, r);
+          }
+        }
+        const base = Array.from(merged.values())
+          .sort((a, b) => a.degree - b.degree)
+          .slice(0, 8);
+
+        // Resolve names for intermediate hops in connection paths.
+        const interIds = new Set<string>();
+        base.forEach((r) => {
+          const path: string[] = Array.isArray(r.connection_path) ? r.connection_path : [];
+          path.slice(1, -1).forEach((id) => interIds.add(id));
         });
-        if (error) throw error;
-        const base = (data || []).slice(0, 3) as Array<any>;
-        const ids = base.map((e) => e.profile_id);
-        let citiesById: Record<string, string[]> = {};
-        if (ids.length > 0) {
+        const nameById = new Map<string, string>();
+        if (interIds.size > 0) {
           const { data: profs } = await supabase
-            .from('profiles')
-            .select('id, expertise_cities')
-            .in('id', ids);
+            .from("profiles")
+            .select("id, full_name, handle")
+            .in("id", Array.from(interIds));
           (profs || []).forEach((p: any) => {
-            const arr = Array.isArray(p.expertise_cities) ? p.expertise_cities.map(String) : [];
-            citiesById[p.id] = arr;
+            nameById.set(p.id, p.full_name || (p.handle ? `@${p.handle}` : "Someone"));
           });
         }
+
         setNetworkExperts(
-          base.map((e) => ({ ...e, expertise_cities: citiesById[e.profile_id] || [] }))
+          base.map((r: any) => {
+            const path: string[] = Array.isArray(r.connection_path) ? r.connection_path : [];
+            return {
+              profile_id: r.expert_user_id,
+              full_name: r.expert_name ?? null,
+              handle: r.expert_handle ?? null,
+              matching_domains: r.matched_domains || [],
+              expertise_cities: r.matched_cities || [],
+              degree: r.degree,
+              connection_path: path,
+              intermediate_names: path.slice(1, -1).map((id) => nameById.get(id) || "Someone"),
+            };
+          })
         );
       } catch (err) {
         console.error("find_network_experts error", err);
@@ -797,14 +843,6 @@ export default function RequestsNew() {
       if (pendingForwards.size > 0) {
         try {
           const targetIds = Array.from(pendingForwards);
-          const { data: vf } = await supabase
-            .from('friendships')
-            .select('user1_id, user2_id')
-            .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`);
-          const viewerFriendIds = (vf || []).map((f) =>
-            f.user1_id === user.id ? f.user2_id : f.user1_id
-          );
-
           const forwardRows: any[] = [];
           const forwardNotifs: any[] = [];
           const creatorFirst = (creatorName || 'Someone').split(' ')[0];
@@ -813,32 +851,12 @@ export default function RequestsNew() {
             const expert = networkExperts.find((e) => e.profile_id === targetId);
             if (!expert) continue;
 
-            let network_path: string[] = [user.id, targetId];
-            let network_depth = 1;
-            let mutualName: string | null = null;
-
-            if (expert.degree === 2) {
-              const { data: tf } = await supabase
-                .from('friendships')
-                .select('user1_id, user2_id')
-                .or(`user1_id.eq.${targetId},user2_id.eq.${targetId}`);
-              const targetFriendIds = new Set(
-                (tf || []).map((f) =>
-                  f.user1_id === targetId ? f.user2_id : f.user1_id
-                )
-              );
-              const mutualId = viewerFriendIds.find((id) => targetFriendIds.has(id));
-              if (mutualId) {
-                network_path = [user.id, mutualId, targetId];
-                network_depth = 2;
-                const { data: mp } = await supabase
-                  .from('profiles')
-                  .select('full_name, handle')
-                  .eq('id', mutualId)
-                  .maybeSingle();
-                mutualName = mp?.full_name || mp?.handle || 'a mutual friend';
-              }
-            }
+            const network_path =
+              expert.connection_path && expert.connection_path.length >= 2
+                ? expert.connection_path
+                : [user.id, targetId];
+            const network_depth = network_path.length - 1;
+            const intermediates = expert.intermediate_names || [];
 
             forwardRows.push({
               request_id: newRequest.id,
@@ -850,8 +868,8 @@ export default function RequestsNew() {
             });
 
             const pathText =
-              network_depth === 2 && mutualName
-                ? `${creatorFirst} asked · forwarded via ${mutualName} · to you`
+              intermediates.length > 0
+                ? `${creatorFirst} asked · forwarded via ${intermediates.join(' → ')} · to you`
                 : `${creatorFirst} asked · forwarded directly to you`;
 
             forwardNotifs.push({
@@ -1131,9 +1149,9 @@ export default function RequestsNew() {
                        <div className="space-y-2">
                          <div className="flex items-center gap-1.5">
                            <Users className="h-3 w-3" style={{ color: '#27500A' }} />
-                           <span style={{ color: '#27500A', fontSize: 11, fontWeight: 500 }}>
-                             {networkExperts.length} {networkExperts.length === 1 ? 'person' : 'people'} in your network know about this
-                           </span>
+                            <span style={{ color: '#27500A', fontSize: 11, fontWeight: 500 }}>
+                              {networkExperts.length} {networkExperts.length === 1 ? 'person' : 'people'} across your network know about this
+                            </span>
                          </div>
                           {(() => {
                             const titleLower = (formData.title || '').toLowerCase();
@@ -1154,7 +1172,15 @@ export default function RequestsNew() {
                              .map((p) => p.charAt(0).toUpperCase())
                              .slice(0, 2)
                              .join('');
-                           const degreeLabel = expert.degree === 1 ? '1st' : '2nd';
+                           const ordinal = (n: number) => {
+                             const s = ['th', 'st', 'nd', 'rd'];
+                             const v = n % 100;
+                             return n + (s[(v - 20) % 10] || s[v] || s[0]);
+                           };
+                           const degreeLabel = ordinal(expert.degree);
+                           const degreeOpacity =
+                             expert.degree <= 1 ? 1 : expert.degree === 2 ? 0.95 : expert.degree === 3 ? 0.9 : 0.85;
+                           const intermediates = expert.intermediate_names || [];
                            const queued = pendingForwards.has(expert.profile_id);
                            return (
                              <div
@@ -1164,6 +1190,7 @@ export default function RequestsNew() {
                                  background: '#EAF3DE',
                                  border: '0.5px solid #C0DD97',
                                  borderRadius: 999,
+                                 opacity: degreeOpacity,
                                }}
                              >
                                <div
@@ -1187,6 +1214,14 @@ export default function RequestsNew() {
                                  >
                                    {name}
                                  </div>
+                                 {intermediates.length > 0 && (
+                                   <div
+                                     className="truncate"
+                                     style={{ color: '#3B6D11', fontSize: 10 }}
+                                   >
+                                     via {intermediates.join(' → ')}
+                                   </div>
+                                 )}
                                   <div className="flex items-center gap-1.5 flex-wrap" style={{ fontSize: 10 }}>
                                     <span style={{ color: '#3B6D11' }}>{degreeLabel}</span>
                                     {expert.matching_domains.length > 0 && (

@@ -1606,6 +1606,23 @@ export type Database = {
           profile_id: string
         }[]
       }
+      find_network_experts_all_degrees: {
+        Args: {
+          domain_filter?: string
+          location_filter?: string
+          max_depth?: number
+          viewer_id: string
+        }
+        Returns: {
+          connection_path: string[]
+          degree: number
+          expert_handle: string
+          expert_name: string
+          expert_user_id: string
+          matched_cities: string[]
+          matched_domains: string[]
+        }[]
+      }
       find_profile_by_normalized_phone: {
         Args: { exclude_user_id: string; input_phone: string }
         Returns: {
