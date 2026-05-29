@@ -95,6 +95,10 @@ export default function RequestsNew() {
   const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
   const [duplicateResults, setDuplicateResults] = useState<any[]>([]);
   const [expiryDays, setExpiryDays] = useState("7");
+  const [randomPlaceholder] = useState(() => {
+    const idx = Math.floor(Math.random() * REQUEST_PLACEHOLDERS.length);
+    return REQUEST_PLACEHOLDERS[idx];
+  });
   const [anonReach, setAnonReach] = useState<number | null>(null);
   // Nudge 1: similar directory lists
   const [similarDirectoryList, setSimilarDirectoryList] = useState<{
