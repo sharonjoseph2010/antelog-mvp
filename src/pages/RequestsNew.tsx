@@ -17,6 +17,7 @@ import { z } from "zod";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Drawer, DrawerContent, DrawerFooter } from "@/components/ui/drawer";
 import PublicProfile from "@/pages/PublicProfile";
+import ExpertProfileModal from "@/components/ExpertProfileModal";
 
 interface Group {
   id: string;
@@ -1189,98 +1190,92 @@ export default function RequestsNew() {
                            return (
                              <div
                                key={expert.profile_id}
-                               className="flex items-center gap-2 px-2 py-1.5"
-                               style={{
-                                 background: '#EAF3DE',
-                                 border: '0.5px solid #C0DD97',
-                                 borderRadius: 999,
-                                 opacity: degreeOpacity,
-                               }}
+                                className="flex items-center gap-2.5"
+                                style={{
+                                  background: '#EAF3DE',
+                                  border: '0.5px solid #C0DD97',
+                                  borderRadius: 12,
+                                  padding: '10px 12px',
+                                  opacity: degreeOpacity,
+                                }}
                              >
                                <div
                                  className="flex items-center justify-center shrink-0"
                                  style={{
-                                   width: 28,
-                                   height: 28,
+                                    width: 32,
+                                    height: 32,
                                    borderRadius: '9999px',
                                    background: '#97C459',
                                    color: '#173404',
-                                   fontSize: 11,
+                                    fontSize: 12,
                                    fontWeight: 600,
                                  }}
                                >
                                  {initials || '?'}
                                </div>
                                 <div className="flex-1 min-w-0">
+                                  <div
+                                    className="truncate"
+                                    style={{ color: '#27500A', fontSize: 12, fontWeight: 500 }}
+                                  >
+                                    {name}
+                                  </div>
+                                  <div
+                                    className="truncate"
+                                    style={{ color: '#5A8A2A', fontSize: 10 }}
+                                  >
+                                    {[
+                                      degreeLabel,
+                                      intermediates.length > 0 ? `via ${intermediates.join(' → ')}` : null,
+                                      expert.matching_domains.length > 0 ? expert.matching_domains.join(', ') : null,
+                                      expert.matchedCity ? `knows ${expert.matchedCity}` : null,
+                                    ]
+                                      .filter(Boolean)
+                                      .join(' · ')}
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-1.5 shrink-0">
                                   <button
                                     type="button"
                                     onClick={() => setProfileSheetExpertId(expert.profile_id)}
-                                    className="truncate text-left hover:underline"
-                                    style={{ color: '#27500A', fontSize: 12, fontWeight: 500, background: 'transparent', border: 'none', padding: 0, cursor: 'pointer' }}
+                                    style={{
+                                      border: '0.5px solid #97C459',
+                                      borderRadius: 6,
+                                      color: '#3B6D11',
+                                      fontSize: 10,
+                                      background: 'transparent',
+                                      padding: '4px 8px',
+                                      cursor: 'pointer',
+                                      whiteSpace: 'nowrap',
+                                    }}
                                   >
-                                    {name}
+                                    View →
                                   </button>
-                                 {intermediates.length > 0 && (
-                                   <div
-                                     className="truncate"
-                                     style={{ color: '#3B6D11', fontSize: 10 }}
-                                   >
-                                     via {intermediates.join(' → ')}
-                                   </div>
-                                 )}
-                                  <div className="flex items-center gap-1.5 flex-wrap" style={{ fontSize: 10 }}>
-                                    <span style={{ color: '#3B6D11' }}>{degreeLabel}</span>
-                                    {expert.matching_domains.length > 0 && (
-                                      <span
-                                        style={{
-                                          color: '#3B6D11',
-                                          border: '0.5px solid #C0DD97',
-                                          borderRadius: 999,
-                                          padding: '1px 6px',
-                                        }}
-                                      >
-                                        {expert.matching_domains.join(', ')}
-                                      </span>
-                                    )}
-                                    {expert.matchedCity && (
-                                      <span
-                                        style={{
-                                          color: '#27500A',
-                                          border: '0.5px solid #97C459',
-                                          borderRadius: 999,
-                                          padding: '1px 6px',
-                                          fontWeight: 500,
-                                        }}
-                                      >
-                                        knows {expert.matchedCity}
-                                      </span>
-                                    )}
-                                  </div>
-                               </div>
-                               <button
-                                 type="button"
-                                 disabled={queued}
-                                 onClick={() => {
-                                   setPendingForwards((prev) => {
-                                     const next = new Set(prev);
-                                     next.add(expert.profile_id);
-                                     return next;
-                                   });
-                                 }}
-                                 style={{
-                                   border: '0.5px solid #97C459',
-                                   borderRadius: 999,
-                                   color: '#3B6D11',
-                                   fontSize: 10,
-                                   background: 'transparent',
-                                   padding: '4px 10px',
-                                   opacity: queued ? 0.5 : 1,
-                                   cursor: queued ? 'default' : 'pointer',
-                                   whiteSpace: 'nowrap',
-                                 }}
-                               >
-                                 {queued ? 'Forwarding after send ✓' : 'Forward →'}
-                               </button>
+                                  <button
+                                    type="button"
+                                    disabled={queued}
+                                    onClick={() => {
+                                      setPendingForwards((prev) => {
+                                        const next = new Set(prev);
+                                        next.add(expert.profile_id);
+                                        return next;
+                                      });
+                                    }}
+                                    style={{
+                                      border: 'none',
+                                      borderRadius: 6,
+                                      color: '#EAF3DE',
+                                      fontSize: 10,
+                                      background: '#3B6D11',
+                                      padding: '4px 8px',
+                                      opacity: queued ? 0.5 : 1,
+                                      cursor: queued ? 'default' : 'pointer',
+                                      whiteSpace: 'nowrap',
+                                    }}
+                                  >
+                                    {queued ? 'Forwarding ✓' : 'Forward →'}
+                                  </button>
+                                </div>
                              </div>
                            );
                          })}
@@ -1644,45 +1639,21 @@ export default function RequestsNew() {
         </DialogContent>
       </Dialog>
 
-      <Drawer open={!!profileSheetExpertId} onOpenChange={(o) => !o && setProfileSheetExpertId(null)}>
-        <DrawerContent className="max-h-[92vh]">
-          {profileSheetExpertId && (() => {
-            const expert = networkExperts.find((e) => e.profile_id === profileSheetExpertId);
-            const name = expert?.full_name || (expert?.handle ? `@${expert.handle}` : 'this person');
-            const queued = expert ? pendingForwards.has(expert.profile_id) : false;
-            return (
-              <>
-                <div className="overflow-y-auto flex-1">
-                  <PublicProfile userIdOverride={profileSheetExpertId} embedded />
-                </div>
-                <DrawerFooter className="border-t bg-background">
-                  <Button
-                    type="button"
-                    disabled={queued}
-                    onClick={() => {
-                      if (!expert) return;
-                      setPendingForwards((prev) => {
-                        const next = new Set(prev);
-                        next.add(expert.profile_id);
-                        return next;
-                      });
-                      setProfileSheetExpertId(null);
-                    }}
-                    style={{
-                      background: '#97C459',
-                      color: '#173404',
-                      borderRadius: 999,
-                    }}
-                    className="w-full hover:opacity-90"
-                  >
-                    {queued ? 'Queued for forward ✓' : `Forward request to ${name} →`}
-                  </Button>
-                </DrawerFooter>
-              </>
-            );
-          })()}
-        </DrawerContent>
-      </Drawer>
+      <ExpertProfileModal
+        expert={profileSheetExpertId ? networkExperts.find((e) => e.profile_id === profileSheetExpertId) || null : null}
+        requestText={formData.title}
+        queued={profileSheetExpertId ? pendingForwards.has(profileSheetExpertId) : false}
+        onClose={() => setProfileSheetExpertId(null)}
+        onForward={() => {
+          if (!profileSheetExpertId) return;
+          setPendingForwards((prev) => {
+            const next = new Set(prev);
+            next.add(profileSheetExpertId);
+            return next;
+          });
+          setProfileSheetExpertId(null);
+        }}
+      />
     </div>
   );
 }
