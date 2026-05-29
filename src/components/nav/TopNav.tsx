@@ -5,6 +5,7 @@ import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { RightDrawer } from "./RightDrawer";
+import { useFypUnread } from "@/hooks/useFypUnread";
 
 export function TopNav() {
   const { theme, resolvedTheme, setTheme } = useTheme();
@@ -12,6 +13,7 @@ export function TopNav() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [initial, setInitial] = useState("?");
   const [unread, setUnread] = useState(0);
+  const fypUnread = useFypUnread();
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -74,7 +76,18 @@ export function TopNav() {
               <NavLink to="/network" className={navLinkCls}>Network</NavLink>
               <NavLink to="/requests" className={navLinkCls}>Requests</NavLink>
               <NavLink to="/lists" className={navLinkCls}>My Lists</NavLink>
-              <NavLink to="/for-you" className={navLinkCls}>For You</NavLink>
+              <NavLink to="/for-you" className={navLinkCls}>
+                <span className="relative inline-flex items-center">
+                  For You
+                  {fypUnread && (
+                    <span
+                      aria-label="New requests"
+                      className="ml-1.5 inline-block h-[6px] w-[6px] rounded-full"
+                      style={{ backgroundColor: "hsl(var(--info-fg))" }}
+                    />
+                  )}
+                </span>
+              </NavLink>
             </nav>
           </div>
 
