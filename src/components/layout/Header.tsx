@@ -260,7 +260,16 @@ const Header = ({ isAuthenticated, isAdmin, userType, onLogout }: HeaderProps) =
           {isAuthenticated && userType === 'verified' ? (
             <>
               <Link to="/dashboard" className="hover:underline">Dashboard</Link>
-              <Link to="/for-you" className="hover:underline">For You</Link>
+              <Link to="/for-you" className="hover:underline inline-flex items-center">
+                For You
+                {fypUnread && (
+                  <span
+                    aria-label="New requests"
+                    className="ml-1.5 inline-block h-[6px] w-[6px] rounded-full"
+                    style={{ backgroundColor: "hsl(var(--info-fg))" }}
+                  />
+                )}
+              </Link>
               <Link to="/lists" className="hover:underline">My Lists</Link>
               <Link to="/friends" className="hover:underline">Network</Link>
               <Link to="/groups" className="hover:underline">Groups</Link>
