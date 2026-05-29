@@ -1211,13 +1211,15 @@ export default function RequestsNew() {
                                >
                                  {initials || '?'}
                                </div>
-                               <div className="flex-1 min-w-0">
-                                 <div
-                                   className="truncate"
-                                   style={{ color: '#27500A', fontSize: 12, fontWeight: 500 }}
-                                 >
-                                   {name}
-                                 </div>
+                                <div className="flex-1 min-w-0">
+                                  <button
+                                    type="button"
+                                    onClick={() => setProfileSheetExpertId(expert.profile_id)}
+                                    className="truncate text-left hover:underline"
+                                    style={{ color: '#27500A', fontSize: 12, fontWeight: 500, background: 'transparent', border: 'none', padding: 0, cursor: 'pointer' }}
+                                  >
+                                    {name}
+                                  </button>
                                  {intermediates.length > 0 && (
                                    <div
                                      className="truncate"
