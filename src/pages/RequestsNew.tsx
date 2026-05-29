@@ -283,7 +283,7 @@ export default function RequestsNew() {
               handle: r.expert_handle ?? null,
               matching_domains: r.matched_domains || [],
               expertise_cities: r.matched_cities || [],
-              degree: r.degree,
+              degree: r.network_degree ?? r.degree,
               connection_path: path,
               intermediate_names: path.slice(1, -1).map((id) => nameById.get(id) || "Someone"),
             };
