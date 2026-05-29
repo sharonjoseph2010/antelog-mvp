@@ -238,8 +238,8 @@ export default function ExpertProfileModal({ expert, requestText, onClose, onFor
             onClick={onForward}
             style={{
               width: "100%",
-              background: "#27500A",
-              color: "#EAF3DE",
+              background: "var(--color-text-primary)",
+              color: "var(--color-background-primary)",
               borderRadius: 8,
               padding: "10px 12px",
               fontSize: 12,
