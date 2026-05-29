@@ -85,6 +85,14 @@ interface ExtendedNetworkMember {
   mutual_friends: string[];
 }
 
+interface ThirdPlusMember {
+  profile_id: string;
+  full_name: string;
+  handle: string;
+  network_degree: number;
+  connection_path: string[];
+}
+
 interface Group {
   id: string;
   creator_id: string;
