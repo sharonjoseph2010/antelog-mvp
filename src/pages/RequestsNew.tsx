@@ -1016,7 +1016,7 @@ export default function RequestsNew() {
               <Label htmlFor="title">Your Request *</Label>
               <Textarea
                 id="title"
-                placeholder="e.g., Can someone recommend good coffee shops near SRFTI campus?"
+                placeholder={randomPlaceholder}
                 value={formData.title}
                 onChange={(e) => setFormData({...formData, title: e.target.value})}
                 onBlur={handleTitleBlur}
