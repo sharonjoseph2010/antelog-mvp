@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -608,8 +609,20 @@ export default function GuestResponse() {
       </div>
     );
 
+  const shareUrl = typeof window !== "undefined" ? window.location.href : "";
+  const ogImageUrl = typeof window !== "undefined" ? `${window.location.origin}/og-image.png` : "";
+
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>{request.title}</title>
+        <meta property="og:title" content={request.title} />
+        <meta property="og:description" content={`${requesterName} is asking their network. Share what you know — no signup needed.`} />
+        <meta property="og:site_name" content="Antelog" />
+        <meta property="og:image" content={ogImageUrl} />
+        <meta property="og:url" content={shareUrl} />
+        <meta name="twitter:card" content="summary" />
+      </Helmet>
       <div className="max-w-[640px] mx-auto px-4 py-8 sm:py-12 space-y-7 sm:space-y-10">
         {/* Header block */}
         <header className="space-y-3">
