@@ -654,124 +654,97 @@ export default function GuestResponse() {
 
         {hasSubmitted ? (
           <div className="space-y-7 sm:space-y-10">
-            {/* Success banner */}
-            <div
-              className="flex items-center gap-3 rounded-[10px] px-[14px] py-3 bg-secondary text-secondary-foreground"
-            >
-              <CheckCircle2 className="h-5 w-5 shrink-0" aria-hidden />
-              <div>
-                <div className="text-sm font-medium">Thanks, {contributorName}.</div>
-                <div className="text-[13px] opacity-85">
-                  {passOnly ? "Ready to pass this along." : "Your recommendations were added."}
-                </div>
-              </div>
-            </div>
-
-            {/* Conditional first-responder vs has-others (skipped for pass-only) */}
-            {passOnly ? null : preview.total === 0 ? (
-              <section className="space-y-3">
-                <p className="text-base text-muted-foreground">
-                  You're the first to answer this one.
-                </p>
-                <p className="text-[15px] leading-[1.55] text-foreground">
-                  Want to see how {requesterName}'s network responds? Join to watch the
-                  final list build.
-                </p>
-              </section>
-            ) : (
-              <section className="space-y-3">
-                <p className="text-sm text-muted-foreground">
-                  {preview.total + 1} people answered. Here's a taste —
-                </p>
-                {renderPreview("A peek at what's in", preview.items, preview.total, true)}
-              </section>
-            )}
-
-            {/* Join CTA (skipped for pass-only) */}
-            {!passOnly && (
-            <section className="space-y-4">
-              <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-                Join Antelog to —
-              </p>
-              <ul className="space-y-2 text-sm text-foreground list-none pl-0">
-                {(preview.total === 0
-                  ? [
-                      "See every pick as it comes in",
-                      "Vote on the final list",
-                      "Ask your own network anything",
-                      "Get 5 free requests on us",
-                    ]
-                  : [
-                      `See all ${preview.total + 1} recommendations`,
-                      "Vote on the best suggestions",
-                      "Ask your own network for trusted answers",
-                      "Get 5 free requests when you join",
-                    ]
-                ).map((b) => (
-                  <li key={b}>{b}</li>
-                ))}
-              </ul>
-              <Button
-                className="w-full"
-                size="lg"
-                onClick={() =>
-                  navigate(`/signup?request_id=${encodeURIComponent(requestId!)}`)
-                }
-              >
-                Join Antelog — Free
-              </Button>
-              <p className="text-center text-xs text-muted-foreground">
-                Already have an account?{" "}
-                <button onClick={() => navigate("/login")} className="underline text-foreground">
-                  Log in
-                </button>
-              </p>
-            </section>
-            )}
-
-            {/* Pass-along section */}
-            {!isClosed && !passOnly && <div className="h-px bg-border/60 my-2" />}
-            {!isClosed && (
-            <section className="space-y-3">
-              <h3 className="text-lg font-semibold text-foreground">
-                Know someone better placed to answer?
-              </h3>
-              <p className="text-sm text-muted-foreground">
-                Generate a link to share with up to 5 people you trust.
-              </p>
-              {!myShareLink ? (
-                <>
-                  <Button
-                    variant="outline"
-                    onClick={() => generateMyShareLink(contributorName)}
-                  >
-                    <Link2 className="h-4 w-4" /> Generate your link
-                  </Button>
-                  <p className="text-xs text-muted-foreground leading-[1.5]">
-                    Each link works for 5 responses. Antelog tracks who you forwarded to.
+            {passOnly ? (
+              <>
+                <div className="space-y-2">
+                  <h2 className="text-xl font-semibold text-foreground">
+                    Your forward link is ready, {contributorName.split(" ")[0]}.
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    When they open it, it'll say "{contributorName.split(" ")[0]} thought of you."
                   </p>
-                </>
-              ) : (
-                <div className="space-y-3">
-                  <div
-                    className="inline-flex items-center gap-2 rounded-[10px] px-3 py-2 text-sm bg-secondary text-secondary-foreground"
-                  >
-                    <CheckCircle2 className="h-4 w-4" /> Your link is ready.
-                  </div>
-                  <div className="flex gap-2">
-                    <Input value={myShareLink} readOnly className="text-xs" />
-                    <Button variant="outline" size="sm" onClick={copyShareLink}>
-                      {copied ? "Copied" : "Copy"}
+                </div>
+                {myShareLink && (
+                  <div className="space-y-3">
+                    <div className="flex gap-2">
+                      <Input value={myShareLink} readOnly className="text-xs" />
+                      <Button variant="outline" size="sm" type="button" onClick={copyShareLink}>
+                        {copied ? "Copied" : "Copy"}
+                      </Button>
+                    </div>
+                    <Button
+                      className="w-full"
+                      size="lg"
+                      type="button"
+                      onClick={() =>
+                        window.open(
+                          `https://wa.me/?text=${encodeURIComponent(myShareLink)}`,
+                          "_blank"
+                        )
+                      }
+                    >
+                      Share on WhatsApp →
                     </Button>
                   </div>
-                  <p className="text-xs text-muted-foreground leading-[1.5]">
-                    <strong className="text-foreground">Share with up to 5 people you trust.</strong>{" "}
-                    Once 5 respond, the link stops accepting answers. Keeps the request from
-                    getting noisy.
-                  </p>
+                )}
+              </>
+            ) : (
+              <>
+                <div className="space-y-2">
+                  <h2 className="text-xl font-semibold text-foreground">
+                    Thanks {contributorName.split(" ")[0]}. {requesterName.split(" ")[0]}'s got your pick.
+                  </h2>
                 </div>
-              )}
-            </section>
+
+                <section className="rounded-[10px] p-4 bg-muted/50 space-y-3">
+                  <h3 className="text-base font-semibold text-foreground">
+                    Know someone better placed? Pass this along too.
+                  </h3>
+                  {!myShareLink ? (
+                    <Button
+                      variant="outline"
+                      type="button"
+                      onClick={() => generateMyShareLink(contributorName)}
+                    >
+                      Forward to someone →
+                    </Button>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="flex gap-2">
+                        <Input value={myShareLink} readOnly className="text-xs" />
+                        <Button variant="outline" size="sm" type="button" onClick={copyShareLink}>
+                          {copied ? "Copied" : "Copy"}
+                        </Button>
+                      </div>
+                      <Button
+                        className="w-full"
+                        type="button"
+                        onClick={() =>
+                          window.open(
+                            `https://wa.me/?text=${encodeURIComponent(myShareLink)}`,
+                            "_blank"
+                          )
+                        }
+                      >
+                        Share on WhatsApp →
+                      </Button>
+                      <p className="text-xs text-muted-foreground">
+                        When they open it, it'll say "{contributorName.split(" ")[0]} thought of you."
+                      </p>
+                    </div>
+                  )}
+                </section>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    navigate(`/signup?request_id=${encodeURIComponent(requestId!)}`)
+                  }
+                  className="text-sm text-foreground underline"
+                >
+                  Join Antelog →
+                </button>
+              </>
             )}
 
             <FooterBand />
