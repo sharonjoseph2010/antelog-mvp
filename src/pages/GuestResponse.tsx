@@ -55,7 +55,10 @@ export default function GuestResponse() {
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [preview, setPreview] = useState<{ items: { recommendation_text: string; reason: string | null }[]; total: number }>({ items: [], total: 0 });
 
-  const [contributorName, setContributorName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [firstNameError, setFirstNameError] = useState(false);
+  const [lastNameError, setLastNameError] = useState(false);
   const [contributorContact, setContributorContact] = useState("");
   const [recommendations, setRecommendations] = useState([
     { text: "", reason: "", link: "", position: 1 },
