@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { GitBranch, ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 
 interface TreeRow {
   node_id: string;
@@ -114,7 +114,6 @@ export function ResponseTree({ requestId }: ResponseTreeProps) {
   return (
     <>
       <Button variant="outline" size="sm" onClick={toggle} className="flex items-center gap-2">
-        <GitBranch className="h-4 w-4" />
         Response Tree
         {isOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
       </Button>
