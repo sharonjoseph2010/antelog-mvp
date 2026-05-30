@@ -257,6 +257,7 @@ export default function GuestResponse() {
             recommendations: [],
           });
         if (contributionError) throw contributionError;
+        await generateMyShareLink(contributorName);
         setPassOnly(true);
         setHasSubmitted(true);
     } catch (error: any) {
