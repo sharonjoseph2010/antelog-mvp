@@ -219,12 +219,10 @@ export default function GuestResponse() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!contributorName.trim()) {
-      toast({
-        title: "Name Required",
-        description: "Please enter your name",
-        variant: "destructive",
-      });
+    setFirstNameError(!firstName.trim());
+    setLastNameError(!lastName.trim());
+
+    if (!firstName.trim() || !lastName.trim()) {
       return;
     }
 
