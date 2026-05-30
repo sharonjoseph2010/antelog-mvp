@@ -776,7 +776,7 @@ export default function GuestResponse() {
             </div>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-7 sm:space-y-10">
+          <form onSubmit={handleSubmit} className="space-y-5 sm:space-y-6">
             {/* Action toggle — mutually exclusive */}
             <section className="space-y-3">
               <div className="grid grid-cols-2 gap-2 sm:gap-3">
