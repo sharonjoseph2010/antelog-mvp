@@ -640,37 +640,16 @@ export default function GuestResponse() {
           </h1>
           {!hasSubmitted && (
             <div className="space-y-1">
-              {isForwarded ? (
-                <>
-                  <p className="text-base text-foreground">
-                    {requesterName} is asking their network. {lastForwarderName} passed this to you.
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    You're in {requesterName}'s extended network.
-                  </p>
-                </>
-              ) : (
-                <>
-                  <p className="text-base text-foreground">
-                    {requesterName} asked the people {requesterName.split(" ")[0] === requesterName ? "they" : "they"} trust.
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    You're in {requesterName}'s 1st network — you were invited directly.
-                  </p>
-                </>
+              <p className="text-base text-foreground">
+                {requesterName} asked the people they trust.
+              </p>
+              {isForwarded && (
+                <p className="text-base text-foreground">
+                  {lastForwarderName} thought you'd know.
+                </p>
               )}
-              <div className="pt-1"><ChainCard /></div>
             </div>
           )}
-          <p className="text-sm text-muted-foreground inline-flex flex-wrap items-center gap-x-2">
-            <span>{preview.total} so far</span>
-            {closesNode && (
-              <>
-                <span aria-hidden>·</span>
-                {closesNode}
-              </>
-            )}
-          </p>
         </header>
 
         {hasSubmitted ? (
