@@ -800,31 +800,19 @@ export default function GuestResponse() {
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-7 sm:space-y-10">
-            {preview.total === 0 ? (
-              <p className="text-base text-muted-foreground">
-                You're one of them — be the first to answer.
-              </p>
-            ) : (
-              renderPreview(
-                preview.total <= 2 ? "Here's what's in so far" : "A peek at what's in"
-              )
-            )}
-
-            {/* Action toggle */}
-            <section className="space-y-4">
-              <div className="space-y-1">
-                <h2 className="text-lg font-semibold text-foreground">What would you like to do?</h2>
-                <p className="text-sm text-muted-foreground">Pick one — or both.</p>
-              </div>
+            {/* Action toggle — mutually exclusive */}
+            <section className="space-y-3">
               <div className="grid grid-cols-2 gap-2 sm:gap-3">
                 {[
-                  { active: recActive, toggle: () => setRecActive(v => !v), Icon: MessageCircle, title: "Share a recommendation", subtitle: "You know a good place" },
-                  { active: passActive, toggle: () => setPassActive(v => !v), Icon: CornerUpRight, title: "Pass it along", subtitle: "You know someone who might" },
-                ].map(({ active, toggle, Icon, title, subtitle }) => (
+                  { value: "rec" as const, Icon: MessageCircle, title: "Share a recommendation" },
+                  { value: "pass" as const, Icon: CornerUpRight, title: "Pass it along" },
+                ].map(({ value, Icon, title }) => {
+                  const active = mode === value;
+                  return (
                   <button
-                    key={title}
+                    key={value}
                     type="button"
-                    onClick={toggle}
+                    onClick={() => setMode(value)}
                     aria-pressed={active}
                     className={cn(
                       "text-left rounded-lg px-2.5 py-2.5 sm:px-4 sm:py-4 transition-colors flex items-start gap-2 sm:gap-3",
@@ -835,12 +823,10 @@ export default function GuestResponse() {
                     style={{ borderWidth: active ? 1.5 : 0.5, borderStyle: "solid" }}
                   >
                     <Icon className="h-3.5 w-3.5 sm:h-5 sm:w-5 mt-0.5 text-foreground shrink-0" />
-                    <div className="space-y-0.5">
-                      <div className="text-[13px] sm:text-sm font-medium text-foreground leading-tight">{title}</div>
-                      <div className="text-[11px] sm:text-xs text-muted-foreground leading-tight">{subtitle}</div>
-                    </div>
+                    <div className="text-[13px] sm:text-sm font-medium text-foreground leading-tight">{title}</div>
                   </button>
-                ))}
+                  );
+                })}
               </div>
             </section>
 
@@ -893,60 +879,34 @@ export default function GuestResponse() {
                   </button>
                 )}
               </section>
-            ) : (
-              <section className="rounded-lg bg-muted/30 p-4">
-                <p className="text-sm text-muted-foreground leading-[1.55]">
-                  Just pass this along — no recommendation needed. Your name below is used to track who forwarded.
-                </p>
-              </section>
-            )}
+            ) : null}
 
             {/* Identity */}
-            {(recActive || passActive) && (
             <section className="space-y-4 pt-6 border-t border-border">
               <h2 className="text-lg font-semibold text-foreground">Who's sharing this?</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-sm text-foreground">Your name *</label>
-                  <Input
-                    value={contributorName}
-                    onChange={(e) => setContributorName(e.target.value)}
-                    placeholder="Your full name"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm text-foreground">Phone or email (optional)</label>
-                  <Input
-                    value={contributorContact}
-                    onChange={(e) => setContributorContact(e.target.value)}
-                    placeholder="Phone or email"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    We'll let you know when this request is finalized.
-                  </p>
-                </div>
+              <div className="space-y-2">
+                <label className="text-sm text-foreground">Your name *</label>
+                <Input
+                  value={contributorName}
+                  onChange={(e) => setContributorName(e.target.value)}
+                  placeholder="Your full name"
+                  required
+                />
               </div>
             </section>
-            )}
 
             <Button
               type="submit"
               className="w-full"
               size="lg"
-              disabled={isSubmitting || isAtCapacity || (!recActive && !passActive)}
+              disabled={isSubmitting || (recActive && isAtCapacity)}
             >
               {isSubmitting
                 ? "Submitting..."
-                : !recActive && !passActive
-                ? "Pick one to continue"
-                : !recActive && passActive
-                ? "Continue to share link"
+                : passActive
+                ? "Generate my forward link"
                 : "Share recommendations"}
             </Button>
-            <p className="text-center text-xs text-muted-foreground -mt-4">
-              No signup needed.
-            </p>
 
             {isAtCapacity && (
               <p className="text-sm text-destructive text-center">
