@@ -550,14 +550,6 @@ export default function GuestResponse() {
     );
   })();
 
-  const FooterBand = () => (
-    <div
-      className="mt-10 -mx-4 px-5 py-4 text-center text-xs italic text-muted-foreground border-t border-border/60"
-      style={{ lineHeight: 1.55 }}
-    >
-      The best recommendations come from real people you trust — not algorithms or ads.
-    </div>
-  );
 
   const ChainCard = () =>
     !isForwarded ? null : (
