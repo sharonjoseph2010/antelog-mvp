@@ -550,14 +550,6 @@ export default function GuestResponse() {
     );
   })();
 
-  const FooterBand = () => (
-    <div
-      className="mt-10 -mx-4 px-5 py-4 text-center text-xs italic text-muted-foreground border-t border-border/60"
-      style={{ lineHeight: 1.55 }}
-    >
-      The best recommendations come from real people you trust — not algorithms or ads.
-    </div>
-  );
 
   const ChainCard = () =>
     !isForwarded ? null : (
@@ -750,8 +742,6 @@ export default function GuestResponse() {
                 </button>
               </>
             )}
-
-            <FooterBand />
           </div>
         ) : isClosed ? (
           <div className="space-y-5">
@@ -776,7 +766,7 @@ export default function GuestResponse() {
             </div>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-7 sm:space-y-10">
+          <form onSubmit={handleSubmit} className="space-y-5 sm:space-y-6">
             {/* Action toggle — mutually exclusive */}
             <section className="space-y-3">
               <div className="grid grid-cols-2 gap-2 sm:gap-3">
@@ -859,15 +849,13 @@ export default function GuestResponse() {
             ) : null}
 
             {/* Identity */}
-            <section className="space-y-4 pt-6 border-t border-border">
-              <h2 className="text-lg font-semibold text-foreground">Who's sharing this?</h2>
-              <div className="space-y-1">
+            <section className="space-y-2 pt-4 border-t border-border">
+              <div>
                 <p className="text-sm text-foreground">Your name *</p>
                 <p className="text-xs text-muted-foreground">Real names make recommendations more trustworthy.</p>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
-                  <label className="text-sm text-foreground">First name *</label>
                   <Input
                     value={firstName}
                     onChange={(e) => {
@@ -882,7 +870,6 @@ export default function GuestResponse() {
                   )}
                 </div>
                 <div className="space-y-1">
-                  <label className="text-sm text-foreground">Last name *</label>
                   <Input
                     value={lastName}
                     onChange={(e) => {
@@ -919,7 +906,6 @@ export default function GuestResponse() {
             )}
           </form>
         )}
-        {!hasSubmitted && <FooterBand />}
       </div>
     </div>
   );
