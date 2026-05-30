@@ -742,8 +742,6 @@ export default function GuestResponse() {
                 </button>
               </>
             )}
-
-            <FooterBand />
           </div>
         ) : isClosed ? (
           <div className="space-y-5">
