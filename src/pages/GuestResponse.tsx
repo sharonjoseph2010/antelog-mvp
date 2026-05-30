@@ -64,6 +64,8 @@ export default function GuestResponse() {
     { text: "", reason: "", link: "", position: 1 },
   ]);
 
+  const contributorName = `${firstName.trim()} ${lastName.trim()}`.trim();
+
   const [myShareLink, setMyShareLink] = useState<string | null>(null);
   const [mode, setMode] = useState<"rec" | "pass">("rec");
   const recActive = mode === "rec";
