@@ -861,14 +861,41 @@ export default function GuestResponse() {
             {/* Identity */}
             <section className="space-y-4 pt-6 border-t border-border">
               <h2 className="text-lg font-semibold text-foreground">Who's sharing this?</h2>
-              <div className="space-y-2">
-                <label className="text-sm text-foreground">Your name *</label>
-                <Input
-                  value={contributorName}
-                  onChange={(e) => setContributorName(e.target.value)}
-                  placeholder="Your full name"
-                  required
-                />
+              <div className="space-y-1">
+                <p className="text-sm text-foreground">Your name *</p>
+                <p className="text-xs text-muted-foreground">Real names make recommendations more trustworthy.</p>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-sm text-foreground">First name *</label>
+                  <Input
+                    value={firstName}
+                    onChange={(e) => {
+                      setFirstName(e.target.value);
+                      if (firstNameError) setFirstNameError(false);
+                    }}
+                    placeholder="First name"
+                    aria-invalid={firstNameError}
+                  />
+                  {firstNameError && (
+                    <p className="text-xs text-destructive">Required</p>
+                  )}
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm text-foreground">Last name *</label>
+                  <Input
+                    value={lastName}
+                    onChange={(e) => {
+                      setLastName(e.target.value);
+                      if (lastNameError) setLastNameError(false);
+                    }}
+                    placeholder="Last name"
+                    aria-invalid={lastNameError}
+                  />
+                  {lastNameError && (
+                    <p className="text-xs text-destructive">Required</p>
+                  )}
+                </div>
               </div>
             </section>
 
