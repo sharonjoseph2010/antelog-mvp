@@ -62,8 +62,9 @@ export default function GuestResponse() {
   ]);
 
   const [myShareLink, setMyShareLink] = useState<string | null>(null);
-  const [recActive, setRecActive] = useState(true);
-  const [passActive, setPassActive] = useState(false);
+  const [mode, setMode] = useState<"rec" | "pass">("rec");
+  const recActive = mode === "rec";
+  const passActive = mode === "pass";
   const [passOnly, setPassOnly] = useState(false);
   const [chain, setChain] = useState<ChainLink[]>([]);
   const [chainExpanded, setChainExpanded] = useState(false);
