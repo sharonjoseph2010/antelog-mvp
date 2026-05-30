@@ -62,8 +62,9 @@ export default function GuestResponse() {
   ]);
 
   const [myShareLink, setMyShareLink] = useState<string | null>(null);
-  const [recActive, setRecActive] = useState(true);
-  const [passActive, setPassActive] = useState(false);
+  const [mode, setMode] = useState<"rec" | "pass">("rec");
+  const recActive = mode === "rec";
+  const passActive = mode === "pass";
   const [passOnly, setPassOnly] = useState(false);
   const [chain, setChain] = useState<ChainLink[]>([]);
   const [chainExpanded, setChainExpanded] = useState(false);
@@ -256,6 +257,7 @@ export default function GuestResponse() {
             recommendations: [],
           });
         if (contributionError) throw contributionError;
+        await generateMyShareLink(contributorName);
         setPassOnly(true);
         setHasSubmitted(true);
     } catch (error: any) {
@@ -639,159 +641,111 @@ export default function GuestResponse() {
           </h1>
           {!hasSubmitted && (
             <div className="space-y-1">
-              {isForwarded ? (
-                <>
-                  <p className="text-base text-foreground">
-                    {requesterName} is asking their network. {lastForwarderName} passed this to you.
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    You're in {requesterName}'s extended network.
-                  </p>
-                </>
-              ) : (
-                <>
-                  <p className="text-base text-foreground">
-                    {requesterName} asked the people {requesterName.split(" ")[0] === requesterName ? "they" : "they"} trust.
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    You're in {requesterName}'s 1st network — you were invited directly.
-                  </p>
-                </>
+              <p className="text-base text-foreground">
+                {requesterName} asked the people they trust.
+              </p>
+              {isForwarded && (
+                <p className="text-base text-foreground">
+                  {lastForwarderName} thought you'd know.
+                </p>
               )}
-              <div className="pt-1"><ChainCard /></div>
             </div>
           )}
-          <p className="text-sm text-muted-foreground inline-flex flex-wrap items-center gap-x-2">
-            <span>{preview.total} so far</span>
-            {closesNode && (
-              <>
-                <span aria-hidden>·</span>
-                {closesNode}
-              </>
-            )}
-          </p>
         </header>
 
         {hasSubmitted ? (
           <div className="space-y-7 sm:space-y-10">
-            {/* Success banner */}
-            <div
-              className="flex items-center gap-3 rounded-[10px] px-[14px] py-3 bg-secondary text-secondary-foreground"
-            >
-              <CheckCircle2 className="h-5 w-5 shrink-0" aria-hidden />
-              <div>
-                <div className="text-sm font-medium">Thanks, {contributorName}.</div>
-                <div className="text-[13px] opacity-85">
-                  {passOnly ? "Ready to pass this along." : "Your recommendations were added."}
-                </div>
-              </div>
-            </div>
-
-            {/* Conditional first-responder vs has-others (skipped for pass-only) */}
-            {passOnly ? null : preview.total === 0 ? (
-              <section className="space-y-3">
-                <p className="text-base text-muted-foreground">
-                  You're the first to answer this one.
-                </p>
-                <p className="text-[15px] leading-[1.55] text-foreground">
-                  Want to see how {requesterName}'s network responds? Join to watch the
-                  final list build.
-                </p>
-              </section>
-            ) : (
-              <section className="space-y-3">
-                <p className="text-sm text-muted-foreground">
-                  {preview.total + 1} people answered. Here's a taste —
-                </p>
-                {renderPreview("A peek at what's in", preview.items, preview.total, true)}
-              </section>
-            )}
-
-            {/* Join CTA (skipped for pass-only) */}
-            {!passOnly && (
-            <section className="space-y-4">
-              <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-                Join Antelog to —
-              </p>
-              <ul className="space-y-2 text-sm text-foreground list-none pl-0">
-                {(preview.total === 0
-                  ? [
-                      "See every pick as it comes in",
-                      "Vote on the final list",
-                      "Ask your own network anything",
-                      "Get 5 free requests on us",
-                    ]
-                  : [
-                      `See all ${preview.total + 1} recommendations`,
-                      "Vote on the best suggestions",
-                      "Ask your own network for trusted answers",
-                      "Get 5 free requests when you join",
-                    ]
-                ).map((b) => (
-                  <li key={b}>{b}</li>
-                ))}
-              </ul>
-              <Button
-                className="w-full"
-                size="lg"
-                onClick={() =>
-                  navigate(`/signup?request_id=${encodeURIComponent(requestId!)}`)
-                }
-              >
-                Join Antelog — Free
-              </Button>
-              <p className="text-center text-xs text-muted-foreground">
-                Already have an account?{" "}
-                <button onClick={() => navigate("/login")} className="underline text-foreground">
-                  Log in
-                </button>
-              </p>
-            </section>
-            )}
-
-            {/* Pass-along section */}
-            {!isClosed && !passOnly && <div className="h-px bg-border/60 my-2" />}
-            {!isClosed && (
-            <section className="space-y-3">
-              <h3 className="text-lg font-semibold text-foreground">
-                Know someone better placed to answer?
-              </h3>
-              <p className="text-sm text-muted-foreground">
-                Generate a link to share with up to 5 people you trust.
-              </p>
-              {!myShareLink ? (
-                <>
-                  <Button
-                    variant="outline"
-                    onClick={() => generateMyShareLink(contributorName)}
-                  >
-                    <Link2 className="h-4 w-4" /> Generate your link
-                  </Button>
-                  <p className="text-xs text-muted-foreground leading-[1.5]">
-                    Each link works for 5 responses. Antelog tracks who you forwarded to.
+            {passOnly ? (
+              <>
+                <div className="space-y-2">
+                  <h2 className="text-xl font-semibold text-foreground">
+                    Your forward link is ready, {contributorName.split(" ")[0]}.
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    When they open it, it'll say "{contributorName.split(" ")[0]} thought of you."
                   </p>
-                </>
-              ) : (
-                <div className="space-y-3">
-                  <div
-                    className="inline-flex items-center gap-2 rounded-[10px] px-3 py-2 text-sm bg-secondary text-secondary-foreground"
-                  >
-                    <CheckCircle2 className="h-4 w-4" /> Your link is ready.
-                  </div>
-                  <div className="flex gap-2">
-                    <Input value={myShareLink} readOnly className="text-xs" />
-                    <Button variant="outline" size="sm" onClick={copyShareLink}>
-                      {copied ? "Copied" : "Copy"}
+                </div>
+                {myShareLink && (
+                  <div className="space-y-3">
+                    <div className="flex gap-2">
+                      <Input value={myShareLink} readOnly className="text-xs" />
+                      <Button variant="outline" size="sm" type="button" onClick={copyShareLink}>
+                        {copied ? "Copied" : "Copy"}
+                      </Button>
+                    </div>
+                    <Button
+                      className="w-full"
+                      size="lg"
+                      type="button"
+                      onClick={() =>
+                        window.open(
+                          `https://wa.me/?text=${encodeURIComponent(myShareLink)}`,
+                          "_blank"
+                        )
+                      }
+                    >
+                      Share on WhatsApp →
                     </Button>
                   </div>
-                  <p className="text-xs text-muted-foreground leading-[1.5]">
-                    <strong className="text-foreground">Share with up to 5 people you trust.</strong>{" "}
-                    Once 5 respond, the link stops accepting answers. Keeps the request from
-                    getting noisy.
-                  </p>
+                )}
+              </>
+            ) : (
+              <>
+                <div className="space-y-2">
+                  <h2 className="text-xl font-semibold text-foreground">
+                    Thanks {contributorName.split(" ")[0]}. {requesterName.split(" ")[0]}'s got your pick.
+                  </h2>
                 </div>
-              )}
-            </section>
+
+                <section className="rounded-[10px] p-4 bg-muted/50 space-y-3">
+                  <h3 className="text-base font-semibold text-foreground">
+                    Know someone better placed? Pass this along too.
+                  </h3>
+                  {!myShareLink ? (
+                    <Button
+                      variant="outline"
+                      type="button"
+                      onClick={() => generateMyShareLink(contributorName)}
+                    >
+                      Forward to someone →
+                    </Button>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="flex gap-2">
+                        <Input value={myShareLink} readOnly className="text-xs" />
+                        <Button variant="outline" size="sm" type="button" onClick={copyShareLink}>
+                          {copied ? "Copied" : "Copy"}
+                        </Button>
+                      </div>
+                      <Button
+                        className="w-full"
+                        type="button"
+                        onClick={() =>
+                          window.open(
+                            `https://wa.me/?text=${encodeURIComponent(myShareLink)}`,
+                            "_blank"
+                          )
+                        }
+                      >
+                        Share on WhatsApp →
+                      </Button>
+                      <p className="text-xs text-muted-foreground">
+                        When they open it, it'll say "{contributorName.split(" ")[0]} thought of you."
+                      </p>
+                    </div>
+                  )}
+                </section>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    navigate(`/signup?request_id=${encodeURIComponent(requestId!)}`)
+                  }
+                  className="text-sm text-foreground underline"
+                >
+                  Join Antelog →
+                </button>
+              </>
             )}
 
             <FooterBand />
@@ -820,31 +774,19 @@ export default function GuestResponse() {
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-7 sm:space-y-10">
-            {preview.total === 0 ? (
-              <p className="text-base text-muted-foreground">
-                You're one of them — be the first to answer.
-              </p>
-            ) : (
-              renderPreview(
-                preview.total <= 2 ? "Here's what's in so far" : "A peek at what's in"
-              )
-            )}
-
-            {/* Action toggle */}
-            <section className="space-y-4">
-              <div className="space-y-1">
-                <h2 className="text-lg font-semibold text-foreground">What would you like to do?</h2>
-                <p className="text-sm text-muted-foreground">Pick one — or both.</p>
-              </div>
+            {/* Action toggle — mutually exclusive */}
+            <section className="space-y-3">
               <div className="grid grid-cols-2 gap-2 sm:gap-3">
                 {[
-                  { active: recActive, toggle: () => setRecActive(v => !v), Icon: MessageCircle, title: "Share a recommendation", subtitle: "You know a good place" },
-                  { active: passActive, toggle: () => setPassActive(v => !v), Icon: CornerUpRight, title: "Pass it along", subtitle: "You know someone who might" },
-                ].map(({ active, toggle, Icon, title, subtitle }) => (
+                  { value: "rec" as const, Icon: MessageCircle, title: "Share a recommendation" },
+                  { value: "pass" as const, Icon: CornerUpRight, title: "Pass it along" },
+                ].map(({ value, Icon, title }) => {
+                  const active = mode === value;
+                  return (
                   <button
-                    key={title}
+                    key={value}
                     type="button"
-                    onClick={toggle}
+                    onClick={() => setMode(value)}
                     aria-pressed={active}
                     className={cn(
                       "text-left rounded-lg px-2.5 py-2.5 sm:px-4 sm:py-4 transition-colors flex items-start gap-2 sm:gap-3",
@@ -855,12 +797,10 @@ export default function GuestResponse() {
                     style={{ borderWidth: active ? 1.5 : 0.5, borderStyle: "solid" }}
                   >
                     <Icon className="h-3.5 w-3.5 sm:h-5 sm:w-5 mt-0.5 text-foreground shrink-0" />
-                    <div className="space-y-0.5">
-                      <div className="text-[13px] sm:text-sm font-medium text-foreground leading-tight">{title}</div>
-                      <div className="text-[11px] sm:text-xs text-muted-foreground leading-tight">{subtitle}</div>
-                    </div>
+                    <div className="text-[13px] sm:text-sm font-medium text-foreground leading-tight">{title}</div>
                   </button>
-                ))}
+                  );
+                })}
               </div>
             </section>
 
@@ -913,60 +853,34 @@ export default function GuestResponse() {
                   </button>
                 )}
               </section>
-            ) : (
-              <section className="rounded-lg bg-muted/30 p-4">
-                <p className="text-sm text-muted-foreground leading-[1.55]">
-                  Just pass this along — no recommendation needed. Your name below is used to track who forwarded.
-                </p>
-              </section>
-            )}
+            ) : null}
 
             {/* Identity */}
-            {(recActive || passActive) && (
             <section className="space-y-4 pt-6 border-t border-border">
               <h2 className="text-lg font-semibold text-foreground">Who's sharing this?</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-sm text-foreground">Your name *</label>
-                  <Input
-                    value={contributorName}
-                    onChange={(e) => setContributorName(e.target.value)}
-                    placeholder="Your full name"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm text-foreground">Phone or email (optional)</label>
-                  <Input
-                    value={contributorContact}
-                    onChange={(e) => setContributorContact(e.target.value)}
-                    placeholder="Phone or email"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    We'll let you know when this request is finalized.
-                  </p>
-                </div>
+              <div className="space-y-2">
+                <label className="text-sm text-foreground">Your name *</label>
+                <Input
+                  value={contributorName}
+                  onChange={(e) => setContributorName(e.target.value)}
+                  placeholder="Your full name"
+                  required
+                />
               </div>
             </section>
-            )}
 
             <Button
               type="submit"
               className="w-full"
               size="lg"
-              disabled={isSubmitting || isAtCapacity || (!recActive && !passActive)}
+              disabled={isSubmitting || (recActive && isAtCapacity)}
             >
               {isSubmitting
                 ? "Submitting..."
-                : !recActive && !passActive
-                ? "Pick one to continue"
-                : !recActive && passActive
-                ? "Continue to share link"
+                : passActive
+                ? "Generate my forward link"
                 : "Share recommendations"}
             </Button>
-            <p className="text-center text-xs text-muted-foreground -mt-4">
-              No signup needed.
-            </p>
 
             {isAtCapacity && (
               <p className="text-sm text-destructive text-center">
