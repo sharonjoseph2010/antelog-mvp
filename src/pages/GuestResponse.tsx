@@ -909,7 +909,6 @@ export default function GuestResponse() {
             )}
           </form>
         )}
-        {!hasSubmitted && <FooterBand />}
       </div>
     </div>
   );
