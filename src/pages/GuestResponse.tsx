@@ -849,15 +849,13 @@ export default function GuestResponse() {
             ) : null}
 
             {/* Identity */}
-            <section className="space-y-4 pt-6 border-t border-border">
-              <h2 className="text-lg font-semibold text-foreground">Who's sharing this?</h2>
-              <div className="space-y-1">
+            <section className="space-y-2 pt-4 border-t border-border">
+              <div>
                 <p className="text-sm text-foreground">Your name *</p>
                 <p className="text-xs text-muted-foreground">Real names make recommendations more trustworthy.</p>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
-                  <label className="text-sm text-foreground">First name *</label>
                   <Input
                     value={firstName}
                     onChange={(e) => {
@@ -872,7 +870,6 @@ export default function GuestResponse() {
                   )}
                 </div>
                 <div className="space-y-1">
-                  <label className="text-sm text-foreground">Last name *</label>
                   <Input
                     value={lastName}
                     onChange={(e) => {
