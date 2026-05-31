@@ -779,6 +779,11 @@ export default function GuestResponse() {
                       className="w-full"
                       size="lg"
                       type="button"
+                      style={{
+                        background: "#F0F0F0",
+                        color: "#1a1a1a",
+                        border: "0.5px solid #D0D0D0",
+                      }}
                       onClick={() =>
                         window.open(
                           `https://wa.me/?text=${encodeURIComponent(myShareLink)}`,
