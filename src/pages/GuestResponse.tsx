@@ -632,7 +632,14 @@ export default function GuestResponse() {
       <Helmet>
         <title>{request.title}</title>
         <meta property="og:title" content={request.title} />
-        <meta property="og:description" content={`${requesterName} is asking their network. Share what you know — no signup needed.`} />
+        <meta
+          property="og:description"
+          content={
+            isForwarded
+              ? `${lastForwarderName} thinks you're the right person to answer this.`
+              : `${requesterName} is asking their network. Share what you know — no signup needed.`
+          }
+        />
         <meta property="og:site_name" content="Antelog" />
         <meta property="og:image" content={ogImageUrl} />
         <meta property="og:url" content={shareUrl} />
