@@ -736,7 +736,7 @@ export default function GuestResponse() {
                         ))}
                       </div>
                       <p
-                        style={{ fontSize: 9, color: "var(--color-text-secondary)" }}
+                        style={{ fontSize: 11, color: "var(--color-text-secondary)" }}
                         className="mt-2"
                       >
                         This request travelled {chainPeople.length} {chainPeople.length === 1 ? "hop" : "hops"} to reach you.
