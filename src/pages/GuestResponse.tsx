@@ -693,6 +693,29 @@ export default function GuestResponse() {
                   <p className="text-[12px] text-muted-foreground">
                     {lastForwarderName} thought of you.
                   </p>
+                  {/* Mobile-only: View path button stacked under line 2 */}
+                  <div className="flex justify-end sm:hidden">
+                    <button
+                      type="button"
+                      onClick={() => setChainExpanded((v) => !v)}
+                      style={{
+                        border: "0.5px solid var(--color-border-tertiary)",
+                        borderRadius: 5,
+                        padding: "4px 10px",
+                        fontSize: 12,
+                        color: chainExpanded
+                          ? "var(--color-text-primary)"
+                          : "var(--color-text-secondary)",
+                        borderColor: chainExpanded
+                          ? "var(--color-text-primary)"
+                          : "var(--color-border-tertiary)",
+                      }}
+                      className="inline-flex items-center gap-1 whitespace-nowrap"
+                    >
+                      <span>View path</span>
+                      <span>{chainExpanded ? "↑" : "↓"}</span>
+                    </button>
+                  </div>
                   <div
                     className={cn(
                       "overflow-hidden transition-all duration-300 ease-in-out",
