@@ -4,6 +4,7 @@ import { Helmet } from "react-helmet-async";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { differenceInDays } from "date-fns";
@@ -640,9 +641,26 @@ export default function GuestResponse() {
                 {requesterName} asked the people they trust.
               </p>
               {isForwarded && (
-                <p className="text-base text-foreground">
+                <p className="text-[12px] text-muted-foreground">
                   {lastForwarderName} thought you'd know.
                 </p>
+              )}
+              {isForwarded && (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      className="text-[11px] text-muted-foreground hover:underline"
+                    >
+                      View path →
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent align="start" className="w-auto p-3">
+                    <p className="text-xs text-foreground">
+                      {chainPeople.map((p) => p.name).join(" → ")} → You
+                    </p>
+                  </PopoverContent>
+                </Popover>
               )}
             </div>
           )}
