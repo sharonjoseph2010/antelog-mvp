@@ -714,7 +714,7 @@ export default function GuestResponse() {
                               </div>
                               <span
                                 style={{
-                                  fontSize: 8,
+                                  fontSize: 11,
                                   color: node.you
                                     ? "var(--color-text-primary)"
                                     : "var(--color-text-secondary)",
