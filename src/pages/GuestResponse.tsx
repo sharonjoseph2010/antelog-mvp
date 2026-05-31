@@ -1114,18 +1114,21 @@ export default function GuestResponse() {
                       onChange={(e) => updateRecommendation(idx, "text", e.target.value)}
                       placeholder="What do you recommend? *"
                       required={idx === 0}
+                      style={{ fontSize: 16 }}
                     />
                     <Textarea
                       value={rec.reason}
                       onChange={(e) => updateRecommendation(idx, "reason", e.target.value)}
                       placeholder="Why? (optional)"
                       rows={2}
+                      style={{ fontSize: 16 }}
                     />
                     <Input
                       value={rec.link}
                       onChange={(e) => updateRecommendation(idx, "link", e.target.value)}
                       placeholder="Link (optional)"
                       type="url"
+                      style={{ fontSize: 16 }}
                     />
                   </div>
                 ))}
@@ -1142,7 +1145,7 @@ export default function GuestResponse() {
             ) : null}
 
             {/* Identity */}
-            <section className="space-y-2 pt-4 border-t border-border">
+            <section className="space-y-2 pt-4 mt-5 border-t border-border">
               <div>
                 <p className="text-sm text-foreground">Your name *</p>
                 <p className="text-xs text-muted-foreground">Real names make recommendations more trustworthy.</p>
@@ -1157,6 +1160,7 @@ export default function GuestResponse() {
                     }}
                     placeholder="First name"
                     aria-invalid={firstNameError}
+                    style={{ fontSize: 16 }}
                   />
                   {firstNameError && (
                     <p className="text-xs text-destructive">Required</p>
@@ -1171,6 +1175,7 @@ export default function GuestResponse() {
                     }}
                     placeholder="Last name"
                     aria-invalid={lastNameError}
+                    style={{ fontSize: 16 }}
                   />
                   {lastNameError && (
                     <p className="text-xs text-destructive">Required</p>
