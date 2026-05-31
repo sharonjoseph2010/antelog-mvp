@@ -691,7 +691,7 @@ export default function GuestResponse() {
               {isForwarded && (
                 <>
                   <p className="text-[12px] text-muted-foreground">
-                    {lastForwarderName} thought you'd know.
+                    {lastForwarderName} thought of you.
                   </p>
                   <div
                     className={cn(
