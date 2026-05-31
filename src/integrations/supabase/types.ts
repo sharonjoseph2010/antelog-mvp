@@ -1288,6 +1288,7 @@ export type Database = {
         Row: {
           created_at: string | null
           current_responses: number | null
+          forwarder_name: string | null
           generated_by_contact: string | null
           generated_by_name: string | null
           generated_by_user_id: string | null
@@ -1302,6 +1303,7 @@ export type Database = {
         Insert: {
           created_at?: string | null
           current_responses?: number | null
+          forwarder_name?: string | null
           generated_by_contact?: string | null
           generated_by_name?: string | null
           generated_by_user_id?: string | null
@@ -1316,6 +1318,7 @@ export type Database = {
         Update: {
           created_at?: string | null
           current_responses?: number | null
+          forwarder_name?: string | null
           generated_by_contact?: string | null
           generated_by_name?: string | null
           generated_by_user_id?: string | null
