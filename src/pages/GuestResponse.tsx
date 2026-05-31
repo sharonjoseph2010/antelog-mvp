@@ -690,8 +690,8 @@ export default function GuestResponse() {
                               <div
                                 className="flex items-center justify-center rounded-full"
                                 style={{
-                                  width: 28,
-                                  height: 28,
+                                  width: 36,
+                                  height: 36,
                                   background: node.you
                                     ? "var(--color-text-primary)"
                                     : "var(--color-background-primary)",
@@ -701,7 +701,7 @@ export default function GuestResponse() {
                                   border: node.you
                                     ? "none"
                                     : "0.5px solid var(--color-border-tertiary)",
-                                  fontSize: 10,
+                                  fontSize: 12,
                                   fontWeight: 600,
                                 }}
                               >
