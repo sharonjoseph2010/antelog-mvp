@@ -908,9 +908,7 @@ export default function GuestResponse() {
                   <Button
                     className="w-full"
                     size="lg"
-                    onClick={() =>
-                      navigate(`/signup?request_id=${encodeURIComponent(requestId!)}`)
-                    }
+                    onClick={() => navigate(joinUrl)}
                   >
                     Join Antelog — Free
                   </Button>
@@ -966,6 +964,19 @@ export default function GuestResponse() {
                         </p>
                         <p className="text-[11px] text-muted-foreground leading-relaxed">
                           Now you know how it works. Use it for your own questions — free.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex gap-3 items-start">
+                      <div className="h-8 w-8 rounded bg-muted flex items-center justify-center shrink-0">
+                        <Gift className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      <div className="space-y-0.5">
+                        <p className="text-[12px] font-medium text-foreground">
+                          Get 5 requests free
+                        </p>
+                        <p className="text-[11px] text-muted-foreground leading-relaxed">
+                          Ask your own network anything — your first 5 requests are on us.
                         </p>
                       </div>
                     </div>
