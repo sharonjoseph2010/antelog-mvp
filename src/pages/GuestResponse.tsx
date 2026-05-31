@@ -616,6 +616,15 @@ export default function GuestResponse() {
   const shareUrl = typeof window !== "undefined" ? window.location.href : "";
   const ogImageUrl = typeof window !== "undefined" ? `${window.location.origin}/og-image.png` : "";
 
+  const joinUrl = (() => {
+    const params = new URLSearchParams();
+    params.set("request_id", requestId!);
+    if (shareLink?.id) params.set("share_link_id", shareLink.id);
+    if (request?.title) params.set("request_title", request.title);
+    if (requesterName) params.set("requester_name", requesterName);
+    return `/signup?${params.toString()}`;
+  })();
+
   return (
     <div className="min-h-screen bg-background">
       <Helmet>
