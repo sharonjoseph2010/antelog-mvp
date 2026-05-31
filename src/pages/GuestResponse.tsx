@@ -385,6 +385,7 @@ export default function GuestResponse() {
           parent_link_id: shareLink?.id,
           token: tokenData,
           generated_by_name: nameToUse,
+          forwarder_name: nameToUse,
           generated_by_contact: contributorContact || null,
           max_responses: 5,
           current_responses: 0,
