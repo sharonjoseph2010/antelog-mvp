@@ -4,7 +4,7 @@ import { Helmet } from "react-helmet-async";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { differenceInDays } from "date-fns";
@@ -641,26 +641,34 @@ export default function GuestResponse() {
                 {requesterName} asked the people they trust.
               </p>
               {isForwarded && (
-                <p className="text-[12px] text-muted-foreground">
-                  {lastForwarderName} thought you'd know.
-                </p>
-              )}
-              {isForwarded && (
-                <Popover>
-                  <PopoverTrigger asChild>
+                <>
+                  <div className="flex justify-between items-center text-[12px] text-muted-foreground">
+                    <span>{lastForwarderName} thought you'd know.</span>
                     <button
                       type="button"
-                      className="text-[11px] text-muted-foreground hover:underline"
+                      onClick={() => setChainExpanded((v) => !v)}
+                      className="inline-flex items-center gap-0.5 hover:underline"
                     >
-                      View path →
+                      <span>View path</span>
+                      <span
+                        className={cn(
+                          "inline-block transition-transform duration-200",
+                          chainExpanded && "rotate-90"
+                        )}
+                      >
+                        →
+                      </span>
                     </button>
-                  </PopoverTrigger>
-                  <PopoverContent align="start" className="w-auto p-3">
-                    <p className="text-xs text-foreground">
-                      {chainPeople.map((p) => p.name).join(" → ")} → You
-                    </p>
-                  </PopoverContent>
-                </Popover>
+                  </div>
+                  <div
+                    className={cn(
+                      "overflow-hidden transition-all duration-300 ease-in-out text-[11px] text-muted-foreground",
+                      chainExpanded ? "max-h-10 opacity-100 mt-0.5" : "max-h-0 opacity-0"
+                    )}
+                  >
+                    {chainPeople.map((p) => p.name).join(" → ")} → You
+                  </div>
+                </>
               )}
             </div>
           )}
