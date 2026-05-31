@@ -812,9 +812,7 @@ export default function GuestResponse() {
                   <Button
                     className="w-full"
                     size="lg"
-                    onClick={() =>
-                      navigate(`/signup?request_id=${encodeURIComponent(requestId!)}`)
-                    }
+                    onClick={() => navigate(joinUrl)}
                   >
                     Join Antelog — Free
                   </Button>
@@ -832,7 +830,7 @@ export default function GuestResponse() {
                   {/* Hooks */}
                   <div className="pt-1 space-y-4">
                     <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
-                      While you're here
+                      Join to:
                     </p>
                     <div className="flex gap-3 items-start">
                       <div className="h-8 w-8 rounded bg-muted flex items-center justify-center shrink-0">
@@ -870,6 +868,19 @@ export default function GuestResponse() {
                         </p>
                         <p className="text-[11px] text-muted-foreground leading-relaxed">
                           You're part of how this reached the right people. Join to see your path.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex gap-3 items-start">
+                      <div className="h-8 w-8 rounded bg-muted flex items-center justify-center shrink-0">
+                        <Gift className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      <div className="space-y-0.5">
+                        <p className="text-[12px] font-medium text-foreground">
+                          Get 5 requests free
+                        </p>
+                        <p className="text-[11px] text-muted-foreground leading-relaxed">
+                          Ask your own network anything — your first 5 requests are on us.
                         </p>
                       </div>
                     </div>
