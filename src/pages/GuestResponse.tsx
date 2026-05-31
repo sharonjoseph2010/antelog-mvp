@@ -336,11 +336,6 @@ export default function GuestResponse() {
       }
 
       setHasSubmitted(true);
-
-      toast({
-        title: "Thanks for your input!",
-        description: "Your recommendations have been saved.",
-      });
     } catch (error: any) {
       console.error("Error submitting:", error);
       const msg = String(error?.message || "");
@@ -395,11 +390,6 @@ export default function GuestResponse() {
 
       const generatedUrl = `${window.location.origin}/r/${requestId}/${tokenData}`;
       setMyShareLink(generatedUrl);
-
-      toast({
-        title: "Share Link Generated!",
-        description: "You can now share this with up to 5 people",
-      });
       return generatedUrl;
     } catch (error) {
       console.error("Error generating link:", error);
@@ -681,7 +671,7 @@ export default function GuestResponse() {
                         ? "var(--color-text-primary)"
                         : "var(--color-border-tertiary)",
                     }}
-                    className="inline-flex items-center gap-1 whitespace-nowrap shrink-0"
+                    className="hidden sm:inline-flex items-center gap-1 whitespace-nowrap shrink-0"
                   >
                     <span>View path</span>
                     <span>{chainExpanded ? "↑" : "↓"}</span>
@@ -693,6 +683,29 @@ export default function GuestResponse() {
                   <p className="text-[12px] text-muted-foreground">
                     {lastForwarderName} thought of you.
                   </p>
+                  {/* Mobile-only: View path button stacked under line 2 */}
+                  <div className="flex justify-end sm:hidden">
+                    <button
+                      type="button"
+                      onClick={() => setChainExpanded((v) => !v)}
+                      style={{
+                        border: "0.5px solid var(--color-border-tertiary)",
+                        borderRadius: 5,
+                        padding: "4px 10px",
+                        fontSize: 12,
+                        color: chainExpanded
+                          ? "var(--color-text-primary)"
+                          : "var(--color-text-secondary)",
+                        borderColor: chainExpanded
+                          ? "var(--color-text-primary)"
+                          : "var(--color-border-tertiary)",
+                      }}
+                      className="inline-flex items-center gap-1 whitespace-nowrap"
+                    >
+                      <span>View path</span>
+                      <span>{chainExpanded ? "↑" : "↓"}</span>
+                    </button>
+                  </div>
                   <div
                     className={cn(
                       "overflow-hidden transition-all duration-300 ease-in-out",
@@ -1049,7 +1062,7 @@ export default function GuestResponse() {
           <form onSubmit={handleSubmit} className="space-y-5 sm:space-y-6">
             {/* Action toggle — mutually exclusive */}
             <section className="space-y-3">
-              <div className="grid grid-cols-2 gap-2 sm:gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
                 {[
                   { value: "rec" as const, Icon: MessageCircle, title: "Share a recommendation" },
                   { value: "pass" as const, Icon: CornerUpRight, title: "Pass it along" },
@@ -1062,7 +1075,7 @@ export default function GuestResponse() {
                     onClick={() => setMode(value)}
                     aria-pressed={active}
                     className={cn(
-                      "text-left rounded-lg px-2.5 py-2.5 sm:px-4 sm:py-4 transition-colors flex items-start gap-2 sm:gap-3",
+                      "text-left rounded-lg px-4 py-3 sm:py-4 transition-colors flex items-center sm:items-start justify-center sm:justify-start gap-2 sm:gap-3 w-full",
                       active
                         ? "bg-secondary border-foreground/60"
                         : "bg-transparent border-border hover:bg-muted/40"
@@ -1101,18 +1114,21 @@ export default function GuestResponse() {
                       onChange={(e) => updateRecommendation(idx, "text", e.target.value)}
                       placeholder="What do you recommend? *"
                       required={idx === 0}
+                      style={{ fontSize: 16 }}
                     />
                     <Textarea
                       value={rec.reason}
                       onChange={(e) => updateRecommendation(idx, "reason", e.target.value)}
                       placeholder="Why? (optional)"
                       rows={2}
+                      style={{ fontSize: 16 }}
                     />
                     <Input
                       value={rec.link}
                       onChange={(e) => updateRecommendation(idx, "link", e.target.value)}
                       placeholder="Link (optional)"
                       type="url"
+                      style={{ fontSize: 16 }}
                     />
                   </div>
                 ))}
@@ -1129,7 +1145,7 @@ export default function GuestResponse() {
             ) : null}
 
             {/* Identity */}
-            <section className="space-y-2 pt-4 border-t border-border">
+            <section className="space-y-2 pt-4 mt-5 border-t border-border">
               <div>
                 <p className="text-sm text-foreground">Your name *</p>
                 <p className="text-xs text-muted-foreground">Real names make recommendations more trustworthy.</p>
@@ -1144,6 +1160,7 @@ export default function GuestResponse() {
                     }}
                     placeholder="First name"
                     aria-invalid={firstNameError}
+                    style={{ fontSize: 16 }}
                   />
                   {firstNameError && (
                     <p className="text-xs text-destructive">Required</p>
@@ -1158,6 +1175,7 @@ export default function GuestResponse() {
                     }}
                     placeholder="Last name"
                     aria-invalid={lastNameError}
+                    style={{ fontSize: 16 }}
                   />
                   {lastNameError && (
                     <p className="text-xs text-destructive">Required</p>
