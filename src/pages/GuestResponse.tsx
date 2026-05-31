@@ -637,36 +637,111 @@ export default function GuestResponse() {
           </h1>
           {!hasSubmitted && (
             <div className="space-y-1">
-              <p className="text-base text-foreground">
-                {requesterName} asked the people they trust.
-              </p>
+              <div className="flex justify-between items-center gap-3">
+                <p className="text-base text-foreground">
+                  {requesterName} asked the people they trust.
+                </p>
+                {isForwarded && (
+                  <button
+                    type="button"
+                    onClick={() => setChainExpanded((v) => !v)}
+                    style={{
+                      border: "0.5px solid var(--color-border-tertiary)",
+                      borderRadius: 5,
+                      padding: "2px 8px",
+                      fontSize: 10,
+                      color: chainExpanded
+                        ? "var(--color-text-primary)"
+                        : "var(--color-text-secondary)",
+                      borderColor: chainExpanded
+                        ? "var(--color-text-primary)"
+                        : "var(--color-border-tertiary)",
+                    }}
+                    className="inline-flex items-center gap-1 whitespace-nowrap shrink-0"
+                  >
+                    <span>View path</span>
+                    <span>{chainExpanded ? "↑" : "↓"}</span>
+                  </button>
+                )}
+              </div>
               {isForwarded && (
                 <>
-                  <div className="flex justify-between items-center text-[12px] text-muted-foreground">
-                    <span>{lastForwarderName} thought you'd know.</span>
-                    <button
-                      type="button"
-                      onClick={() => setChainExpanded((v) => !v)}
-                      className="inline-flex items-center gap-0.5 hover:underline"
-                    >
-                      <span>View path</span>
-                      <span
-                        className={cn(
-                          "inline-block transition-transform duration-200",
-                          chainExpanded && "rotate-90"
-                        )}
-                      >
-                        →
-                      </span>
-                    </button>
-                  </div>
+                  <p className="text-[12px] text-muted-foreground">
+                    {lastForwarderName} thought you'd know.
+                  </p>
                   <div
                     className={cn(
-                      "overflow-hidden transition-all duration-300 ease-in-out text-[11px] text-muted-foreground",
-                      chainExpanded ? "max-h-10 opacity-100 mt-0.5" : "max-h-0 opacity-0"
+                      "overflow-hidden transition-all duration-300 ease-in-out",
+                      chainExpanded ? "max-h-60 opacity-100 mt-2" : "max-h-0 opacity-0"
                     )}
                   >
-                    {chainPeople.map((p) => p.name).join(" → ")} → You
+                    <div
+                      style={{
+                        border: "0.5px solid var(--color-border-tertiary)",
+                        borderRadius: 8,
+                        padding: "10px 12px",
+                        background: "var(--color-background-secondary)",
+                      }}
+                    >
+                      <div className="flex items-start gap-2 overflow-x-auto">
+                        {[...chainPeople.map((p) => ({ name: p.name, you: false })), { name: "You", you: true }].map((node, i, arr) => (
+                          <div key={i} className="flex items-start gap-2">
+                            <div className="flex flex-col items-center gap-1 min-w-[44px]">
+                              <div
+                                className="flex items-center justify-center rounded-full"
+                                style={{
+                                  width: 28,
+                                  height: 28,
+                                  background: node.you
+                                    ? "var(--color-text-primary)"
+                                    : "var(--color-background-primary)",
+                                  color: node.you
+                                    ? "var(--color-background-primary)"
+                                    : "var(--color-text-primary)",
+                                  border: node.you
+                                    ? "none"
+                                    : "0.5px solid var(--color-border-tertiary)",
+                                  fontSize: 10,
+                                  fontWeight: 600,
+                                }}
+                              >
+                                {node.name
+                                  .split(/\s+/)
+                                  .map((s) => s[0])
+                                  .slice(0, 2)
+                                  .join("")
+                                  .toUpperCase()}
+                              </div>
+                              <span
+                                style={{
+                                  fontSize: 8,
+                                  color: node.you
+                                    ? "var(--color-text-primary)"
+                                    : "var(--color-text-secondary)",
+                                  fontWeight: node.you ? 500 : 400,
+                                }}
+                                className="text-center leading-tight max-w-[60px] truncate"
+                              >
+                                {node.name}
+                              </span>
+                            </div>
+                            {i < arr.length - 1 && (
+                              <span
+                                style={{ color: "var(--color-text-secondary)", fontSize: 12, lineHeight: "28px" }}
+                              >
+                                →
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                      <p
+                        style={{ fontSize: 9, color: "var(--color-text-secondary)" }}
+                        className="mt-2"
+                      >
+                        This request travelled {chainPeople.length} {chainPeople.length === 1 ? "hop" : "hops"} to reach you.
+                      </p>
+                    </div>
                   </div>
                 </>
               )}
