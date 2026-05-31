@@ -25,6 +25,7 @@ import {
   TrendingUp,
   Eye,
   MessageSquare,
+  Gift,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -615,6 +616,15 @@ export default function GuestResponse() {
   const shareUrl = typeof window !== "undefined" ? window.location.href : "";
   const ogImageUrl = typeof window !== "undefined" ? `${window.location.origin}/og-image.png` : "";
 
+  const joinUrl = (() => {
+    const params = new URLSearchParams();
+    params.set("request_id", requestId!);
+    if (shareLink?.id) params.set("share_link_id", shareLink.id);
+    if (request?.title) params.set("request_title", request.title);
+    if (requesterName) params.set("requester_name", requesterName);
+    return `/signup?${params.toString()}`;
+  })();
+
   return (
     <div className="min-h-screen bg-background">
       <Helmet>
@@ -778,6 +788,11 @@ export default function GuestResponse() {
                       className="w-full"
                       size="lg"
                       type="button"
+                      style={{
+                        background: "#F0F0F0",
+                        color: "#1a1a1a",
+                        border: "0.5px solid #D0D0D0",
+                      }}
                       onClick={() =>
                         window.open(
                           `https://wa.me/?text=${encodeURIComponent(myShareLink)}`,
@@ -797,9 +812,7 @@ export default function GuestResponse() {
                   <Button
                     className="w-full"
                     size="lg"
-                    onClick={() =>
-                      navigate(`/signup?request_id=${encodeURIComponent(requestId!)}`)
-                    }
+                    onClick={() => navigate(joinUrl)}
                   >
                     Join Antelog — Free
                   </Button>
@@ -817,7 +830,7 @@ export default function GuestResponse() {
                   {/* Hooks */}
                   <div className="pt-1 space-y-4">
                     <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
-                      While you're here
+                      Join to:
                     </p>
                     <div className="flex gap-3 items-start">
                       <div className="h-8 w-8 rounded bg-muted flex items-center justify-center shrink-0">
@@ -858,6 +871,19 @@ export default function GuestResponse() {
                         </p>
                       </div>
                     </div>
+                    <div className="flex gap-3 items-start">
+                      <div className="h-8 w-8 rounded bg-muted flex items-center justify-center shrink-0">
+                        <Gift className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      <div className="space-y-0.5">
+                        <p className="text-[12px] font-medium text-foreground">
+                          Get 5 requests free
+                        </p>
+                        <p className="text-[11px] text-muted-foreground leading-relaxed">
+                          Ask your own network anything — your first 5 requests are on us.
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </>
@@ -882,9 +908,7 @@ export default function GuestResponse() {
                   <Button
                     className="w-full"
                     size="lg"
-                    onClick={() =>
-                      navigate(`/signup?request_id=${encodeURIComponent(requestId!)}`)
-                    }
+                    onClick={() => navigate(joinUrl)}
                   >
                     Join Antelog — Free
                   </Button>
@@ -940,6 +964,19 @@ export default function GuestResponse() {
                         </p>
                         <p className="text-[11px] text-muted-foreground leading-relaxed">
                           Now you know how it works. Use it for your own questions — free.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex gap-3 items-start">
+                      <div className="h-8 w-8 rounded bg-muted flex items-center justify-center shrink-0">
+                        <Gift className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      <div className="space-y-0.5">
+                        <p className="text-[12px] font-medium text-foreground">
+                          Get 5 requests free
+                        </p>
+                        <p className="text-[11px] text-muted-foreground leading-relaxed">
+                          Ask your own network anything — your first 5 requests are on us.
                         </p>
                       </div>
                     </div>
