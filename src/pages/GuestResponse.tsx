@@ -621,7 +621,7 @@ export default function GuestResponse() {
         <meta property="og:url" content={shareUrl} />
         <meta name="twitter:card" content="summary" />
       </Helmet>
-      <div className="max-w-[640px] mx-auto px-4 py-8 sm:py-12 space-y-7 sm:space-y-10">
+      <div className="max-w-[640px] mx-auto px-4 py-8 sm:py-12 space-y-5 sm:space-y-8">
         {/* Header block */}
         <header className="space-y-3">
           {request.category && (
