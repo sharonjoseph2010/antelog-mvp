@@ -1062,7 +1062,7 @@ export default function GuestResponse() {
           <form onSubmit={handleSubmit} className="space-y-5 sm:space-y-6">
             {/* Action toggle — mutually exclusive */}
             <section className="space-y-3">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
+              <div className="grid grid-cols-2 gap-2 sm:gap-3 items-stretch">
                 {[
                   { value: "rec" as const, Icon: MessageCircle, title: "Share a recommendation" },
                   { value: "pass" as const, Icon: CornerUpRight, title: "Pass it along" },
@@ -1075,14 +1075,14 @@ export default function GuestResponse() {
                     onClick={() => setMode(value)}
                     aria-pressed={active}
                     className={cn(
-                      "text-left rounded-lg px-4 py-3 sm:py-4 transition-colors flex items-center sm:items-start justify-center sm:justify-start gap-2 sm:gap-3 w-full",
+                      "h-full rounded-lg px-4 py-3 sm:py-4 transition-colors flex items-center justify-center gap-2 sm:gap-3 w-full text-center",
                       active
                         ? "bg-secondary border-foreground/60"
                         : "bg-transparent border-border hover:bg-muted/40"
                     )}
                     style={{ borderWidth: active ? 1.5 : 0.5, borderStyle: "solid" }}
                   >
-                    <Icon className="h-3.5 w-3.5 sm:h-5 sm:w-5 mt-0.5 text-foreground shrink-0" />
+                    <Icon className="h-3.5 w-3.5 sm:h-5 sm:w-5 text-foreground shrink-0" />
                     <div className="text-[13px] sm:text-sm font-medium text-foreground leading-tight">{title}</div>
                   </button>
                   );
