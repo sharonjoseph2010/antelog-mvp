@@ -681,7 +681,7 @@ export default function GuestResponse() {
                         ? "var(--color-text-primary)"
                         : "var(--color-border-tertiary)",
                     }}
-                    className="inline-flex items-center gap-1 whitespace-nowrap shrink-0"
+                    className="hidden sm:inline-flex items-center gap-1 whitespace-nowrap shrink-0"
                   >
                     <span>View path</span>
                     <span>{chainExpanded ? "↑" : "↓"}</span>
