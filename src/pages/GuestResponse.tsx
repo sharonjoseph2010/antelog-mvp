@@ -640,9 +640,26 @@ export default function GuestResponse() {
                 {requesterName} asked the people they trust.
               </p>
               {isForwarded && (
-                <p className="text-base text-foreground">
+                <p className="text-[12px] text-muted-foreground">
                   {lastForwarderName} thought you'd know.
                 </p>
+              )}
+              {isForwarded && (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      className="text-[11px] text-muted-foreground hover:underline"
+                    >
+                      View path →
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent align="start" className="w-auto p-3">
+                    <p className="text-xs text-foreground">
+                      {chainPeople.map((p) => p.name).join(" → ")} → You
+                    </p>
+                  </PopoverContent>
+                </Popover>
               )}
             </div>
           )}
