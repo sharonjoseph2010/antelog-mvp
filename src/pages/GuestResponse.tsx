@@ -789,6 +789,77 @@ export default function GuestResponse() {
                     </Button>
                   </div>
                 )}
+
+                <div className="h-px bg-border" />
+
+                {/* Join section */}
+                <div className="space-y-3">
+                  <Button
+                    className="w-full"
+                    size="lg"
+                    onClick={() =>
+                      navigate(`/signup?request_id=${encodeURIComponent(requestId!)}`)
+                    }
+                  >
+                    Join Antelog — Free
+                  </Button>
+                  <p className="text-center text-[10px] text-muted-foreground">
+                    Already have an account?{" "}
+                    <button
+                      type="button"
+                      onClick={() => navigate("/login")}
+                      className="underline"
+                    >
+                      Log in
+                    </button>
+                  </p>
+
+                  {/* Hooks */}
+                  <div className="pt-1 space-y-4">
+                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                      While you're here
+                    </p>
+                    <div className="flex gap-3 items-start">
+                      <div className="h-8 w-8 rounded bg-muted flex items-center justify-center shrink-0">
+                        <Eye className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      <div className="space-y-0.5">
+                        <p className="text-[12px] font-medium text-foreground">
+                          See who else responds
+                        </p>
+                        <p className="text-[11px] text-muted-foreground leading-relaxed">
+                          Watch the list grow as people answer. See the full ranking when it closes.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex gap-3 items-start">
+                      <div className="h-8 w-8 rounded bg-muted flex items-center justify-center shrink-0">
+                        <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      <div className="space-y-0.5">
+                        <p className="text-[12px] font-medium text-foreground">
+                          Ask your own network anything
+                        </p>
+                        <p className="text-[11px] text-muted-foreground leading-relaxed">
+                          Now you know how it works. Use it for your own questions — free.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex gap-3 items-start">
+                      <div className="h-8 w-8 rounded bg-muted flex items-center justify-center shrink-0">
+                        <Link2 className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      <div className="space-y-0.5">
+                        <p className="text-[12px] font-medium text-foreground">
+                          Your name is in the chain
+                        </p>
+                        <p className="text-[11px] text-muted-foreground leading-relaxed">
+                          You're part of how this reached the right people. Join to see your path.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </>
             ) : (
               <div className="space-y-5">
