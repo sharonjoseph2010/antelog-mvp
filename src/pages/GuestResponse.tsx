@@ -336,11 +336,6 @@ export default function GuestResponse() {
       }
 
       setHasSubmitted(true);
-
-      toast({
-        title: "Thanks for your input!",
-        description: "Your recommendations have been saved.",
-      });
     } catch (error: any) {
       console.error("Error submitting:", error);
       const msg = String(error?.message || "");
@@ -395,11 +390,6 @@ export default function GuestResponse() {
 
       const generatedUrl = `${window.location.origin}/r/${requestId}/${tokenData}`;
       setMyShareLink(generatedUrl);
-
-      toast({
-        title: "Share Link Generated!",
-        description: "You can now share this with up to 5 people",
-      });
       return generatedUrl;
     } catch (error) {
       console.error("Error generating link:", error);
