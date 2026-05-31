@@ -648,8 +648,8 @@ export default function GuestResponse() {
                     style={{
                       border: "0.5px solid var(--color-border-tertiary)",
                       borderRadius: 5,
-                      padding: "2px 8px",
-                      fontSize: 10,
+                      padding: "4px 10px",
+                      fontSize: 12,
                       color: chainExpanded
                         ? "var(--color-text-primary)"
                         : "var(--color-text-secondary)",
