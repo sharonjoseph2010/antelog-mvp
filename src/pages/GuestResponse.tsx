@@ -34,6 +34,7 @@ type ChainLink = {
   parent_link_id: string | null;
   generated_by_user_id: string | null;
   generated_by_name: string | null;
+  forwarder_name?: string | null;
   user_full_name?: string | null;
 };
 
@@ -90,7 +91,7 @@ export default function GuestResponse() {
     while (currentId && depth < 10) {
       const { data, error } = await supabase
         .from("share_links")
-        .select("id, parent_link_id, generated_by_user_id, generated_by_name")
+        .select("id, parent_link_id, generated_by_user_id, generated_by_name, forwarder_name")
         .eq("id", currentId)
         .single();
       if (error || !data) break;
@@ -158,7 +159,7 @@ export default function GuestResponse() {
 
       const { data: linkData, error: linkError } = await supabase
         .from("share_links")
-        .select("id, generated_by_name, current_responses, max_responses, times_opened")
+        .select("id, generated_by_name, forwarder_name, current_responses, max_responses, times_opened")
         .eq("token", token!)
         .single();
 
