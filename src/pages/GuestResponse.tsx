@@ -623,7 +623,7 @@ export default function GuestResponse() {
       </Helmet>
       <div className="max-w-[640px] mx-auto px-4 py-8 sm:py-12 space-y-5 sm:space-y-8">
         {/* Header block */}
-        <header className="space-y-3">
+        <header className="space-y-2">
           {request.category && (
             <span
               className="inline-flex items-center gap-1 rounded-full px-2.5 py-[3px] text-[11px] font-medium bg-muted text-muted-foreground"
@@ -672,7 +672,7 @@ export default function GuestResponse() {
                   <div
                     className={cn(
                       "overflow-hidden transition-all duration-300 ease-in-out",
-                      chainExpanded ? "max-h-60 opacity-100 mt-2" : "max-h-0 opacity-0"
+                      chainExpanded ? "max-h-60 opacity-100 !mt-3" : "max-h-0 opacity-0"
                     )}
                   >
                     <div
