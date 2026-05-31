@@ -727,7 +727,7 @@ export default function GuestResponse() {
                             </div>
                             {i < arr.length - 1 && (
                               <span
-                                style={{ color: "var(--color-text-secondary)", fontSize: 12, lineHeight: "28px" }}
+                                style={{ color: "var(--color-text-secondary)", fontSize: 16, lineHeight: "28px" }}
                               >
                                 →
                               </span>
