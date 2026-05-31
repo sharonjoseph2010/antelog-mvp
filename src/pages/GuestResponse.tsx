@@ -361,7 +361,7 @@ export default function GuestResponse() {
     }
   };
 
-  const generateMyShareLink = async (nameOverride?: string) => {
+  const generateMyShareLink = async (nameOverride?: string): Promise<string | null> => {
     const nameToUse = (nameOverride ?? contributorName).trim();
     if (!nameToUse) {
       toast({
@@ -369,7 +369,7 @@ export default function GuestResponse() {
         description: "Please enter your name to generate a share link",
         variant: "destructive",
       });
-      return;
+      return null;
     }
     try {
       const { data: tokenData, error: tokenError } = await supabase.rpc("generate_share_token");
@@ -380,7 +380,7 @@ export default function GuestResponse() {
         .from("share_links")
         .insert({
           request_id: requestId!,
-          parent_link_id: shareLink?.id, // critical: chain new link off the current one
+          parent_link_id: shareLink?.id,
           token: tokenData,
           generated_by_name: nameToUse,
           generated_by_contact: contributorContact || null,
@@ -397,6 +397,7 @@ export default function GuestResponse() {
         title: "Share Link Generated!",
         description: "You can now share this with up to 5 people",
       });
+      return generatedUrl;
     } catch (error) {
       console.error("Error generating link:", error);
       toast({
@@ -404,6 +405,7 @@ export default function GuestResponse() {
         description: "Please try again",
         variant: "destructive",
       });
+      return null;
     }
   };
 
