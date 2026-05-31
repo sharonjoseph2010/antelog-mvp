@@ -648,8 +648,8 @@ export default function GuestResponse() {
                     style={{
                       border: "0.5px solid var(--color-border-tertiary)",
                       borderRadius: 5,
-                      padding: "2px 8px",
-                      fontSize: 10,
+                      padding: "4px 10px",
+                      fontSize: 12,
                       color: chainExpanded
                         ? "var(--color-text-primary)"
                         : "var(--color-text-secondary)",
@@ -690,8 +690,8 @@ export default function GuestResponse() {
                               <div
                                 className="flex items-center justify-center rounded-full"
                                 style={{
-                                  width: 28,
-                                  height: 28,
+                                  width: 36,
+                                  height: 36,
                                   background: node.you
                                     ? "var(--color-text-primary)"
                                     : "var(--color-background-primary)",
@@ -701,7 +701,7 @@ export default function GuestResponse() {
                                   border: node.you
                                     ? "none"
                                     : "0.5px solid var(--color-border-tertiary)",
-                                  fontSize: 10,
+                                  fontSize: 12,
                                   fontWeight: 600,
                                 }}
                               >
@@ -714,7 +714,7 @@ export default function GuestResponse() {
                               </div>
                               <span
                                 style={{
-                                  fontSize: 8,
+                                  fontSize: 11,
                                   color: node.you
                                     ? "var(--color-text-primary)"
                                     : "var(--color-text-secondary)",
@@ -727,7 +727,7 @@ export default function GuestResponse() {
                             </div>
                             {i < arr.length - 1 && (
                               <span
-                                style={{ color: "var(--color-text-secondary)", fontSize: 12, lineHeight: "28px" }}
+                                style={{ color: "var(--color-text-secondary)", fontSize: 16, lineHeight: "28px" }}
                               >
                                 →
                               </span>
@@ -736,7 +736,7 @@ export default function GuestResponse() {
                         ))}
                       </div>
                       <p
-                        style={{ fontSize: 9, color: "var(--color-text-secondary)" }}
+                        style={{ fontSize: 11, color: "var(--color-text-secondary)" }}
                         className="mt-2"
                       >
                         This request travelled {chainPeople.length} {chainPeople.length === 1 ? "hop" : "hops"} to reach you.
