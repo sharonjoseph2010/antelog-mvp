@@ -468,7 +468,7 @@ export default function GuestResponse() {
   const isForwarded = chain.length > 1;
   const lastForwarder = isForwarded ? chain[chain.length - 1] : null;
   const lastForwarderName =
-    lastForwarder?.user_full_name || lastForwarder?.generated_by_name || "A friend";
+    lastForwarder?.user_full_name || lastForwarder?.forwarder_name || lastForwarder?.generated_by_name || "A friend";
 
   // People in the chain (named rows): use requester as first, then any
   // intermediate forwarders. The very first share_link is created by the
@@ -477,7 +477,7 @@ export default function GuestResponse() {
     ? [
         { name: requesterName, role: "Asked the question" },
         ...chain.slice(1).map((l, i, arr) => ({
-          name: l.user_full_name || l.generated_by_name || "A friend",
+          name: l.user_full_name || l.forwarder_name || l.generated_by_name || "A friend",
           role: i === arr.length - 1 ? "Passed it to you" : "Passed it on",
         })),
       ]
