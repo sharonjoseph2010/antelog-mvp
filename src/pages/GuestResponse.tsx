@@ -22,6 +22,9 @@ import {
   CheckCircle2,
   Link2,
   CircleSlash,
+  TrendingUp,
+  Eye,
+  MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
