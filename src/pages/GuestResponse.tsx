@@ -791,62 +791,119 @@ export default function GuestResponse() {
                 )}
               </>
             ) : (
-              <>
-                <div className="space-y-2">
-                  <h2 className="text-xl font-semibold text-foreground">
+              <div className="space-y-5">
+                {/* Thanks */}
+                <div className="space-y-1">
+                  <p className="text-[15px] font-medium text-foreground">
                     Thanks {contributorName.split(" ")[0]}. {requesterName.split(" ")[0]}'s got your pick.
-                  </h2>
+                  </p>
+                  <p className="text-[12px] text-muted-foreground">
+                    {preview.total === 0
+                      ? "You're the first to answer this one."
+                      : `You're one of ${preview.total + 1} people who answered.`}
+                  </p>
                 </div>
 
-                <section className="rounded-[10px] p-4 bg-muted/50 space-y-3">
-                  <h3 className="text-base font-semibold text-foreground">
-                    Know someone better placed? Pass this along too.
-                  </h3>
-                  {!myShareLink ? (
-                    <Button
-                      variant="outline"
-                      type="button"
-                      onClick={() => generateMyShareLink(contributorName)}
-                    >
-                      Forward to someone →
-                    </Button>
-                  ) : (
-                    <div className="space-y-3">
-                      <div className="flex gap-2">
-                        <Input value={myShareLink} readOnly className="text-xs" />
-                        <Button variant="outline" size="sm" type="button" onClick={copyShareLink}>
-                          {copied ? "Copied" : "Copy"}
-                        </Button>
-                      </div>
-                      <Button
-                        className="w-full"
-                        type="button"
-                        onClick={() =>
-                          window.open(
-                            `https://wa.me/?text=${encodeURIComponent(myShareLink)}`,
-                            "_blank"
-                          )
-                        }
-                      >
-                        Share on WhatsApp →
-                      </Button>
-                      <p className="text-xs text-muted-foreground">
-                        When they open it, it'll say "{contributorName.split(" ")[0]} thought of you."
-                      </p>
-                    </div>
-                  )}
-                </section>
+                <div className="h-px bg-border" />
 
-                <button
-                  type="button"
-                  onClick={() =>
-                    navigate(`/signup?request_id=${encodeURIComponent(requestId!)}`)
-                  }
-                  className="text-sm text-foreground underline"
-                >
-                  Join Antelog →
-                </button>
-              </>
+                {/* Join section */}
+                <div className="space-y-3">
+                  <Button
+                    className="w-full"
+                    size="lg"
+                    onClick={() =>
+                      navigate(`/signup?request_id=${encodeURIComponent(requestId!)}`)
+                    }
+                  >
+                    Join Antelog — Free
+                  </Button>
+                  <p className="text-center text-[11px] text-muted-foreground">
+                    Already have an account?{" "}
+                    <button
+                      type="button"
+                      onClick={() => navigate("/login")}
+                      className="underline"
+                    >
+                      Log in
+                    </button>
+                  </p>
+
+                  {/* Hooks */}
+                  <div className="pt-1 space-y-4">
+                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                      Join to:
+                    </p>
+                    <div className="flex gap-3 items-start">
+                      <div className="h-8 w-8 rounded bg-muted flex items-center justify-center shrink-0">
+                        <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      <div className="space-y-0.5">
+                        <p className="text-[12px] font-medium text-foreground">
+                          See how your pick ranks
+                        </p>
+                        <p className="text-[11px] text-muted-foreground leading-relaxed">
+                          {requesterName.split(" ")[0]}'s network votes on every recommendation. Find out if yours comes out on top.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex gap-3 items-start">
+                      <div className="h-8 w-8 rounded bg-muted flex items-center justify-center shrink-0">
+                        <Eye className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      <div className="space-y-0.5">
+                        <p className="text-[12px] font-medium text-foreground">
+                          Watch the list build
+                        </p>
+                        <p className="text-[11px] text-muted-foreground leading-relaxed">
+                          Others are still responding. See every pick as it comes in — in real time.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex gap-3 items-start">
+                      <div className="h-8 w-8 rounded bg-muted flex items-center justify-center shrink-0">
+                        <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      <div className="space-y-0.5">
+                        <p className="text-[12px] font-medium text-foreground">
+                          Ask your own network anything
+                        </p>
+                        <p className="text-[11px] text-muted-foreground leading-relaxed">
+                          Now you know how it works. Use it for your own questions — free.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="h-px bg-border" />
+
+                {/* Bottom row */}
+                <div className="flex items-center justify-between">
+                  <p className="text-[12px] text-foreground">
+                    Know someone better placed?
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    type="button"
+                    onClick={async () => {
+                      let link = myShareLink;
+                      if (!link) {
+                        link = await generateMyShareLink(contributorName);
+                      }
+                      if (link) {
+                        navigator.clipboard.writeText(link);
+                        toast({
+                          title: "Link copied!",
+                          description: "Share it with someone who might know.",
+                        });
+                      }
+                    }}
+                  >
+                    Pass it along →
+                  </Button>
+                </div>
+              </div>
             )}
           </div>
         ) : isClosed ? (
