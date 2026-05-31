@@ -34,6 +34,7 @@ type ChainLink = {
   parent_link_id: string | null;
   generated_by_user_id: string | null;
   generated_by_name: string | null;
+  forwarder_name?: string | null;
   user_full_name?: string | null;
 };
 
@@ -90,7 +91,7 @@ export default function GuestResponse() {
     while (currentId && depth < 10) {
       const { data, error } = await supabase
         .from("share_links")
-        .select("id, parent_link_id, generated_by_user_id, generated_by_name")
+        .select("id, parent_link_id, generated_by_user_id, generated_by_name, forwarder_name")
         .eq("id", currentId)
         .single();
       if (error || !data) break;
@@ -158,7 +159,7 @@ export default function GuestResponse() {
 
       const { data: linkData, error: linkError } = await supabase
         .from("share_links")
-        .select("id, generated_by_name, current_responses, max_responses, times_opened")
+        .select("id, generated_by_name, forwarder_name, current_responses, max_responses, times_opened")
         .eq("token", token!)
         .single();
 
@@ -384,6 +385,7 @@ export default function GuestResponse() {
           parent_link_id: shareLink?.id,
           token: tokenData,
           generated_by_name: nameToUse,
+          forwarder_name: nameToUse,
           generated_by_contact: contributorContact || null,
           max_responses: 5,
           current_responses: 0,
@@ -466,7 +468,7 @@ export default function GuestResponse() {
   const isForwarded = chain.length > 1;
   const lastForwarder = isForwarded ? chain[chain.length - 1] : null;
   const lastForwarderName =
-    lastForwarder?.user_full_name || lastForwarder?.generated_by_name || "A friend";
+    lastForwarder?.user_full_name || lastForwarder?.forwarder_name || lastForwarder?.generated_by_name || "A friend";
 
   // People in the chain (named rows): use requester as first, then any
   // intermediate forwarders. The very first share_link is created by the
@@ -475,7 +477,7 @@ export default function GuestResponse() {
     ? [
         { name: requesterName, role: "Asked the question" },
         ...chain.slice(1).map((l, i, arr) => ({
-          name: l.user_full_name || l.generated_by_name || "A friend",
+          name: l.user_full_name || l.forwarder_name || l.generated_by_name || "A friend",
           role: i === arr.length - 1 ? "Passed it to you" : "Passed it on",
         })),
       ]
@@ -630,7 +632,14 @@ export default function GuestResponse() {
       <Helmet>
         <title>{request.title}</title>
         <meta property="og:title" content={request.title} />
-        <meta property="og:description" content={`${requesterName} is asking their network. Share what you know — no signup needed.`} />
+        <meta
+          property="og:description"
+          content={
+            isForwarded
+              ? `${lastForwarderName} thinks you're the right person to answer this.`
+              : `${requesterName} is asking their network. Share what you know — no signup needed.`
+          }
+        />
         <meta property="og:site_name" content="Antelog" />
         <meta property="og:image" content={ogImageUrl} />
         <meta property="og:url" content={shareUrl} />
@@ -682,7 +691,7 @@ export default function GuestResponse() {
               {isForwarded && (
                 <>
                   <p className="text-[12px] text-muted-foreground">
-                    {lastForwarderName} thought you'd know.
+                    {lastForwarderName} thought of you.
                   </p>
                   <div
                     className={cn(
