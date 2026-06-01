@@ -348,7 +348,7 @@ const Lists = () => {
           <header className="flex items-center justify-between">
             <h1 className="text-3xl font-bold">My Lists</h1>
             <Button asChild>
-              <Link to="/lists/new">Create New List</Link>
+              <Link to="/lists/new">+ New list</Link>
             </Button>
           </header>
 

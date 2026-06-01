@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { BookUser, List as ListIcon, LogOut, Settings, Share2, Shield, User, UsersRound, X } from "lucide-react";
+import { List as ListIcon, LogOut, Moon, Settings, Shield, Sun, User, X } from "lucide-react";
+import { useTheme } from "next-themes";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import {
   AlertDialog,
@@ -33,6 +34,10 @@ export function RightDrawer({ open, onOpenChange }: RightDrawerProps) {
   const [profile, setProfile] = useState<ProfileSummary | null>(null);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const { theme, resolvedTheme, setTheme } = useTheme();
+  const [themeMounted, setThemeMounted] = useState(false);
+  useEffect(() => { setThemeMounted(true); }, []);
+  const isDark = themeMounted && (resolvedTheme || theme) === "dark";
 
   useEffect(() => {
     if (!open) return;
@@ -117,20 +122,15 @@ export function RightDrawer({ open, onOpenChange }: RightDrawerProps) {
 
           <Divider />
 
-          <SectionLabel>Your stuff</SectionLabel>
-          <nav className="flex flex-col gap-0.5">
-            <Item icon={ListIcon} label="My Lists" count={profile?.listCount} onClick={() => go("/lists")} />
-            <Item icon={Share2} label="Network" count={profile?.networkCount} onClick={() => go("/network")} />
-            <Item icon={UsersRound} label="My Groups" onClick={() => go("/groups")} />
-            <Item icon={BookUser} label="Contacts" onClick={() => go("/contacts")} />
-          </nav>
-
-          <Divider />
-
-          <SectionLabel>Account</SectionLabel>
           <nav className="flex flex-col gap-0.5">
             <Item icon={User} label="Profile" onClick={() => go("/profile")} />
+            <Item icon={ListIcon} label="My Lists" count={profile?.listCount} onClick={() => go("/lists")} />
             <Item icon={Settings} label="Settings" onClick={() => go("/settings")} />
+            <Item
+              icon={isDark ? Sun : Moon}
+              label={isDark ? "Light mode" : "Dark mode"}
+              onClick={() => setTheme(isDark ? "light" : "dark")}
+            />
             {isAdmin && (
               <Item icon={Shield} label="Admin" onClick={() => go("/admin")} />
             )}
