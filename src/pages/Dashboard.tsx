@@ -522,10 +522,10 @@ function TrioCard({
   const recede = variant === "recede";
   const forward = variant === "forward";
   const cardStyle: React.CSSProperties = recede
-    ? { backgroundColor: "var(--color-background-secondary)", border: "0.5px solid transparent" }
+    ? { backgroundColor: "var(--color-background-primary)", border: "0.5px solid var(--color-border-secondary)" }
     : forward
     ? { backgroundColor: "var(--color-background-primary)", border: "0.5px solid var(--color-border-primary)" }
-    : { backgroundColor: dormant ? "var(--color-background-secondary)" : "var(--color-background-primary)", border: "0.5px solid var(--color-border-secondary)" };
+    : { backgroundColor: "var(--color-background-primary)", border: "0.5px solid var(--color-border-secondary)" };
   const iconBorder = "0.5px solid var(--color-border-secondary)";
   const iconCls = dormant ? "text-muted-foreground/60" : "text-foreground";
   const content = (
@@ -830,9 +830,12 @@ function NewUserLayout({
       </div>
 
       <div className="grid gap-8 lg:grid-cols-[1.6fr_1fr]">
-        <section className="space-y-3">
+        <section
+          className="space-y-3 rounded-lg p-5"
+          style={{ backgroundColor: "var(--color-background-primary)", border: "0.5px solid var(--color-border-secondary)" }}
+        >
           <h2 className="text-[13px] font-medium text-foreground">Recent activity</h2>
-          <div className="rounded-lg border border-dashed border-border bg-background p-6 text-[13px] text-muted-foreground">
+          <div className="text-[13px] text-muted-foreground">
             Send your first request and activity will start showing up here.
           </div>
         </section>
@@ -898,7 +901,10 @@ function ReturningLayout({
       />
 
       <div className="grid gap-8 lg:grid-cols-[1.6fr_1fr]">
-        <section className="space-y-5">
+        <section
+          className="space-y-5 rounded-lg p-5"
+          style={{ backgroundColor: "var(--color-background-primary)", border: "0.5px solid var(--color-border-secondary)" }}
+        >
           <h2 className="text-[13px] font-medium text-foreground">Recent activity</h2>
           {newItems.length === 0 && earlierItems.length === 0 ? (
             <p className="text-[13px] text-muted-foreground">
