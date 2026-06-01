@@ -455,32 +455,462 @@ function ActivityIcon({ type }: { type: ActivityItem["iconType"] }) {
   }
 }
 
-function StatCardSmall({
+function ActionButtons() {
+  return (
+    <div className="grid gap-3 md:grid-cols-[1.35fr_1fr]">
+      <Link
+        to="/requests/new"
+        className="group flex items-start gap-4 rounded-lg border border-foreground bg-foreground p-5 text-background transition-opacity hover:opacity-90"
+      >
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[8px] border border-background/20">
+          <Plus className="h-5 w-5" strokeWidth={1.5} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="flex items-center gap-1.5 text-[15px] font-medium">
+            Create a request
+            <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" strokeWidth={1.5} />
+          </span>
+          <span className="mt-1 block text-[12px] text-background/70">
+            Ask your circle for the best of anything — answers from people you trust.
+          </span>
+        </span>
+      </Link>
+      <Link
+        to="/directory"
+        className="group flex items-start gap-4 rounded-lg border border-border bg-background p-5 text-foreground transition-colors hover:bg-muted/40"
+      >
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[8px] border border-border text-muted-foreground">
+          <BookOpen className="h-5 w-5" strokeWidth={1.5} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="flex items-center gap-1.5 text-[15px] font-medium">
+            Master Directory
+            <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" strokeWidth={1.5} />
+          </span>
+          <span className="mt-1 block text-[12px] text-muted-foreground">
+            Verified lists ranked by real people. No ads, no influencers.
+          </span>
+        </span>
+      </Link>
+    </div>
+  );
+}
+
+function TrioCard({
+  to,
   icon: Icon,
   label,
-  value,
-  to,
+  meta,
+  info,
+  dot,
+  dormant,
+  description,
 }: {
+  to?: string;
   icon: LucideIcon;
   label: string;
-  value: number;
-  to: string;
+  meta?: string;
+  info?: boolean;
+  dot?: boolean;
+  dormant?: boolean;
+  description?: string;
+}) {
+  const base =
+    "relative flex h-full flex-col justify-between gap-4 rounded-lg border p-5 transition-colors";
+  const borderCls = info
+    ? "border-[hsl(var(--info-fg)/0.35)]"
+    : "border-border";
+  const bgCls = dormant ? "bg-muted/30" : "bg-background";
+  const iconCls = dormant ? "text-muted-foreground/60" : "text-foreground";
+  const content = (
+    <>
+      <div className="flex items-start justify-between">
+        <span className={`flex h-10 w-10 items-center justify-center rounded-[8px] border ${borderCls} ${iconCls}`}>
+          <Icon className="h-[18px] w-[18px]" strokeWidth={1.5} />
+        </span>
+        {dot && (
+          <span
+            aria-label="New"
+            className="inline-block h-[7px] w-[7px] rounded-full"
+            style={{ backgroundColor: "hsl(var(--info-fg))" }}
+          />
+        )}
+      </div>
+      <div className="space-y-1">
+        <div className={`text-[13px] font-medium ${dormant ? "text-muted-foreground" : "text-foreground"}`}>
+          {label}
+        </div>
+        {meta && <div className="text-[12px] text-muted-foreground">{meta}</div>}
+        {description && (
+          <div className="text-[12px] text-muted-foreground">{description}</div>
+        )}
+      </div>
+    </>
+  );
+  if (!to) {
+    return <div className={`${base} ${borderCls} ${bgCls} cursor-default`}>{content}</div>;
+  }
+  return (
+    <Link to={to} className={`${base} ${borderCls} ${bgCls} hover:bg-muted/40`}>
+      {content}
+    </Link>
+  );
+}
+
+function RequestTrio({
+  openRequestCount,
+  newResponses,
+  pendingCount,
+  pendingFromName,
+  pendingHasNew,
+  forYouCount,
+}: {
+  openRequestCount: number;
+  newResponses: number;
+  pendingCount: number;
+  pendingFromName?: string;
+  pendingHasNew: boolean;
+  forYouCount: number;
 }) {
   return (
-    <Link
-      to={to}
-      className="flex items-center gap-4 rounded-lg bg-muted/50 p-5 transition-colors hover:bg-muted"
-    >
-      <span className="flex h-11 w-11 items-center justify-center rounded-[10px] bg-background text-muted-foreground">
-        <Icon className="h-5 w-5" strokeWidth={1.5} />
-      </span>
-      <span className="flex flex-col">
-        <span className="text-[10px] font-normal uppercase tracking-wider text-muted-foreground">
-          {label}
-        </span>
-        <span className="text-[20px] font-normal text-foreground">{value}</span>
-      </span>
-    </Link>
+    <div className="grid items-stretch gap-3 md:grid-cols-3">
+      <TrioCard
+        to="/requests?filter=mine"
+        icon={ArrowUpRight}
+        label="You asked"
+        meta={`${openRequestCount} open · ${newResponses > 0 ? `${newResponses} new ${newResponses === 1 ? "reply" : "replies"}` : "no new replies"}`}
+      />
+      <TrioCard
+        to="/requests?filter=incoming"
+        icon={Inbox}
+        label="Asked of you"
+        info
+        dot={pendingHasNew}
+        meta={
+          pendingCount > 0
+            ? `${pendingFromName ?? "Someone"} · ${pendingCount} waiting on your answer`
+            : "Nothing waiting on you"
+        }
+      />
+      <TrioCard
+        to="/for-you"
+        icon={Target}
+        label="For you"
+        info
+        dot={forYouCount > 0}
+        meta={`${forYouCount} match your interests`}
+      />
+    </div>
+  );
+}
+
+function DormantTrio() {
+  return (
+    <div className="grid items-stretch gap-3 md:grid-cols-3">
+      <TrioCard
+        icon={ArrowUpRight}
+        label="You asked"
+        dormant
+        description="Requests you create show up here."
+      />
+      <TrioCard
+        icon={Inbox}
+        label="Asked of you"
+        dormant
+        description="When someone in your network asks you, it lands here."
+      />
+      <TrioCard
+        to="/profile"
+        icon={Target}
+        label="For you"
+        info
+        description="Add your interests to get matched with requests you can answer →"
+      />
+    </div>
+  );
+}
+
+function NetworkCard({
+  networkCount,
+  latestConnection,
+  showAdd,
+}: {
+  networkCount: number;
+  latestConnection: { name: string; at: Date } | null;
+  showAdd?: boolean;
+}) {
+  return (
+    <section className="space-y-3 rounded-lg border border-border bg-background p-5">
+      <div className="flex items-center justify-between">
+        <h2 className="text-[13px] font-medium text-foreground">Your network</h2>
+        <Link to="/network" className="text-[12px] text-muted-foreground hover:text-foreground">
+          {networkCount} →
+        </Link>
+      </div>
+      {latestConnection ? (
+        <p className="text-[12px] text-muted-foreground">
+          Most recent: <span className="text-foreground">{latestConnection.name}</span>
+          {" · "}{formatRelative(latestConnection.at)}
+        </p>
+      ) : (
+        <p className="text-[12px] text-muted-foreground">No connections yet.</p>
+      )}
+      {showAdd && (
+        <Link
+          to="/contacts"
+          className="inline-block text-[12px] text-foreground underline underline-offset-2 hover:opacity-80"
+        >
+          + Add more contacts
+        </Link>
+      )}
+    </section>
+  );
+}
+
+function RecentListsCard({
+  recentLists,
+  listCount,
+}: {
+  recentLists: RecentList[];
+  listCount: number;
+}) {
+  return (
+    <section className="space-y-3 rounded-lg border border-border bg-background p-5">
+      <div className="flex items-center justify-between">
+        <h2 className="text-[13px] font-medium text-foreground">Your recent lists</h2>
+        <Link to="/lists" className="text-[12px] text-muted-foreground hover:text-foreground">
+          All {listCount} →
+        </Link>
+      </div>
+      <ul className="divide-y divide-border">
+        {recentLists.slice(0, 3).map((l) => (
+          <li key={l.id}>
+            <Link
+              to={`/lists/${l.id}`}
+              className="group flex items-center justify-between gap-3 py-2.5 transition-colors hover:opacity-80"
+            >
+              <span className="min-w-0 flex-1 truncate text-[13px] text-foreground">{l.title}</span>
+              <span className="shrink-0 text-[11px] text-muted-foreground">{formatShortDate(l.updated_at)}</span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function GetStartedCard({
+  contactsCount,
+  networkCount,
+}: {
+  contactsCount: number;
+  networkCount: number;
+}) {
+  const contactsDone = contactsCount > 0 || networkCount > 0;
+  const requestDone = false; // new-user gate already ensures 0 requests
+  const answersDone = false;
+  const doneCount = [contactsDone, requestDone, answersDone].filter(Boolean).length;
+
+  const steps: Array<{
+    state: "done" | "active" | "pending";
+    icon: LucideIcon;
+    title: string;
+    meta: string;
+    to?: string;
+  }> = [
+    {
+      state: contactsDone ? "done" : "active",
+      icon: contactsDone ? Check : Users,
+      title: "Add your contacts",
+      meta: contactsDone ? `Done — ${Math.max(contactsCount, networkCount)} connected` : "Import to find people you know",
+      to: "/contacts",
+    },
+    {
+      state: contactsDone ? "active" : "pending",
+      icon: Plus,
+      title: "Create your first request",
+      meta: "Ask your circle anything",
+      to: contactsDone ? "/requests/new" : undefined,
+    },
+    {
+      state: "pending",
+      icon: MessageSquare,
+      title: "Get your first answers",
+      meta: "They'll show up here as they come in",
+    },
+  ];
+
+  return (
+    <section className="rounded-lg border border-border bg-background p-5">
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-[13px] font-medium text-foreground">Get started</h2>
+        <span className="text-[12px] text-muted-foreground">{doneCount} of 3 done</span>
+      </div>
+      <div className="grid gap-3 md:grid-cols-3">
+        {steps.map((s, i) => {
+          const inner = (
+            <div className="flex h-full items-start gap-3 rounded-lg border border-border bg-background p-4">
+              <span
+                className={
+                  s.state === "done"
+                    ? "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[hsl(var(--success-fg,142_70%_38%))] text-background"
+                    : s.state === "active"
+                    ? "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-foreground text-background"
+                    : "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground"
+                }
+              >
+                <s.icon className="h-4 w-4" strokeWidth={1.5} />
+              </span>
+              <div className="min-w-0">
+                <div className={`text-[13px] font-medium ${s.state === "pending" ? "text-muted-foreground" : "text-foreground"}`}>
+                  {s.title}
+                </div>
+                <div className="mt-0.5 text-[12px] text-muted-foreground">{s.meta}</div>
+              </div>
+            </div>
+          );
+          return s.to ? (
+            <Link key={i} to={s.to} className="block transition-opacity hover:opacity-80">
+              {inner}
+            </Link>
+          ) : (
+            <div key={i}>{inner}</div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function NewUserLayout({
+  firstName,
+  contactsCount,
+  networkCount,
+  listCount,
+  latestConnection,
+}: {
+  firstName: string;
+  contactsCount: number;
+  networkCount: number;
+  listCount: number;
+  latestConnection: { name: string; at: Date } | null;
+}) {
+  return (
+    <>
+      <header className="space-y-2">
+        <h1 className="text-[26px] font-medium tracking-tight text-foreground">
+          Welcome to Antelog, {firstName}.
+        </h1>
+        <p className="text-[14px] text-muted-foreground">
+          Two things to do here: ask your circle for recommendations, and browse lists from verified people.
+        </p>
+      </header>
+
+      <ActionButtons />
+
+      <GetStartedCard contactsCount={contactsCount} networkCount={networkCount} />
+
+      <div className="space-y-3">
+        <p className="text-[12px] uppercase tracking-wider text-muted-foreground">
+          What you'll see here as you go
+        </p>
+        <DormantTrio />
+      </div>
+
+      <div className="grid gap-8 lg:grid-cols-[1.6fr_1fr]">
+        <section className="space-y-3">
+          <h2 className="text-[13px] font-medium text-foreground">Recent activity</h2>
+          <div className="rounded-lg border border-dashed border-border bg-background p-6 text-[13px] text-muted-foreground">
+            Send your first request and activity will start showing up here.
+          </div>
+        </section>
+        <div className="space-y-3">
+          <NetworkCard networkCount={networkCount} latestConnection={latestConnection} showAdd />
+          {listCount > 0 ? (
+            <RecentListsCard recentLists={[]} listCount={listCount} />
+          ) : (
+            <section className="rounded-lg border border-dashed border-border bg-background p-5 text-[13px] text-muted-foreground">
+              Your lists will appear here once you make one.
+            </section>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
+function ReturningLayout({
+  firstName,
+  openRequestCount,
+  newResponses,
+  pendingRequests,
+  networkCount,
+  latestConnection,
+  recentLists,
+  listCount,
+  newItems,
+  earlierItems,
+}: {
+  firstName: string;
+  openRequestCount: number;
+  newResponses: number;
+  pendingRequests: PendingRequest[];
+  networkCount: number;
+  latestConnection: { name: string; at: Date } | null;
+  recentLists: RecentList[];
+  listCount: number;
+  newItems: ActivityItem[];
+  earlierItems: ActivityItem[];
+}) {
+  const pendingTotal = pendingRequests.reduce((sum, r) => sum + 1, 0);
+  return (
+    <>
+      <header className="space-y-2">
+        <h1 className="text-[26px] font-medium tracking-tight text-foreground">
+          Welcome back, {firstName}.
+        </h1>
+        <p className="text-[14px] text-muted-foreground">
+          {openRequestCount} open {openRequestCount === 1 ? "request" : "requests"} · {networkCount} {networkCount === 1 ? "person" : "people"} in your network.
+        </p>
+      </header>
+
+      <ActionButtons />
+
+      <RequestTrio
+        openRequestCount={openRequestCount}
+        newResponses={newResponses}
+        pendingCount={pendingTotal}
+        pendingFromName={pendingRequests[0]?.asker_name}
+        pendingHasNew={pendingTotal > 0}
+        forYouCount={0}
+      />
+
+      <div className="grid gap-8 lg:grid-cols-[1.6fr_1fr]">
+        <section className="space-y-5">
+          <h2 className="text-[13px] font-medium text-foreground">Recent activity</h2>
+          {newItems.length === 0 && earlierItems.length === 0 ? (
+            <p className="text-[13px] text-muted-foreground">
+              Nothing yet. When your network responds to a request, it'll show up here.
+            </p>
+          ) : (
+            <div className="activity-scroll space-y-6 overflow-y-auto pr-1" style={{ maxHeight: 440 }}>
+              {newItems.length > 0 && <ActivityGroup label="NEW" items={newItems} />}
+              {earlierItems.length > 0 && <ActivityGroup label="EARLIER" items={earlierItems} />}
+            </div>
+          )}
+        </section>
+        <div className="space-y-3">
+          <NetworkCard networkCount={networkCount} latestConnection={latestConnection} />
+          {recentLists.length > 0 ? (
+            <RecentListsCard recentLists={recentLists} listCount={listCount} />
+          ) : (
+            <section className="rounded-lg border border-dashed border-border bg-background p-5 text-[13px] text-muted-foreground">
+              Your lists will appear here once you make one.
+            </section>
+          )}
+        </div>
+      </div>
+    </>
   );
 }
 
