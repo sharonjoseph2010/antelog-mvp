@@ -460,9 +460,10 @@ function ActionButtons() {
     <div className="grid gap-3 md:grid-cols-[1.35fr_1fr]">
       <Link
         to="/requests/new"
-        className="group flex items-start gap-4 rounded-lg border border-foreground bg-foreground p-5 text-background transition-opacity hover:opacity-90"
+        className="group flex items-start gap-4 rounded-lg p-5 transition-opacity hover:opacity-90 dark:border-[0.5px] dark:border-white/[0.14]"
+        style={{ backgroundColor: "#0A0A0A", color: "#FFFFFF" }}
       >
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[8px] border border-background/20">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[8px]" style={{ border: "1px solid rgba(255,255,255,0.2)", color: "#FFFFFF" }}>
           <Plus className="h-5 w-5" strokeWidth={1.5} />
         </span>
         <span className="min-w-0 flex-1">
@@ -470,7 +471,7 @@ function ActionButtons() {
             Create a request
             <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" strokeWidth={1.5} />
           </span>
-          <span className="mt-1 block text-[12px] text-background/70">
+          <span className="mt-1 block text-[12px]" style={{ color: "rgba(255,255,255,0.72)" }}>
             Ask your circle for the best of anything — answers from people you trust.
           </span>
         </span>
@@ -653,34 +654,34 @@ function NetworkCard({
 }) {
   return (
     <section
-      className="space-y-3 rounded-lg p-5"
-      style={{ backgroundColor: "var(--color-text-primary)", border: "none" }}
+      className="space-y-3 rounded-lg p-5 dark:border-[0.5px] dark:border-white/[0.14]"
+      style={{ backgroundColor: "#0A0A0A" }}
     >
       <div className="flex items-center justify-between">
-        <h2 className="text-[13px] font-medium" style={{ color: "var(--color-background-primary)" }}>
+        <h2 className="text-[13px] font-medium" style={{ color: "#FFFFFF" }}>
           Your network
         </h2>
         <Link
           to="/network"
           className="text-[12px] hover:opacity-80"
-          style={{ color: "rgba(255,255,255,0.7)" }}
+          style={{ color: "rgba(255,255,255,0.72)" }}
         >
           {networkCount} →
         </Link>
       </div>
       {latestConnection ? (
-        <p className="text-[12px]" style={{ color: "rgba(255,255,255,0.7)" }}>
-          Most recent: <span style={{ color: "var(--color-background-primary)" }}>{latestConnection.name}</span>
+        <p className="text-[12px]" style={{ color: "rgba(255,255,255,0.72)" }}>
+          Most recent: <span style={{ color: "#FFFFFF" }}>{latestConnection.name}</span>
           {" · "}{formatRelative(latestConnection.at)}
         </p>
       ) : (
-        <p className="text-[12px]" style={{ color: "rgba(255,255,255,0.7)" }}>No connections yet.</p>
+        <p className="text-[12px]" style={{ color: "rgba(255,255,255,0.72)" }}>No connections yet.</p>
       )}
       {showAdd && (
         <Link
           to="/contacts"
           className="inline-block text-[12px] underline underline-offset-2 hover:opacity-80"
-          style={{ color: "var(--color-background-primary)" }}
+          style={{ color: "#FFFFFF" }}
         >
           + Add more contacts
         </Link>
