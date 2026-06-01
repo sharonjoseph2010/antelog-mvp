@@ -460,10 +460,10 @@ function ActionButtons() {
     <div className="grid gap-3 md:grid-cols-[1.35fr_1fr]">
       <Link
         to="/requests/new"
-        className="group flex items-start gap-4 rounded-lg p-5 transition-opacity hover:opacity-90 dark:border-[0.5px] dark:border-white/[0.14]"
-        style={{ backgroundColor: "#0A0A0A", color: "#FFFFFF" }}
+        className="group flex items-start gap-4 rounded-lg p-5 transition-opacity hover:opacity-90"
+        style={{ backgroundColor: "var(--color-text-primary)", color: "var(--color-background-primary)" }}
       >
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[8px]" style={{ border: "1px solid rgba(255,255,255,0.2)", color: "#FFFFFF" }}>
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[8px]" style={{ border: "1px solid color-mix(in srgb, var(--color-background-primary) 20%, transparent)", color: "var(--color-background-primary)" }}>
           <Plus className="h-5 w-5" strokeWidth={1.5} />
         </span>
         <span className="min-w-0 flex-1">
@@ -471,7 +471,7 @@ function ActionButtons() {
             Create a request
             <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" strokeWidth={1.5} />
           </span>
-          <span className="mt-1 block text-[12px]" style={{ color: "rgba(255,255,255,0.72)" }}>
+          <span className="mt-1 block text-[12px]" style={{ color: "color-mix(in srgb, var(--color-background-primary) 72%, transparent)" }}>
             Ask your circle for the best of anything — answers from people you trust.
           </span>
         </span>
