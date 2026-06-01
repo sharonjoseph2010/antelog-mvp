@@ -355,7 +355,10 @@ const Dashboard = () => {
         .activity-scroll::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground) / 0.4); }
       `}</style>
 
-      <div className="mx-auto flex w-full max-w-[1240px] flex-col px-6 py-10 lg:px-10 lg:py-12" style={{ minHeight: "100vh" }}>
+      <div
+        className="mx-auto flex w-full max-w-[1240px] flex-col px-6 py-10 lg:px-10 lg:py-12"
+        style={{ minHeight: "100vh", backgroundColor: "var(--color-background-tertiary)" }}
+      >
         {loading ? (
           <p className="text-sm text-muted-foreground">Loading…</p>
         ) : (
