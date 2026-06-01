@@ -654,34 +654,34 @@ function NetworkCard({
 }) {
   return (
     <section
-      className="space-y-3 rounded-lg p-5 dark:border-[0.5px] dark:border-white/[0.14]"
-      style={{ backgroundColor: "#0A0A0A" }}
+      className="space-y-3 rounded-lg p-5"
+      style={{ backgroundColor: "var(--color-text-primary)" }}
     >
       <div className="flex items-center justify-between">
-        <h2 className="text-[13px] font-medium" style={{ color: "#FFFFFF" }}>
+        <h2 className="text-[13px] font-medium" style={{ color: "var(--color-background-primary)" }}>
           Your network
         </h2>
         <Link
           to="/network"
           className="text-[12px] hover:opacity-80"
-          style={{ color: "rgba(255,255,255,0.72)" }}
+          style={{ color: "color-mix(in srgb, var(--color-background-primary) 72%, transparent)" }}
         >
           {networkCount} →
         </Link>
       </div>
       {latestConnection ? (
-        <p className="text-[12px]" style={{ color: "rgba(255,255,255,0.72)" }}>
-          Most recent: <span style={{ color: "#FFFFFF" }}>{latestConnection.name}</span>
+        <p className="text-[12px]" style={{ color: "color-mix(in srgb, var(--color-background-primary) 72%, transparent)" }}>
+          Most recent: <span style={{ color: "var(--color-background-primary)" }}>{latestConnection.name}</span>
           {" · "}{formatRelative(latestConnection.at)}
         </p>
       ) : (
-        <p className="text-[12px]" style={{ color: "rgba(255,255,255,0.72)" }}>No connections yet.</p>
+        <p className="text-[12px]" style={{ color: "color-mix(in srgb, var(--color-background-primary) 72%, transparent)" }}>No connections yet.</p>
       )}
       {showAdd && (
         <Link
           to="/contacts"
           className="inline-block text-[12px] underline underline-offset-2 hover:opacity-80"
-          style={{ color: "#FFFFFF" }}
+          style={{ color: "var(--color-background-primary)" }}
         >
           + Add more contacts
         </Link>
