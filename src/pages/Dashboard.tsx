@@ -652,25 +652,35 @@ function NetworkCard({
   showAdd?: boolean;
 }) {
   return (
-    <section className="space-y-3 rounded-lg border border-border bg-background p-5">
+    <section
+      className="space-y-3 rounded-lg p-5"
+      style={{ backgroundColor: "var(--color-text-primary)", border: "none" }}
+    >
       <div className="flex items-center justify-between">
-        <h2 className="text-[13px] font-medium text-foreground">Your network</h2>
-        <Link to="/network" className="text-[12px] text-muted-foreground hover:text-foreground">
+        <h2 className="text-[13px] font-medium" style={{ color: "var(--color-background-primary)" }}>
+          Your network
+        </h2>
+        <Link
+          to="/network"
+          className="text-[12px] hover:opacity-80"
+          style={{ color: "rgba(255,255,255,0.7)" }}
+        >
           {networkCount} →
         </Link>
       </div>
       {latestConnection ? (
-        <p className="text-[12px] text-muted-foreground">
-          Most recent: <span className="text-foreground">{latestConnection.name}</span>
+        <p className="text-[12px]" style={{ color: "rgba(255,255,255,0.7)" }}>
+          Most recent: <span style={{ color: "var(--color-background-primary)" }}>{latestConnection.name}</span>
           {" · "}{formatRelative(latestConnection.at)}
         </p>
       ) : (
-        <p className="text-[12px] text-muted-foreground">No connections yet.</p>
+        <p className="text-[12px]" style={{ color: "rgba(255,255,255,0.7)" }}>No connections yet.</p>
       )}
       {showAdd && (
         <Link
           to="/contacts"
-          className="inline-block text-[12px] text-foreground underline underline-offset-2 hover:opacity-80"
+          className="inline-block text-[12px] underline underline-offset-2 hover:opacity-80"
+          style={{ color: "var(--color-background-primary)" }}
         >
           + Add more contacts
         </Link>
