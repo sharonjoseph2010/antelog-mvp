@@ -1668,6 +1668,7 @@ export type Database = {
         Args: never
         Returns: Database["public"]["Enums"]["app_role"]
       }
+      get_dashboard_summary: { Args: never; Returns: Json }
       get_degree_of_separation: {
         Args: { user_a: string; user_b: string }
         Returns: number

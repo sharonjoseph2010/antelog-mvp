@@ -64,6 +64,10 @@ All colors MUST be HSL.
     --color-border-secondary: hsl(var(--border));
     --color-background-primary: hsl(var(--background));
 
+    /* Three-value greyscale contrast tokens */
+    --color-background-tertiary: hsl(210 20% 97%);
+    --color-border-primary: hsl(220 13% 80%);
+
     /* ===== Antelog semantic colour system =====
        Four colours, one job each. Surfaces always use the lightest stop;
        colour lives in border + text, never in a saturated fill. */
@@ -134,6 +138,9 @@ All colors MUST be HSL.
     --color-text-secondary: hsl(var(--muted-foreground));
     --color-border-secondary: hsl(var(--border));
     --color-background-primary: hsl(var(--background));
+
+    --color-background-tertiary: hsl(222 30% 8%);
+    --color-border-primary: hsl(217 20% 35%);
 
     /* Brand semantic colours are intentionally identical across themes —
        they are signals, not surfaces, and must read the same everywhere. */

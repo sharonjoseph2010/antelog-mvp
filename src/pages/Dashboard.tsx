@@ -355,7 +355,8 @@ const Dashboard = () => {
         .activity-scroll::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground) / 0.4); }
       `}</style>
 
-      <div className="mx-auto flex w-full max-w-[1240px] flex-col px-6 py-10 lg:px-10 lg:py-12" style={{ minHeight: "100vh" }}>
+      <div style={{ backgroundColor: "var(--color-background-tertiary)", minHeight: "100vh" }}>
+      <div className="mx-auto flex w-full max-w-[1240px] flex-col px-6 py-10 lg:px-10 lg:py-12">
         {loading ? (
           <p className="text-sm text-muted-foreground">Loading…</p>
         ) : (
@@ -399,6 +400,7 @@ const Dashboard = () => {
             </footer>
           </div>
         )}
+      </div>
       </div>
     </>
   );
@@ -503,6 +505,7 @@ function TrioCard({
   dot,
   dormant,
   description,
+  variant,
 }: {
   to?: string;
   icon: LucideIcon;
@@ -512,25 +515,33 @@ function TrioCard({
   dot?: boolean;
   dormant?: boolean;
   description?: string;
+  variant?: "recede" | "forward";
 }) {
   const base =
-    "relative flex h-full flex-col justify-between gap-4 rounded-lg border p-5 transition-colors";
-  const borderCls = info
-    ? "border-[hsl(var(--info-fg)/0.35)]"
-    : "border-border";
-  const bgCls = dormant ? "bg-muted/30" : "bg-background";
+    "relative flex h-full flex-col justify-between gap-4 rounded-lg p-5 transition-colors";
+  const recede = variant === "recede";
+  const forward = variant === "forward";
+  const cardStyle: React.CSSProperties = recede
+    ? { backgroundColor: "var(--color-background-secondary)", border: "0.5px solid transparent" }
+    : forward
+    ? { backgroundColor: "var(--color-background-primary)", border: "0.5px solid var(--color-border-primary)" }
+    : { backgroundColor: dormant ? "var(--color-background-secondary)" : "var(--color-background-primary)", border: "0.5px solid var(--color-border-secondary)" };
+  const iconBorder = "0.5px solid var(--color-border-secondary)";
   const iconCls = dormant ? "text-muted-foreground/60" : "text-foreground";
   const content = (
     <>
       <div className="flex items-start justify-between">
-        <span className={`flex h-10 w-10 items-center justify-center rounded-[8px] border ${borderCls} ${iconCls}`}>
+        <span
+          className={`flex h-10 w-10 items-center justify-center rounded-[8px] ${iconCls}`}
+          style={{ border: iconBorder }}
+        >
           <Icon className="h-[18px] w-[18px]" strokeWidth={1.5} />
         </span>
         {dot && (
           <span
             aria-label="New"
             className="inline-block h-[7px] w-[7px] rounded-full"
-            style={{ backgroundColor: "hsl(var(--info-fg))" }}
+            style={{ backgroundColor: "var(--color-text-primary)" }}
           />
         )}
       </div>
@@ -546,10 +557,10 @@ function TrioCard({
     </>
   );
   if (!to) {
-    return <div className={`${base} ${borderCls} ${bgCls} cursor-default`}>{content}</div>;
+    return <div className={`${base} cursor-default`} style={cardStyle}>{content}</div>;
   }
   return (
-    <Link to={to} className={`${base} ${borderCls} ${bgCls} hover:bg-muted/40`}>
+    <Link to={to} className={`${base} hover:opacity-95`} style={cardStyle}>
       {content}
     </Link>
   );
@@ -576,13 +587,14 @@ function RequestTrio({
         to="/requests?filter=mine"
         icon={ArrowUpRight}
         label="You asked"
+        variant="recede"
         meta={`${openRequestCount} open · ${newResponses > 0 ? `${newResponses} new ${newResponses === 1 ? "reply" : "replies"}` : "no new replies"}`}
       />
       <TrioCard
         to="/requests?filter=incoming"
         icon={Inbox}
         label="Asked of you"
-        info
+        variant="forward"
         dot={pendingHasNew}
         meta={
           pendingCount > 0
@@ -594,7 +606,7 @@ function RequestTrio({
         to="/for-you"
         icon={Target}
         label="For you"
-        info
+        variant="forward"
         dot={forYouCount > 0}
         meta={`${forYouCount} match your interests`}
       />
@@ -609,19 +621,21 @@ function DormantTrio() {
         icon={ArrowUpRight}
         label="You asked"
         dormant
+        variant="recede"
         description="Requests you create show up here."
       />
       <TrioCard
         icon={Inbox}
         label="Asked of you"
         dormant
+        variant="forward"
         description="When someone in your network asks you, it lands here."
       />
       <TrioCard
         to="/profile"
         icon={Target}
         label="For you"
-        info
+        variant="forward"
         description="Add your interests to get matched with requests you can answer →"
       />
     </div>
