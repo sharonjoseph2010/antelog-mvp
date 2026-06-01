@@ -4,14 +4,19 @@ import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
   ArrowRight,
+  ArrowUpRight,
+  BookOpen,
+  Check,
   Inbox,
   List as ListIcon,
+  ListChecks,
   MessageSquare,
+  Plus,
+  Target,
   Users,
   UserCheck,
   UserPlus,
   Star,
-  type LucideIcon,
 } from "lucide-react";
 
 interface ActivityItem {
@@ -112,6 +117,7 @@ const Dashboard = () => {
   const [openRequests, setOpenRequests] = useState<OpenRequest[]>([]);
   const [pendingRequests, setPendingRequests] = useState<PendingRequest[]>([]);
   const [recentLists, setRecentLists] = useState<RecentList[]>([]);
+  const [contactsCount, setContactsCount] = useState(0);
 
   useEffect(() => {
     let mounted = true;
@@ -145,6 +151,13 @@ const Dashboard = () => {
           .order("updated_at", { ascending: false })
           .limit(3),
       ]);
+
+      // Imported contacts count
+      const { count: importedCount } = await supabase
+        .from("contact_imports")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId);
+      setContactsCount(importedCount || 0);
 
       if (!mounted) return;
 
