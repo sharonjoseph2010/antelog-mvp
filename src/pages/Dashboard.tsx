@@ -17,6 +17,7 @@ import {
   UserCheck,
   UserPlus,
   Star,
+  type LucideIcon,
 } from "lucide-react";
 
 interface ActivityItem {
