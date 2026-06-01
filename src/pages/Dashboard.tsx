@@ -587,13 +587,14 @@ function RequestTrio({
         to="/requests?filter=mine"
         icon={ArrowUpRight}
         label="You asked"
+        variant="recede"
         meta={`${openRequestCount} open · ${newResponses > 0 ? `${newResponses} new ${newResponses === 1 ? "reply" : "replies"}` : "no new replies"}`}
       />
       <TrioCard
         to="/requests?filter=incoming"
         icon={Inbox}
         label="Asked of you"
-        info
+        variant="forward"
         dot={pendingHasNew}
         meta={
           pendingCount > 0
@@ -605,7 +606,7 @@ function RequestTrio({
         to="/for-you"
         icon={Target}
         label="For you"
-        info
+        variant="forward"
         dot={forYouCount > 0}
         meta={`${forYouCount} match your interests`}
       />
@@ -620,19 +621,21 @@ function DormantTrio() {
         icon={ArrowUpRight}
         label="You asked"
         dormant
+        variant="recede"
         description="Requests you create show up here."
       />
       <TrioCard
         icon={Inbox}
         label="Asked of you"
         dormant
+        variant="forward"
         description="When someone in your network asks you, it lands here."
       />
       <TrioCard
         to="/profile"
         icon={Target}
         label="For you"
-        info
+        variant="forward"
         description="Add your interests to get matched with requests you can answer →"
       />
     </div>
