@@ -522,10 +522,10 @@ function TrioCard({
   const recede = variant === "recede";
   const forward = variant === "forward";
   const cardStyle: React.CSSProperties = recede
-    ? { backgroundColor: "var(--color-background-secondary)", border: "0.5px solid transparent" }
+    ? { backgroundColor: "var(--color-background-primary)", border: "0.5px solid var(--color-border-secondary)" }
     : forward
     ? { backgroundColor: "var(--color-background-primary)", border: "0.5px solid var(--color-border-primary)" }
-    : { backgroundColor: dormant ? "var(--color-background-secondary)" : "var(--color-background-primary)", border: "0.5px solid var(--color-border-secondary)" };
+    : { backgroundColor: "var(--color-background-primary)", border: "0.5px solid var(--color-border-secondary)" };
   const iconBorder = "0.5px solid var(--color-border-secondary)";
   const iconCls = dormant ? "text-muted-foreground/60" : "text-foreground";
   const content = (
