@@ -8,8 +8,6 @@ import {
   BookOpen,
   Check,
   Inbox,
-  List as ListIcon,
-  ListChecks,
   MessageSquare,
   Plus,
   Target,
