@@ -72,10 +72,8 @@ export function TopNav() {
             </NavLink>
             <span className="self-center h-[14px] w-px bg-border" />
             <nav className="flex items-baseline gap-5">
-              <NavLink to="/dashboard" className={navLinkCls} end>Dashboard</NavLink>
-              <NavLink to="/network" className={navLinkCls}>Network</NavLink>
+              <NavLink to="/dashboard" className={navLinkCls} end>Home</NavLink>
               <NavLink to="/requests" className={navLinkCls}>Requests</NavLink>
-              <NavLink to="/lists" className={navLinkCls}>My Lists</NavLink>
               <NavLink to="/for-you" className={navLinkCls}>
                 <span className="relative inline-flex items-center">
                   For You
@@ -88,6 +86,7 @@ export function TopNav() {
                   )}
                 </span>
               </NavLink>
+              <NavLink to="/network" className={navLinkCls}>Network</NavLink>
             </nav>
           </div>
 
