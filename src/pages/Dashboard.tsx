@@ -363,198 +363,31 @@ const Dashboard = () => {
         ) : (
           <div className="flex flex-1 flex-col space-y-10">
             <div className="flex-1 space-y-10">
-            {/* Welcome header */}
-            <header className="space-y-2">
-              <h1 className="text-[26px] font-medium tracking-tight text-foreground">
-                Welcome back, {firstName}.
-              </h1>
-              <p className="text-[14px] text-muted-foreground">
-                {networkCount === 0
-                  ? "You have no connections yet. Import your contacts to get started."
-                  : openRequestCount === 0
-                  ? `You have ${networkCount} ${networkCount === 1 ? "person" : "people"} in your network. Ask them something.`
-                  : `You have ${openRequestCount} open ${openRequestCount === 1 ? "request" : "requests"} and ${networkCount} ${networkCount === 1 ? "person" : "people"} in your network.`}
-              </p>
-            </header>
-
-            {/* Black summary bar */}
-            <Link
-              to="/requests/new"
-              className="group flex items-center justify-between rounded-lg bg-foreground px-5 py-4 text-background transition-opacity hover:opacity-90"
-            >
-              <span className="text-[14px]">
-                <span className="font-medium">{newResponses}</span> new{" "}
-                {newResponses === 1 ? "response" : "responses"} ·{" "}
-                <span className="font-medium">{openRequestCount}</span> open{" "}
-                {openRequestCount === 1 ? "request" : "requests"}
-              </span>
-              <span className="flex items-center gap-1.5 text-[13px]">
-                Get recommendations from people you trust
-                <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" strokeWidth={1.5} />
-              </span>
-            </Link>
-
-            {/* Stat cards */}
-            <div className="grid gap-3 md:grid-cols-[1.6fr_1fr_1fr]">
-              <Link
-                to="/friends"
-                className="flex flex-col justify-between gap-4 rounded-lg border border-border bg-background p-5 transition-colors hover:bg-muted/40"
-              >
-                <div className="flex items-center gap-3">
-                  <span className="flex h-11 w-11 items-center justify-center rounded-[10px] border border-border bg-background text-muted-foreground">
-                    <Users className="h-5 w-5" strokeWidth={1.5} />
-                  </span>
-                  <span className="flex flex-col">
-                    <span className="text-[10px] font-normal uppercase tracking-wider text-muted-foreground">
-                      Your Network
-                    </span>
-                    <span className="text-[28px] font-normal leading-tight text-foreground">{networkCount}</span>
-                  </span>
-                </div>
-                {latestConnection && (
-                  <div className="text-[12px] text-muted-foreground">
-                    <span className="text-foreground">{latestConnection.name}</span>
-                    {" · "}connected {formatRelative(latestConnection.at)}
-                  </div>
-                )}
-              </Link>
-              <StatCardSmall icon={MessageSquare} label="New Responses" value={newResponses} to="/requests?status=open" />
-              <StatCardSmall icon={Inbox} label="Open Requests" value={openRequestCount} to="/requests?status=open" />
-            </div>
-
-            {/* Two-column body */}
-            <div className="grid gap-8 lg:grid-cols-[1.6fr_1fr]">
-              {/* Left: Recent activity */}
-              <section className="space-y-5">
-                <h2 className="text-[15px] font-medium text-foreground">Recent activity</h2>
-                {activity.length === 0 ? (
-                  <p className="text-[13px] text-muted-foreground">
-                    Nothing yet. When your network responds to a request, it'll show up here.
-                  </p>
-                ) : (
-                  <div
-                    className="activity-scroll space-y-6 overflow-y-auto pr-1"
-                    style={{ maxHeight: 440 }}
-                  >
-                    {newItems.length > 0 && (
-                      <ActivityGroup label="NEW" items={newItems} />
-                    )}
-                    {earlierItems.length > 0 && (
-                      <ActivityGroup label="EARLIER" items={earlierItems} />
-                    )}
-                  </div>
-                )}
-              </section>
-
-              {/* Right column */}
-              <div className="space-y-6">
-                {openRequests.length > 0 && (
-                  <section className="rounded-lg bg-foreground p-6 text-background">
-                    <h2 className="text-[15px] font-medium">Continue where you left off</h2>
-                    <ul className="mt-4 divide-y divide-background/10">
-                      {openRequests.map((r) => (
-                        <li key={r.id}>
-                          <Link
-                            to={`/requests/${r.id}/respond`}
-                            className="group flex items-center justify-between gap-4 py-3 transition-opacity hover:opacity-80"
-                          >
-                            <span className="min-w-0 flex-1 truncate text-[14px]">{r.title}</span>
-                            <span className="flex items-center gap-3 text-[12px] text-background/70">
-                              <span>
-                                {r.response_count} {r.response_count === 1 ? "response" : "responses"}
-                              </span>
-                              <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" strokeWidth={1.5} />
-                            </span>
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                    <Link
-                      to="/requests"
-                      className="mt-4 inline-flex items-center gap-1 text-[12px] text-background/80 hover:text-background"
-                    >
-                      View all requests
-                      <ArrowRight className="h-3 w-3" strokeWidth={1.5} />
-                    </Link>
-                  </section>
-                )}
-
-                {/* Requests waiting on you */}
-                <section className="space-y-3 rounded-lg border border-border bg-background p-5">
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-[15px] font-medium text-foreground">
-                      Requests waiting on you
-                    </h2>
-                    <Link to="/requests" className="text-[12px] text-muted-foreground hover:text-foreground">
-                      View all →
-                    </Link>
-                  </div>
-                  {pendingRequests.length === 0 ? (
-                    <p className="text-[13px] text-muted-foreground">
-                      When someone in your network asks a question you can answer, it'll show up here.
-                    </p>
-                  ) : (
-                    <ul className="divide-y divide-border rounded-lg border border-border">
-                      {pendingRequests.map((r) => (
-                        <li key={r.id}>
-                          <Link
-                            to={`/requests/${r.id}/respond`}
-                            className="group flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-muted/40"
-                          >
-                            <span className="min-w-0 flex-1 truncate text-[14px] text-foreground">{r.title}</span>
-                            <span className="flex shrink-0 items-center gap-3 text-[12px] text-muted-foreground">
-                              <span>{r.asker_name} · {r.response_count} {r.response_count === 1 ? "response" : "responses"}</span>
-                              <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" strokeWidth={1.5} />
-                            </span>
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </section>
-
-                {/* Your recent lists */}
-                <section className="space-y-3 rounded-lg border border-border bg-background p-5">
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-[15px] font-medium text-foreground">
-                      Your recent lists
-                    </h2>
-                    <Link to="/lists" className="text-[12px] text-muted-foreground hover:text-foreground">
-                      All {listCount} →
-                    </Link>
-                  </div>
-                  {recentLists.length === 0 ? (
-                    <div className="space-y-2">
-                      <p className="text-[13px] text-muted-foreground">
-                        Lists are your saved recommendations — best cafes, gear you trust, places to stay.
-                      </p>
-                      <p className="text-[13px] text-muted-foreground">
-                        <Link to="/lists/new" className="underline underline-offset-2 hover:text-foreground">
-                          Save your first recommendations →
-                        </Link>
-                      </p>
-                    </div>
-                  ) : (
-                    <ul className="divide-y divide-border rounded-lg border border-border">
-                      {recentLists.map((l) => (
-                        <li key={l.id}>
-                          <Link
-                            to={`/lists/${l.id}`}
-                            className="group flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-muted/40"
-                          >
-                            <span className="min-w-0 flex-1 truncate text-[14px] text-foreground">{l.title}</span>
-                            <span className="flex shrink-0 items-center gap-3 text-[12px] text-muted-foreground">
-                              <span>{formatShortDate(l.updated_at)}</span>
-                              <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" strokeWidth={1.5} />
-                            </span>
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </section>
-              </div>
-            </div>
+            {(() => {
+              const isNewUser = openRequestCount === 0 && activity.length === 0;
+              return isNewUser ? (
+                <NewUserLayout
+                  firstName={firstName}
+                  contactsCount={contactsCount}
+                  networkCount={networkCount}
+                  listCount={listCount}
+                  latestConnection={latestConnection}
+                />
+              ) : (
+                <ReturningLayout
+                  firstName={firstName}
+                  openRequestCount={openRequestCount}
+                  newResponses={newResponses}
+                  pendingRequests={pendingRequests}
+                  networkCount={networkCount}
+                  latestConnection={latestConnection}
+                  recentLists={recentLists}
+                  listCount={listCount}
+                  newItems={newItems}
+                  earlierItems={earlierItems}
+                />
+              );
+            })()}
             </div>
 
             <footer className="flex flex-col items-start justify-between gap-2 border-t border-border pt-6 text-[12px] text-muted-foreground sm:flex-row sm:items-center">
