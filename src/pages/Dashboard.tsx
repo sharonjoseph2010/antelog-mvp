@@ -505,6 +505,7 @@ function TrioCard({
   dot,
   dormant,
   description,
+  variant,
 }: {
   to?: string;
   icon: LucideIcon;
@@ -514,25 +515,33 @@ function TrioCard({
   dot?: boolean;
   dormant?: boolean;
   description?: string;
+  variant?: "recede" | "forward";
 }) {
   const base =
-    "relative flex h-full flex-col justify-between gap-4 rounded-lg border p-5 transition-colors";
-  const borderCls = info
-    ? "border-[hsl(var(--info-fg)/0.35)]"
-    : "border-border";
-  const bgCls = dormant ? "bg-muted/30" : "bg-background";
+    "relative flex h-full flex-col justify-between gap-4 rounded-lg p-5 transition-colors";
+  const recede = variant === "recede";
+  const forward = variant === "forward";
+  const cardStyle: React.CSSProperties = recede
+    ? { backgroundColor: "var(--color-background-secondary)", border: "0.5px solid transparent" }
+    : forward
+    ? { backgroundColor: "var(--color-background-primary)", border: "0.5px solid var(--color-border-primary)" }
+    : { backgroundColor: dormant ? "var(--color-background-secondary)" : "var(--color-background-primary)", border: "0.5px solid var(--color-border-secondary)" };
+  const iconBorder = "0.5px solid var(--color-border-secondary)";
   const iconCls = dormant ? "text-muted-foreground/60" : "text-foreground";
   const content = (
     <>
       <div className="flex items-start justify-between">
-        <span className={`flex h-10 w-10 items-center justify-center rounded-[8px] border ${borderCls} ${iconCls}`}>
+        <span
+          className={`flex h-10 w-10 items-center justify-center rounded-[8px] ${iconCls}`}
+          style={{ border: iconBorder }}
+        >
           <Icon className="h-[18px] w-[18px]" strokeWidth={1.5} />
         </span>
         {dot && (
           <span
             aria-label="New"
             className="inline-block h-[7px] w-[7px] rounded-full"
-            style={{ backgroundColor: "hsl(var(--info-fg))" }}
+            style={{ backgroundColor: "var(--color-text-primary)" }}
           />
         )}
       </div>
@@ -548,10 +557,10 @@ function TrioCard({
     </>
   );
   if (!to) {
-    return <div className={`${base} ${borderCls} ${bgCls} cursor-default`}>{content}</div>;
+    return <div className={`${base} cursor-default`} style={cardStyle}>{content}</div>;
   }
   return (
-    <Link to={to} className={`${base} ${borderCls} ${bgCls} hover:bg-muted/40`}>
+    <Link to={to} className={`${base} hover:opacity-95`} style={cardStyle}>
       {content}
     </Link>
   );
