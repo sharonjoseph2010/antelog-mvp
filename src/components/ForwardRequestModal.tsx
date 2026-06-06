@@ -1,3 +1,4 @@
+import { log } from "@/lib/logger";
 import { useState, useEffect } from "react";
 import {
   Dialog,
@@ -69,16 +70,16 @@ export function ForwardRequestModal({
 
   const loadFriends = async () => {
     try {
-      console.log('=== FETCHING 1ST NETWORK FOR FORWARDING ===');
+      log('=== FETCHING 1ST NETWORK FOR FORWARDING ===');
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        console.log('No authenticated user');
+        log('No authenticated user');
         return;
       }
       
-      console.log('Current user ID (forwarder):', user.id);
-      console.log('Request creator ID (to exclude):', requestCreatorId);
-      console.log('Request being forwarded:', requestId);
+      log('Current user ID (forwarder):', user.id);
+      log('Request creator ID (to exclude):', requestCreatorId);
+      log('Request being forwarded:', requestId);
 
       // Get user's 1st network connections
       const { data: friendships, error } = await supabase
@@ -86,8 +87,8 @@ export function ForwardRequestModal({
         .select('user1_id, user2_id')
         .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`);
 
-      console.log('Friendships query result:', friendships);
-      console.log('Friendships error:', error);
+      log('Friendships query result:', friendships);
+      log('Friendships error:', error);
 
       if (error) throw error;
 
@@ -96,11 +97,11 @@ export function ForwardRequestModal({
         f.user1_id === user.id ? f.user2_id : f.user1_id
       ) || [];
 
-      console.log('Friend IDs extracted:', friendIds);
+      log('Friend IDs extracted:', friendIds);
 
       // If no friends, set empty array and return early
       if (friendIds.length === 0) {
-        console.log('No friends found in 1st network');
+        log('No friends found in 1st network');
         setFriends([]);
         setLoading(false);
         return;
@@ -112,45 +113,45 @@ export function ForwardRequestModal({
         .select('id, full_name, handle')
         .in('id', friendIds);
 
-      console.log('Profiles query result:', profiles);
-      console.log('Profiles error:', profilesError);
+      log('Profiles query result:', profiles);
+      log('Profiles error:', profilesError);
 
       if (profilesError) throw profilesError;
 
       // SIMPLIFIED FILTERING: Only exclude the request creator
-      console.log('Request creator to exclude:', requestCreatorId);
-      console.log('Profiles before filtering:', profiles);
+      log('Request creator to exclude:', requestCreatorId);
+      log('Profiles before filtering:', profiles);
       
       // Debug each profile
       profiles?.forEach(profile => {
-        console.log(`Checking profile: ${profile.handle || profile.full_name}`);
-        console.log(`  - ID: ${profile.id}`);
-        console.log(`  - Is creator? ${profile.id === requestCreatorId}`);
-        console.log(`  - Has full_name? ${!!profile.full_name}`);
-        console.log(`  - Has handle? ${!!profile.handle}`);
-        console.log(`  - Has identifier? ${!!(profile.full_name || profile.handle)}`);
+        log(`Checking profile: ${profile.handle || profile.full_name}`);
+        log(`  - ID: ${profile.id}`);
+        log(`  - Is creator? ${profile.id === requestCreatorId}`);
+        log(`  - Has full_name? ${!!profile.full_name}`);
+        log(`  - Has handle? ${!!profile.handle}`);
+        log(`  - Has identifier? ${!!(profile.full_name || profile.handle)}`);
       });
       
       const filteredProfiles = profiles?.filter(p => {
         // Exclude creator
         if (p.id === requestCreatorId) {
-          console.log(`Profile ${p.handle || p.full_name}: ❌ EXCLUDED (is creator)`);
+          log(`Profile ${p.handle || p.full_name}: ❌ EXCLUDED (is creator)`);
           return false;
         }
         
         // Include if has any identifier (full_name OR handle)
         const hasIdentifier = p.full_name || p.handle;
         if (hasIdentifier) {
-          console.log(`Profile ${p.handle || p.full_name}: ✅ INCLUDED`);
+          log(`Profile ${p.handle || p.full_name}: ✅ INCLUDED`);
           return true;
         }
         
-        console.log(`Profile unknown: ❌ EXCLUDED (no identifier)`);
+        log(`Profile unknown: ❌ EXCLUDED (no identifier)`);
         return false;
       }) || [];
 
-      console.log('Filtered profiles for forwarding:', filteredProfiles);
-      console.log('Number of available contacts:', filteredProfiles.length);
+      log('Filtered profiles for forwarding:', filteredProfiles);
+      log('Number of available contacts:', filteredProfiles.length);
       
       setFriends(filteredProfiles as Friend[]);
     } catch (error) {
@@ -189,8 +190,8 @@ export function ForwardRequestModal({
       if (!user) return;
 
       // Get current user's profile
-      console.log('=== FETCHING FORWARDER PROFILE ===');
-      console.log('Current user ID:', user.id);
+      log('=== FETCHING FORWARDER PROFILE ===');
+      log('Current user ID:', user.id);
       
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
@@ -198,13 +199,13 @@ export function ForwardRequestModal({
         .eq('id', user.id)
         .single();
 
-      console.log('Profile fetch error:', profileError);
-      console.log('Profile data:', profile);
-      console.log('full_name:', profile?.full_name);
-      console.log('handle:', profile?.handle);
+      log('Profile fetch error:', profileError);
+      log('Profile data:', profile);
+      log('full_name:', profile?.full_name);
+      log('handle:', profile?.handle);
 
       const forwarderName = profile?.full_name || profile?.handle || 'Someone';
-      console.log('Forwarder name to use:', forwarderName);
+      log('Forwarder name to use:', forwarderName);
 
       // Build network path (add current user to end of existing path)
       const newNetworkPath = [
@@ -234,10 +235,10 @@ export function ForwardRequestModal({
       if (error) throw error;
 
       // Create notifications for recipients with actual names
-      console.log('=== CREATING FORWARD NOTIFICATIONS ===');
-      console.log('Forwarder name for notification:', forwarderName);
-      console.log('Request title:', requestTitle);
-      console.log('Request creator name:', requestCreatorName);
+      log('=== CREATING FORWARD NOTIFICATIONS ===');
+      log('Forwarder name for notification:', forwarderName);
+      log('Request title:', requestTitle);
+      log('Request creator name:', requestCreatorName);
       
       const notifications = selectedFriendIds.map(friendId => ({
         user_id: friendId,
@@ -248,13 +249,13 @@ export function ForwardRequestModal({
         metadata: { request_id: requestId }
       }));
       
-      console.log('Notifications to insert:', notifications);
+      log('Notifications to insert:', notifications);
 
       const { error: notifError } = await supabase
         .from('notifications')
         .insert(notifications);
       
-      console.log('Notification insert error:', notifError);
+      log('Notification insert error:', notifError);
 
       toast({
         title: "Request Forwarded!",

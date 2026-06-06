@@ -1,3 +1,4 @@
+import { log } from "@/lib/logger";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Bell } from "lucide-react";
@@ -40,14 +41,14 @@ const Header = ({ isAuthenticated, isAdmin, userType, onLogout }: HeaderProps) =
   const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
-    console.log('[Header] Component mounted, checking authentication...');
-    console.log('[Header] isAuthenticated:', isAuthenticated, 'userType:', userType);
+    log('[Header] Component mounted, checking authentication...');
+    log('[Header] isAuthenticated:', isAuthenticated, 'userType:', userType);
     
     if (isAuthenticated) {
-      console.log('[Header] ✅ User is authenticated, loading notifications...');
+      log('[Header] ✅ User is authenticated, loading notifications...');
       loadNotifications();
       
-      console.log('[Header] Setting up real-time subscription to notifications...');
+      log('[Header] Setting up real-time subscription to notifications...');
       // Set up real-time notifications
       const channel = supabase
         .channel('header-notifications')
@@ -59,34 +60,34 @@ const Header = ({ isAuthenticated, isAdmin, userType, onLogout }: HeaderProps) =
             table: 'notifications'
           },
           (payload) => {
-            console.log('[Header] 🔔 Real-time notification received:', payload);
+            log('[Header] 🔔 Real-time notification received:', payload);
             loadNotifications();
           }
         )
         .subscribe((status) => {
-          console.log('[Header] Real-time subscription status:', status);
+          log('[Header] Real-time subscription status:', status);
         });
 
       return () => {
-        console.log('[Header] Cleaning up real-time subscription...');
+        log('[Header] Cleaning up real-time subscription...');
         supabase.removeChannel(channel);
       };
     } else {
-      console.log('[Header] ⚠️ User not authenticated, skipping notifications');
+      log('[Header] ⚠️ User not authenticated, skipping notifications');
     }
   }, [isAuthenticated, userType]);
 
   const loadNotifications = async () => {
     try {
-      console.log('[Header] loadNotifications called');
+      log('[Header] loadNotifications called');
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
-        console.log('[Header] ⚠️ No user found, skipping notification load');
+        log('[Header] ⚠️ No user found, skipping notification load');
         return;
       }
 
-      console.log('[Header] Fetching notifications for user:', user.id);
+      log('[Header] Fetching notifications for user:', user.id);
 
       const { data, error } = await supabase
         .from('notifications')
@@ -109,7 +110,7 @@ const Header = ({ isAuthenticated, isAdmin, userType, onLogout }: HeaderProps) =
         throw error;
       }
 
-      console.log('[Header] Notifications fetched:', {
+      log('[Header] Notifications fetched:', {
         count: data?.length || 0,
         data: data
       });
@@ -120,7 +121,7 @@ const Header = ({ isAuthenticated, isAdmin, userType, onLogout }: HeaderProps) =
           .filter(n => n.related_user_id)
           .map(n => n.related_user_id!);
         
-        console.log('[Header] Related user IDs to fetch:', relatedUserIds);
+        log('[Header] Related user IDs to fetch:', relatedUserIds);
         
         if (relatedUserIds.length > 0) {
           const { data: profiles, error: profileError } = await supabase
@@ -132,7 +133,7 @@ const Header = ({ isAuthenticated, isAdmin, userType, onLogout }: HeaderProps) =
             console.error('[Header] ❌ Error fetching profiles:', profileError);
           }
           
-          console.log('[Header] Profiles fetched:', profiles);
+          log('[Header] Profiles fetched:', profiles);
           
           const enrichedNotifications = data.map(notification => ({
             ...notification,
@@ -141,21 +142,21 @@ const Header = ({ isAuthenticated, isAdmin, userType, onLogout }: HeaderProps) =
               : undefined
           }));
           
-          console.log('[Header] Enriched notifications:', enrichedNotifications);
+          log('[Header] Enriched notifications:', enrichedNotifications);
           
           setNotifications(enrichedNotifications);
           const unreadCnt = enrichedNotifications.filter(n => !n.is_read).length;
-          console.log('[Header] Unread count:', unreadCnt);
+          log('[Header] Unread count:', unreadCnt);
           setUnreadCount(unreadCnt);
         } else {
-          console.log('[Header] No related users to fetch');
+          log('[Header] No related users to fetch');
           setNotifications(data);
           const unreadCnt = data.filter(n => !n.is_read).length;
-          console.log('[Header] Unread count:', unreadCnt);
+          log('[Header] Unread count:', unreadCnt);
           setUnreadCount(unreadCnt);
         }
       } else {
-        console.log('[Header] No notifications found');
+        log('[Header] No notifications found');
         setNotifications([]);
         setUnreadCount(0);
       }
@@ -166,7 +167,7 @@ const Header = ({ isAuthenticated, isAdmin, userType, onLogout }: HeaderProps) =
 
   const markAsRead = async (notificationId: string) => {
     try {
-      console.log('[Header] Marking notification as read:', notificationId);
+      log('[Header] Marking notification as read:', notificationId);
       
       const { error } = await supabase
         .from('notifications')
@@ -178,7 +179,7 @@ const Header = ({ isAuthenticated, isAdmin, userType, onLogout }: HeaderProps) =
         throw error;
       }
 
-      console.log('[Header] ✅ Notification marked as read');
+      log('[Header] ✅ Notification marked as read');
 
       setNotifications(prev =>
         prev.map(n => n.id === notificationId ? { ...n, is_read: true } : n)
