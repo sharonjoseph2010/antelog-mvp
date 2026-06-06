@@ -1,3 +1,4 @@
+import { log } from "@/lib/logger";
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -123,7 +124,7 @@ const ProfileSetup = () => {
         });
         
         if (reverseMatchCount && reverseMatchCount > 0) {
-          console.log(`New user matched to ${reverseMatchCount} existing contacts`);
+          log(`New user matched to ${reverseMatchCount} existing contacts`);
         }
       }
 

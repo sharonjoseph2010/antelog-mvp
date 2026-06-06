@@ -35,6 +35,7 @@ import RequestReview from "./pages/RequestReview";
 import { supabase } from "@/integrations/supabase/client";
 import type { Session, User } from "@supabase/supabase-js";
 import { ProtectedRoute, AdminRoute, InternalRoute, VerifiedRoute } from "@/components/routes/RouteGuards";
+import { log, warn } from "@/lib/logger";
 import { AppShell } from "@/layouts/AppShell";
 import Directory from "./pages/Directory";
 import DirectoryListDetail from "./pages/DirectoryListDetail";
@@ -60,26 +61,26 @@ function App() {
 
   // Simplified auth logic
   useEffect(() => {
-    console.log('INIT: App starting, setting up auth...');
+    log('INIT: App starting, setting up auth...');
     
     let mounted = true;
     
     // Safety timeout - never stay stuck on loading screen
     const safetyTimeout = setTimeout(() => {
       if (mounted && initializing) {
-        console.warn('INIT: Safety timeout reached, forcing initialization complete');
+        warn('INIT: Safety timeout reached, forcing initialization complete');
         setInitializing(false);
       }
     }, 5000);
 
     const initAuth = async () => {
       try {
-        console.log('INIT: Getting current session...');
+        log('INIT: Getting current session...');
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (!mounted) return;
         
-        console.log('INIT: Session check complete:', { 
+        log('INIT: Session check complete:', { 
           hasSession: !!session, 
           userId: session?.user?.id,
           error: error?.message 
@@ -92,18 +93,18 @@ function App() {
         }
         
         if (session?.user) {
-          console.log('INIT: User found, setting session...');
+          log('INIT: User found, setting session...');
           setSession(session);
           setUser(session.user);
           setUserType('verified'); // Default for now
         } else {
-          console.log('INIT: No session found');
+          log('INIT: No session found');
           setSession(null);
           setUser(null);
           setUserType(null);
         }
         
-        console.log('INIT: Setting initializing to false');
+        log('INIT: Setting initializing to false');
         setInitializing(false);
         
       } catch (error) {
@@ -116,7 +117,7 @@ function App() {
     
     // Set up auth listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log('AUTH: State change:', event, 'Has session:', !!session);
+      log('AUTH: State change:', event, 'Has session:', !!session);
       
       if (!mounted) return;
       
@@ -125,7 +126,7 @@ function App() {
       setUserType(session?.user ? 'verified' : null);
       
       if (!initializing) {
-        console.log('AUTH: Auth change after init complete');
+        log('AUTH: Auth change after init complete');
       }
     });
     
@@ -133,7 +134,7 @@ function App() {
     initAuth();
     
     return () => {
-      console.log('CLEANUP: Unmounting auth setup');
+      log('CLEANUP: Unmounting auth setup');
       mounted = false;
       clearTimeout(safetyTimeout);
       subscription.unsubscribe();
@@ -141,7 +142,7 @@ function App() {
   }, []);
 
   if (initializing) {
-    console.log('DEBUG: App still initializing... Current states:', {
+    log('DEBUG: App still initializing... Current states:', {
       hasSession: !!session,
       hasUser: !!user,
       userType,
@@ -201,6 +202,33 @@ function AppContent({
   const location = useLocation();
   const isGuestPage = location.pathname.startsWith("/r/");
 
+  // Admin status is sourced from the database (user_roles, via the
+  // get_current_user_role RPC) — never from a hard-coded identity. Default to
+  // false until the RPC resolves, and expose a loading flag so a legitimate
+  // admin isn't bounced from /admin during the async check.
+  // See docs/remediation/08-admin-gate.md.
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isAdminLoading, setIsAdminLoading] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+    setIsAdmin(false);
+    if (!user?.id) {
+      setIsAdminLoading(false);
+      return;
+    }
+    setIsAdminLoading(true);
+    (async () => {
+      const { data } = await supabase.rpc("get_current_user_role");
+      if (!mounted) return;
+      setIsAdmin(data === "admin");
+      setIsAdminLoading(false);
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [user?.id]);
+
   // Routes that live inside the authenticated app shell (sidebar nav).
   // Landing, auth, guest, and onboarding pages keep the top Header.
   const SHELL_ROUTES = [
@@ -223,26 +251,26 @@ function AppContent({
 
   // Handle navigation after authentication state is set
   useEffect(() => {
-    console.log("[Auth] Navigation effect triggered:", { initializing, hasSession: !!session?.user, pathname: window.location.pathname });
+    log("[Auth] Navigation effect triggered:", { initializing, hasSession: !!session?.user, pathname: window.location.pathname });
     
     if (initializing) {
-      console.log("[Auth] Still initializing, skipping navigation");
+      log("[Auth] Still initializing, skipping navigation");
       return;
     }
     
     if (!session?.user) {
-      console.log("[Auth] No user session, skipping navigation");
+      log("[Auth] No user session, skipping navigation");
       return;
     }
 
     if (window.location.pathname === "/auth/callback") {
-      console.log("[Auth] On auth callback route, skipping App-level navigation override");
+      log("[Auth] On auth callback route, skipping App-level navigation override");
       return;
     }
 
     const handlePostAuthNavigation = async () => {
       const userId = session.user.id;
-      console.log("[Auth] Starting post-auth navigation for user:", userId);
+      log("[Auth] Starting post-auth navigation for user:", userId);
       
       try {
         const { data: profile, error } = await supabase
@@ -254,18 +282,18 @@ function AppContent({
         if (error) {
           console.error("[Auth] Profile fetch error:", error);
           if (window.location.pathname !== "/profile-setup") {
-            console.log("[Auth] Navigating to profile setup due to error");
+            log("[Auth] Navigating to profile setup due to error");
             navigate("/profile-setup", { replace: true });
           }
           return;
         }
 
-        console.log("[Auth] Profile data:", profile);
+        log("[Auth] Profile data:", profile);
 
         // No profile or missing essentials -> setup
         if (!profile || !profile.full_name || !profile.handle) {
           if (window.location.pathname !== "/profile-setup") {
-            console.log("[Auth] Navigating to profile setup - incomplete profile");
+            log("[Auth] Navigating to profile setup - incomplete profile");
             navigate("/profile-setup", { replace: true });
           }
           return;
@@ -273,7 +301,7 @@ function AppContent({
 
         if (profile.verification_status === "verified") {
           if (window.location.pathname !== "/dashboard") {
-            console.log("[Auth] Navigating to dashboard - verified user");
+            log("[Auth] Navigating to dashboard - verified user");
             navigate("/dashboard", { replace: true });
           }
           return;
@@ -281,13 +309,13 @@ function AppContent({
 
         // Otherwise pending/rejected -> verify
         if (window.location.pathname !== "/verify") {
-          console.log("[Auth] Navigating to verify - pending/rejected status");
+          log("[Auth] Navigating to verify - pending/rejected status");
           navigate("/verify", { replace: true });
         }
       } catch (error) {
         console.error("[Auth] Navigation error:", error);
         if (window.location.pathname !== "/profile-setup") {
-          console.log("[Auth] Navigating to profile setup due to navigation error");
+          log("[Auth] Navigating to profile setup due to navigation error");
           navigate("/profile-setup", { replace: true });
         }
       }
@@ -295,21 +323,20 @@ function AppContent({
 
     // Only navigate if we're on login/signup/landing pages after successful auth
     if (window.location.pathname.startsWith('/requests/')) {
-      console.log('[Auth] On request page, skipping post-auth navigation');
+      log('[Auth] On request page, skipping post-auth navigation');
       return;
     }
     if (["/login", "/signup", "/"].includes(window.location.pathname)) {
-      console.log("[Auth] Current path requires post-auth navigation");
+      log("[Auth] Current path requires post-auth navigation");
       handlePostAuthNavigation();
     } else {
-      console.log("[Auth] Current path doesn't require post-auth navigation");
+      log("[Auth] Current path doesn't require post-auth navigation");
     }
   }, [session, initializing, navigate]);
 
   const isAuthenticated = !!user?.id;
-  const isAdmin = user?.email === "sharonjoseph2010@gmail.com";
 
-  console.log('DEBUG: AppContent render - States:', {
+  log('DEBUG: AppContent render - States:', {
     initializing,
     hasSession: !!session,
     hasUser: !!user,
@@ -322,10 +349,10 @@ function AppContent({
 
   const handleLogout = async () => {
     try {
-      console.log("[Auth] Logging out...");
+      log("[Auth] Logging out...");
       await supabase.auth.signOut({ scope: "local" });
       await supabase.auth.signOut().catch((e) => {
-        console.warn("[Auth] Global signOut warning:", e?.message ?? e);
+        warn("[Auth] Global signOut warning:", e?.message ?? e);
       });
       for (const key of Object.keys(localStorage)) {
         if (key.startsWith("sb-") || key.startsWith("supabase.auth.token")) {
@@ -338,7 +365,7 @@ function AppContent({
       setSession(null);
       setUser(null);
       setUserType(null);
-      console.log("[Auth] Logout complete; session cleared");
+      log("[Auth] Logout complete; session cleared");
     }
   };
 
@@ -536,7 +563,7 @@ function AppContent({
         <Route
           path="/admin"
           element={
-            <AdminRoute isAuthenticated={isAuthenticated} isAdmin={isAdmin}>
+            <AdminRoute isAuthenticated={isAuthenticated} isAdmin={isAdmin} isAdminLoading={isAdminLoading}>
               <Admin />
             </AdminRoute>
           }

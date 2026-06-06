@@ -9,6 +9,9 @@ interface ProtectedRouteProps {
 
 interface AdminRouteProps extends ProtectedRouteProps {
   isAdmin: boolean;
+  // True while the admin role is still being resolved from the DB. Gate the
+  // non-admin redirect on this so a legitimate admin isn't bounced mid-check.
+  isAdminLoading?: boolean;
 }
 
 interface VerifiedRouteProps extends ProtectedRouteProps {
@@ -80,10 +83,17 @@ export const ProtectedRoute = ({ isAuthenticated, children }: ProtectedRouteProp
   return <QuestionnaireGate>{children}</QuestionnaireGate>;
 };
 
-export const AdminRoute = ({ isAuthenticated, isAdmin, children }: AdminRouteProps) => {
+export const AdminRoute = ({ isAuthenticated, isAdmin, isAdminLoading, children }: AdminRouteProps) => {
   const location = useLocation();
   if (!isAuthenticated) {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+  }
+  if (isAdminLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-muted-foreground">
+        Loading…
+      </div>
+    );
   }
   if (!isAdmin) {
     return <Navigate to="/dashboard" replace />;
@@ -114,14 +124,45 @@ export const GuestRoute = ({ isAuthenticated, userType, children }: GuestRoutePr
   return <>{children}</>;
 };
 
-// Only allow access when navigated from an internal flow
+// Gates the onboarding routes (/profile-setup, /verify) on the user's ACTUAL
+// server-side profile state rather than a spoofable `location.state.internal`
+// flag (#14). A user whose profile is complete and verified has no business on
+// these pages and is sent to the dashboard.
 export const InternalRoute = ({ isAuthenticated, children }: ProtectedRouteProps) => {
-  const location = useLocation() as any;
-  const internal = location?.state?.internal === true;
+  const [status, setStatus] = useState<"loading" | "ok" | "deny">("loading");
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
+        if (mounted) setStatus("deny");
+        return;
+      }
+      const { data } = await supabase
+        .from("profiles")
+        .select("full_name, handle, verification_status")
+        .eq("id", session.user.id)
+        .maybeSingle();
+      if (!mounted) return;
+      const incomplete = !data || !data.full_name || !data.handle;
+      const unverified = data?.verification_status !== "verified";
+      setStatus(incomplete || unverified ? "ok" : "deny");
+    })();
+    return () => { mounted = false; };
+  }, []);
+
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
-  if (!internal) {
+  if (status === "loading") {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-muted-foreground">
+        Loading…
+      </div>
+    );
+  }
+  if (status === "deny") {
     return <Navigate to="/dashboard" replace />;
   }
   return <>{children}</>;

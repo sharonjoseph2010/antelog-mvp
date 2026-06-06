@@ -1,3 +1,4 @@
+import { log, warn } from "@/lib/logger";
 import { useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { useNavigate } from "react-router-dom";
@@ -111,7 +112,7 @@ export default function ContactsImportHub() {
     const cleaned = email.trim().toLowerCase();
     // Basic email validation
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleaned)) {
-      console.warn('Invalid email format:', email);
+      warn('Invalid email format:', email);
       return null;
     }
     return cleaned;
@@ -120,7 +121,7 @@ export default function ContactsImportHub() {
   const saveContacts = async (contacts: ManualContact[], source: string) => {
     setIsLoading(true);
     try {
-      console.log('Starting contact import...', { source, contactCount: contacts.length });
+      log('Starting contact import...', { source, contactCount: contacts.length });
       
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
@@ -128,13 +129,13 @@ export default function ContactsImportHub() {
         throw new Error('Not authenticated');
       }
       
-      console.log('User authenticated:', user.id);
+      log('User authenticated:', user.id);
 
       // Validate and normalize contacts
       const contactsToSave = contacts
         .filter(c => {
           if (!c.name.trim()) {
-            console.warn('Skipping contact with empty name');
+            warn('Skipping contact with empty name');
             return false;
           }
           return true;
@@ -147,7 +148,7 @@ export default function ContactsImportHub() {
             contact_email: normalizeEmail(contact.email),
             import_source: source
           };
-          console.log('Normalized contact:', normalized);
+          log('Normalized contact:', normalized);
           return normalized;
         });
 
@@ -160,7 +161,7 @@ export default function ContactsImportHub() {
         return;
       }
 
-      console.log('Inserting contacts into database...', contactsToSave);
+      log('Inserting contacts into database...', contactsToSave);
 
       const { error, data } = await supabase
         .from('contact_imports')
@@ -172,7 +173,7 @@ export default function ContactsImportHub() {
         throw error;
       }
 
-      console.log('Contacts saved successfully:', data);
+      log('Contacts saved successfully:', data);
 
       // Automatically match the newly imported contacts
       const { data: matchCount, error: matchError } = await supabase.rpc('update_matched_contacts', {

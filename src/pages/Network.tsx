@@ -316,13 +316,13 @@ const Network = () => {
         .eq("id", userId)
         .maybeSingle();
       const displayName = me?.full_name || (me?.handle ? `@${me.handle}` : "Someone");
-      await supabase.from("notifications").insert({
-        user_id: row.userId,
-        type: "friend_request",
-        title: `${displayName} wants to add you to their network`,
-        message: "You have a new connection request on Antelog.",
-        related_user_id: userId,
-        metadata: { requester_id: userId },
+      // Direct client INSERT into notifications is denied by RLS (#1/D4).
+      await supabase.rpc("create_notification" as any, {
+        p_user_id: row.userId,
+        p_type: "friend_request",
+        p_title: `${displayName} wants to add you to their network`,
+        p_message: "You have a new connection request on Antelog.",
+        p_metadata: { requester_id: userId },
       });
       toast({ title: "Request sent" });
     } catch (e: any) {

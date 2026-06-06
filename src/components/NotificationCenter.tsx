@@ -229,12 +229,13 @@ export const NotificationCenter = () => {
       const { data: me } = await supabase
         .from('profiles').select('full_name, handle').eq('id', user.id).maybeSingle();
       const displayName = me?.full_name || (me?.handle ? `@${me.handle}` : 'Someone');
-      await supabase.from('notifications').insert({
-        user_id: requesterId,
-        type: 'friend_request_accepted',
-        title: `${displayName} accepted your connection request`,
-        message: 'You are now connected on Antelog.',
-        related_user_id: user.id,
+      // Cross-user notification via SECURITY DEFINER RPC; direct client INSERT
+      // into notifications is denied by RLS (#1/D4). The RPC records the actor.
+      await supabase.rpc('create_notification' as any, {
+        p_user_id: requesterId,
+        p_type: 'friend_request_accepted',
+        p_title: `${displayName} accepted your connection request`,
+        p_message: 'You are now connected on Antelog.',
       });
 
       await markAsRead(notification.id);
