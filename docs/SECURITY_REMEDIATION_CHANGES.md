@@ -3,6 +3,7 @@
 **Branch:** `security-remediation/akp-20260606` · **Base:** `main`
 **Date:** 2026-06-06 · **Author:** akp (Claude-assisted)
 **Companion docs:** [`SECURITY_REVIEW.md`](./SECURITY_REVIEW.md) · [`SECURITY_REMEDIATION.md`](./SECURITY_REMEDIATION.md) · [`remediation/`](./remediation)
+**➡️ To deploy these changes:** follow the step-by-step runbook in [`DEPLOYMENT.md`](./DEPLOYMENT.md) (Supabase migrations, edge functions, dashboard steps). Merging the PR does **not** apply them automatically.
 
 This document records exactly what changed to address the findings in the
 security review. It is the implementation counterpart to the review.
