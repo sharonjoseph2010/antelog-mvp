@@ -64,6 +64,7 @@ const ListEdit = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [isPublished, setIsPublished] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
   const [directoryListId, setDirectoryListId] = useState<string | null>(null);
   const [lockedItems, setLockedItems] = useState<Set<string>>(new Set()); // content strings that are locked
   const [directoryItems, setDirectoryItems] = useState<DirectoryItemInfo[]>([]);
@@ -90,11 +91,29 @@ const ListEdit = () => {
       if (!id) return;
       try {
         setLoading(true);
+
+        // Resolve the caller before querying so we can scope by ownership.
+        // Running the query with a null owner would return no rows and look
+        // like "not found" to a legitimate owner mid-session-load.
+        const { data: { session } } = await supabase.auth.getSession();
+        const uid = session?.user?.id ?? null;
+        if (!mounted) return;
+        setUserId(uid);
+        if (!uid) {
+          navigate("/login", { replace: true });
+          return;
+        }
+
+        // Owner check (#9, IDOR): only the owner may load this list for edit.
+        // This is the correctness boundary that complements RLS — it must hold
+        // even if a policy is misconfigured. A non-owner gets the same
+        // "not found" path as a missing list (no enumeration oracle).
         const [{ data: list, error: listError }, { data: items, error: itemsError }] = await Promise.all([
           supabase
             .from("lists")
             .select("id,title,description,category,visibility,directory_list_id" as any)
             .eq("id", id)
+            .eq("owner_id", uid)
             .maybeSingle(),
           supabase
             .from("list_items")
@@ -182,7 +201,11 @@ const ListEdit = () => {
   };
 
   const onSubmit = async (values: ListFormValues) => {
-    if (!id) return;
+    // Owner is required for every write below. The load path already scoped
+    // this page to the owner; re-asserting on each mutation keeps the writes
+    // safe even if that invariant is ever weakened. list_items inherit
+    // ownership transitively through their parent list.
+    if (!id || !userId) return;
     try {
       setSaving(true);
 
@@ -194,7 +217,8 @@ const ListEdit = () => {
             title: values.title,
             category: values.category,
           })
-          .eq("id", id);
+          .eq("id", id)
+          .eq("owner_id", userId);
         if (listErr) throw listErr;
 
         // Sync to master_directory_lists via SECURITY DEFINER function
@@ -220,7 +244,8 @@ const ListEdit = () => {
             category: values.category,
             visibility: values.visibility,
           })
-          .eq("id", id);
+          .eq("id", id)
+          .eq("owner_id", userId);
         if (listErr) throw listErr;
 
         // Replace all items

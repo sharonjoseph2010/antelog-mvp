@@ -1,3 +1,4 @@
+import { log } from "@/lib/logger";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Recommendation {
@@ -22,7 +23,7 @@ export interface Cluster {
  * Fetches all recommendations and groups similar ones
  */
 export async function clusterRecommendations(requestId: string): Promise<Cluster[]> {
-  console.log('=== STARTING CLUSTERING FOR REQUEST:', requestId);
+  log('=== STARTING CLUSTERING FOR REQUEST:', requestId);
 
   try {
     // Step 1: Fetch all recommendations from Antelog users
@@ -96,12 +97,12 @@ export async function clusterRecommendations(requestId: string): Promise<Cluster
       });
     });
 
-    console.log(`Found ${allRecommendations.length} total recommendations`);
+    log(`Found ${allRecommendations.length} total recommendations`);
 
     // Step 4: Cluster the recommendations
     const clusters = groupSimilarRecommendations(allRecommendations);
 
-    console.log(`Created ${clusters.length} clusters`);
+    log(`Created ${clusters.length} clusters`);
 
     return clusters;
 
@@ -207,7 +208,7 @@ export async function saveClustersForReview(
   requestId: string,
   clusters: Cluster[]
 ): Promise<void> {
-  console.log('=== SAVING CLUSTERS TO DATABASE');
+  log('=== SAVING CLUSTERS TO DATABASE');
 
   try {
     // Clear any existing clusters for this request
@@ -237,7 +238,7 @@ export async function saveClustersForReview(
       if (error) throw error;
     }
 
-    console.log(`Saved ${clusterData.length} clusters`);
+    log(`Saved ${clusterData.length} clusters`);
 
   } catch (error) {
     console.error('Error saving clusters:', error);
@@ -261,7 +262,7 @@ export async function startReviewProcess(requestId: string): Promise<void> {
  * Main function: Cluster and start review
  */
 export async function initiateClusteringReview(requestId: string): Promise<Cluster[]> {
-  console.log('=== INITIATING CLUSTERING REVIEW');
+  log('=== INITIATING CLUSTERING REVIEW');
 
   const clusters = await clusterRecommendations(requestId);
   await saveClustersForReview(requestId, clusters);

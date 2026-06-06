@@ -1,3 +1,4 @@
+import { log } from "@/lib/logger";
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -36,7 +37,7 @@ const ContactDebugPanel = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      console.log("🔍 Loading debug data...");
+      log("🔍 Loading debug data...");
 
       // Load contacts with phone numbers
       const { data: contactsData, error: contactsError } = await supabase
@@ -57,7 +58,7 @@ const ContactDebugPanel = () => {
         matched_user_id: contact.matched_user_id
       }));
 
-      console.log("📋 Contacts loaded:", contactsWithNormalized);
+      log("📋 Contacts loaded:", contactsWithNormalized);
       setContacts(contactsWithNormalized);
 
       // Load all profiles with phone numbers
@@ -77,33 +78,33 @@ const ContactDebugPanel = () => {
         phone_number_normalized: normalizePhone(profile.phone_number || '')
       }));
 
-      console.log("👥 Profiles loaded:", profilesWithNormalized);
+      log("👥 Profiles loaded:", profilesWithNormalized);
       setProfiles(profilesWithNormalized);
 
       // Log matching analysis
-      console.log("\n🔍 MATCHING ANALYSIS:");
+      log("\n🔍 MATCHING ANALYSIS:");
       contactsWithNormalized.forEach(contact => {
-        console.log(`\n📋 Contact: ${contact.contact_name}`);
-        console.log(`   Original: "${contact.contact_phone}"`);
-        console.log(`   Normalized: "${contact.contact_phone_normalized}"`);
-        console.log(`   Is Matched: ${contact.is_matched}`);
+        log(`\n📋 Contact: ${contact.contact_name}`);
+        log(`   Original: "${contact.contact_phone}"`);
+        log(`   Normalized: "${contact.contact_phone_normalized}"`);
+        log(`   Is Matched: ${contact.is_matched}`);
 
         const matchingProfiles = profilesWithNormalized.filter(
           p => p.phone_number_normalized === contact.contact_phone_normalized
         );
 
         if (matchingProfiles.length > 0) {
-          console.log(`   ✅ Found ${matchingProfiles.length} matching profile(s):`);
+          log(`   ✅ Found ${matchingProfiles.length} matching profile(s):`);
           matchingProfiles.forEach(p => {
-            console.log(`      - ${p.full_name} (@${p.handle})`);
-            console.log(`        Original: "${p.phone_number}"`);
-            console.log(`        Normalized: "${p.phone_number_normalized}"`);
+            log(`      - ${p.full_name} (@${p.handle})`);
+            log(`        Original: "${p.phone_number}"`);
+            log(`        Normalized: "${p.phone_number_normalized}"`);
           });
         } else {
-          console.log(`   ❌ No matching profiles found`);
-          console.log(`   Available profile phones:`);
+          log(`   ❌ No matching profiles found`);
+          log(`   Available profile phones:`);
           profilesWithNormalized.forEach(p => {
-            console.log(`      - ${p.full_name}: "${p.phone_number_normalized}"`);
+            log(`      - ${p.full_name}: "${p.phone_number_normalized}"`);
           });
         }
       });

@@ -1,3 +1,4 @@
+import { log } from "@/lib/logger";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate, Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -587,7 +588,7 @@ export default function RequestRespond() {
           return;
         }
 
-        console.log('Fuzzy search results:', similar);
+        log('Fuzzy search results:', similar);
 
         if (similar && similar.length > 0) {
           setSuggestions({
@@ -1052,7 +1053,7 @@ export default function RequestRespond() {
   const handleCloseAndSave = async () => {
     if (!request || !currentUserId) return;
     
-    console.log('=== CLOSING REQUEST AND SAVING TO MY LISTS ===');
+    log('=== CLOSING REQUEST AND SAVING TO MY LISTS ===');
     setIsClosingRequest(true);
     
     try {
@@ -1072,7 +1073,7 @@ export default function RequestRespond() {
         .sort((a, b) => b.total_votes - a.total_votes)
         .slice(0, 10);
       
-      console.log('Top 10 recommendations:', topRecommendations);
+      log('Top 10 recommendations:', topRecommendations);
       
       if (!topRecommendations || topRecommendations.length === 0) {
         toast({
@@ -1100,7 +1101,7 @@ export default function RequestRespond() {
       
       if (listError) throw listError;
       
-      console.log('Saved list created:', savedList);
+      log('Saved list created:', savedList);
       
       // 3. Save top items to list_items
       const listItems = topRecommendations.map((rec, index) => ({
@@ -1116,7 +1117,7 @@ export default function RequestRespond() {
       
       if (itemsError) throw itemsError;
       
-      console.log('List items saved:', listItems.length);
+      log('List items saved:', listItems.length);
       
       // 4. Mark request as closed
       const { error: updateError } = await supabase
@@ -1129,7 +1130,7 @@ export default function RequestRespond() {
       
       if (updateError) throw updateError;
       
-      console.log('Request marked as closed');
+      log('Request marked as closed');
       
       // 5. Show success message
       toast({

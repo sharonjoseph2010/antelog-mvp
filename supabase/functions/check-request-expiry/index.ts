@@ -1,20 +1,13 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { adminClient } from "../_shared/auth.ts";
+import { json, preflight, fail } from "../_shared/http.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
-
+// System cron (verify_jwt = false): operates on global state with the service
+// role. No per-user auth or rate limiting; it is not callable as a user action.
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  if (req.method === "OPTIONS") return preflight(req);
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const supabase = adminClient();
 
     // Find expired, un-notified requests
     const { data: expiredRequests, error: fetchError } = await supabase
@@ -27,16 +20,13 @@ Deno.serve(async (req) => {
     if (fetchError) throw fetchError;
 
     if (!expiredRequests || expiredRequests.length === 0) {
-      return new Response(
-        JSON.stringify({ message: "No expired requests to process", count: 0 }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return json(req, { message: "No expired requests to process", count: 0 });
     }
 
     let totalNotifications = 0;
 
     for (const request of expiredRequests) {
-      const notifications: any[] = [];
+      const notifications: Array<Record<string, unknown>> = [];
 
       // Notify creator
       notifications.push({
@@ -93,19 +83,12 @@ Deno.serve(async (req) => {
       totalNotifications += notifications.length;
     }
 
-    return new Response(
-      JSON.stringify({
-        message: "Expiry check complete",
-        expired_requests: expiredRequests.length,
-        notifications_sent: totalNotifications,
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return json(req, {
+      message: "Expiry check complete",
+      expired_requests: expiredRequests.length,
+      notifications_sent: totalNotifications,
+    });
   } catch (error) {
-    console.error("Error in check-request-expiry:", error);
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return fail(req, "check-request-expiry", error);
   }
 });

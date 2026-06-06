@@ -1,0 +1,27 @@
+name: security-guard
+
+# Fails the build if a migration re-disables Row-Level Security (finding A2).
+# RLS was globally disabled once already (migration 20251126112541) and shipped;
+# this guard makes a regression a hard CI failure instead of a silent one.
+
+on:
+  pull_request:
+    paths:
+      - "supabase/migrations/**"
+  push:
+    branches: [main]
+    paths:
+      - "supabase/migrations/**"
+
+jobs:
+  no-rls-disable:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reject DISABLE ROW LEVEL SECURITY in migrations
+        run: |
+          if grep -rniE 'disable[[:space:]]+row[[:space:]]+level[[:space:]]+security' supabase/migrations; then
+            echo "::error::A migration disables Row-Level Security. This is not allowed (finding A2/#01)."
+            exit 1
+          fi
+          echo "OK — no migration disables RLS."

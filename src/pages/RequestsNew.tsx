@@ -1,3 +1,4 @@
+import { log } from "@/lib/logger";
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -570,13 +571,13 @@ export default function RequestsNew() {
     setIsSubmitting(true);
 
     try {
-      console.log('=== REQUEST CREATION DEBUG START ===');
+      log('=== REQUEST CREATION DEBUG START ===');
       
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
       
-      console.log('Current user ID:', user.id);
-      console.log('Form data:', {
+      log('Current user ID:', user.id);
+      log('Form data:', {
         title: formData.title,
         audience_types: formData.audience_types,
         group_id: formData.group_id,
@@ -589,7 +590,7 @@ export default function RequestsNew() {
         ? false
         : formData.allow_forwarding;
 
-      console.log('Creating request with allow_forwarding:', allowForwarding);
+      log('Creating request with allow_forwarding:', allowForwarding);
 
       const expiresAt = new Date(Date.now() + parseInt(expiryDays) * 24 * 60 * 60 * 1000).toISOString();
 
@@ -616,14 +617,14 @@ export default function RequestsNew() {
         throw error;
       }
 
-      console.log('✅ Request created successfully:', {
+      log('✅ Request created successfully:', {
         id: newRequest.id,
         title: newRequest.title,
         audience_types: newRequest.audience_types
       });
 
       // Get creator profile for notification message
-      console.log('Fetching creator profile for user:', user.id);
+      log('Fetching creator profile for user:', user.id);
       const { data: creatorProfile, error: profileError } = await supabase
         .from('profiles')
         .select('full_name')
@@ -635,23 +636,23 @@ export default function RequestsNew() {
       }
 
       const creatorName = creatorProfile?.full_name || 'Someone';
-      console.log('Creator name for notifications:', creatorName);
+      log('Creator name for notifications:', creatorName);
 
       // Create notifications for recipients
       const notifications: any[] = [];
-      console.log('\n--- BUILDING NOTIFICATIONS ---');
+      log('\n--- BUILDING NOTIFICATIONS ---');
 
       // 1. Notifications for 1st Network
       if (formData.audience_types.includes('first_network')) {
-        console.log('📍 Processing 1st Network audience...');
-        console.log('Querying friendships for user:', user.id);
+        log('📍 Processing 1st Network audience...');
+        log('Querying friendships for user:', user.id);
         
         const { data: friends, error: friendsError } = await supabase
           .from('friendships')
           .select('user1_id, user2_id')
           .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`);
 
-        console.log('Friendships query result:', {
+        log('Friendships query result:', {
           data: friends,
           error: friendsError,
           count: friends?.length || 0
@@ -665,8 +666,8 @@ export default function RequestsNew() {
           f.user1_id === user.id ? f.user2_id : f.user1_id
         ) || [];
 
-        console.log('Extracted friend IDs:', friendIds);
-        console.log('Number of friends:', friendIds.length);
+        log('Extracted friend IDs:', friendIds);
+        log('Number of friends:', friendIds.length);
 
         friendIds.forEach(friendId => {
           const notification = {
@@ -677,22 +678,22 @@ export default function RequestsNew() {
             related_user_id: user.id,
             metadata: { request_id: newRequest.id }
           };
-          console.log('Adding notification for friend:', friendId, notification);
+          log('Adding notification for friend:', friendId, notification);
           notifications.push(notification);
         });
       }
 
       // 2. Notifications for Group
       if (formData.audience_types.includes('group') && formData.group_id) {
-        console.log('📍 Processing Group audience...');
-        console.log('Group ID:', formData.group_id);
+        log('📍 Processing Group audience...');
+        log('Group ID:', formData.group_id);
         
         const { data: groupMembers, error: membersError } = await supabase
           .from('group_members')
           .select('user_id')
           .eq('group_id', formData.group_id);
 
-        console.log('Group members query result:', {
+        log('Group members query result:', {
           data: groupMembers,
           error: membersError,
           count: groupMembers?.length || 0
@@ -704,7 +705,7 @@ export default function RequestsNew() {
           .eq('id', formData.group_id)
           .single();
 
-        console.log('Group name query result:', {
+        log('Group name query result:', {
           data: group,
           error: groupError
         });
@@ -719,18 +720,18 @@ export default function RequestsNew() {
               related_user_id: user.id,
               metadata: { request_id: newRequest.id }
             };
-            console.log('Adding notification for group member:', member.user_id, notification);
+            log('Adding notification for group member:', member.user_id, notification);
             notifications.push(notification);
           } else {
-            console.log('Skipping notification for creator (self):', member.user_id);
+            log('Skipping notification for creator (self):', member.user_id);
           }
         });
       }
 
       // 3. Notifications for Specific People
       if (formData.audience_types.includes('specific_people')) {
-        console.log('📍 Processing Specific People audience...');
-        console.log('Selected users:', formData.selected_users);
+        log('📍 Processing Specific People audience...');
+        log('Selected users:', formData.selected_users);
         
         formData.selected_users.forEach(selectedUserId => {
           const notification = {
@@ -741,14 +742,14 @@ export default function RequestsNew() {
             related_user_id: user.id,
             metadata: { request_id: newRequest.id }
           };
-          console.log('Adding notification for specific person:', selectedUserId, notification);
+          log('Adding notification for specific person:', selectedUserId, notification);
           notifications.push(notification);
         });
       }
 
-      console.log('\n--- NOTIFICATION SUMMARY ---');
-      console.log('Total notifications to create:', notifications.length);
-      console.log('All notifications:', JSON.stringify(notifications, null, 2));
+      log('\n--- NOTIFICATION SUMMARY ---');
+      log('Total notifications to create:', notifications.length);
+      log('All notifications:', JSON.stringify(notifications, null, 2));
 
       // 4. Forward suggestions: notify mutual friends about 2nd-degree experts
       if (formData.audience_types.includes('first_network')) {
@@ -809,7 +810,7 @@ export default function RequestsNew() {
 
       // Insert all notifications
       if (notifications.length > 0) {
-        console.log('\n🔄 Attempting to insert notifications into database...');
+        log('\n🔄 Attempting to insert notifications into database...');
         
         try {
           const { data: insertedNotifications, error: notificationError } = await supabase
@@ -826,19 +827,19 @@ export default function RequestsNew() {
               code: notificationError.code
             });
           } else {
-            console.log('✅ NOTIFICATIONS CREATED SUCCESSFULLY!');
-            console.log('Inserted notifications:', insertedNotifications);
-            console.log('Number of notifications created:', insertedNotifications?.length || 0);
+            log('✅ NOTIFICATIONS CREATED SUCCESSFULLY!');
+            log('Inserted notifications:', insertedNotifications);
+            log('Number of notifications created:', insertedNotifications?.length || 0);
           }
         } catch (err) {
           console.error('❌ EXCEPTION during notification creation:', err);
           console.error('Exception details:', err);
         }
       } else {
-        console.log('⚠️ No notifications to create (notifications array is empty)');
+        log('⚠️ No notifications to create (notifications array is empty)');
       }
 
-      console.log('=== REQUEST CREATION DEBUG END ===\n');
+      log('=== REQUEST CREATION DEBUG END ===\n');
 
       // V5C: execute queued forwards from expert pills
       let forwardedCount = 0;

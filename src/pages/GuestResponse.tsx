@@ -28,6 +28,47 @@ import {
   Gift,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { z } from "zod";
+
+// Validation for the public (share-link) contribution form — the only
+// user-facing form without Zod, and the riskiest input surface since it's
+// reachable by anyone with the link and its output crosses into an
+// authenticated owner's view. Caps length (anti-DOS) and format-checks the
+// contact field. The server RPC must mirror these checks — clients can be
+// bypassed. See docs/remediation/17-guestresponse-validation.md.
+const CONTACT_REGEX = /^\+?[0-9\s\-()]{7,20}$/;
+
+const guestContributionSchema = z.object({
+  contributorName: z
+    .string()
+    .trim()
+    .min(1, "Please enter your name")
+    .max(100, "Name is too long (100 characters max)"),
+  contributorContact: z
+    .string()
+    .trim()
+    .max(120, "Contact is too long")
+    .refine(
+      (v) =>
+        v === "" ||
+        z.string().email().safeParse(v).success ||
+        CONTACT_REGEX.test(v),
+      "Enter a valid email or phone number, or leave it blank",
+    ),
+  recommendations: z.array(
+    z.object({
+      text: z.string().trim().max(2000, "Recommendation is too long (2000 characters max)"),
+      reason: z.string().trim().max(1000, "Reason is too long (1000 characters max)"),
+      link: z
+        .string()
+        .trim()
+        .refine(
+          (v) => v === "" || /^https?:\/\//i.test(v),
+          "Links must start with http:// or https://",
+        ),
+    }),
+  ),
+});
 
 type ChainLink = {
   id: string;
@@ -124,24 +165,26 @@ export default function GuestResponse() {
   const loadRequestData = async () => {
     setIsLoading(true);
     try {
-      const { data: requestData, error: requestError } = await supabase
-        .from("requests")
-        .select("id, title, category, location, created_at, creator_id, expires_at, status")
-        .eq("id", requestId!)
-        .single();
-
+      // Guests are unauthenticated, so they can't read `requests`/`profiles`
+      // directly under RLS. The token-validated SECURITY DEFINER RPC returns
+      // the request plus the creator's display name in one call (#1/D3).
+      const { data: guestRows, error: requestError } = await supabase.rpc(
+        "get_request_for_guest" as any,
+        { p_request_id: requestId!, p_token: token! },
+      );
       if (requestError) throw requestError;
 
-      let creator_profile: { full_name: string | null } | null = null;
-      if (requestData.creator_id) {
-        const { data: creatorData } = await supabase
-          .from("profiles")
-          .select("full_name")
-          .eq("id", requestData.creator_id)
-          .maybeSingle();
-        creator_profile = creatorData;
+      const requestData = (Array.isArray(guestRows) ? guestRows[0] : guestRows) as any;
+      if (!requestData) {
+        toast({
+          title: "Invalid Link",
+          description: "This share link is not valid or has expired.",
+          variant: "destructive",
+        });
+        return;
       }
 
+      const creator_profile = { full_name: requestData.creator_name ?? null };
       setRequest({ ...requestData, creator_profile });
 
       // Fetch preview recommendations
@@ -225,10 +268,17 @@ export default function GuestResponse() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    setFirstNameError(!firstName.trim());
-    setLastNameError(!lastName.trim());
-
-    if (!firstName.trim() || !lastName.trim()) {
+    const parsed = guestContributionSchema.safeParse({
+      contributorName,
+      contributorContact,
+      recommendations,
+    });
+    if (!parsed.success) {
+      toast({
+        title: "Check your details",
+        description: parsed.error.issues[0]?.message ?? "Please fix the highlighted fields.",
+        variant: "destructive",
+      });
       return;
     }
 
