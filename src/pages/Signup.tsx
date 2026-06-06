@@ -47,6 +47,8 @@ const onSubmit = async (values: SignupValues) => {
     const urlParams = new URLSearchParams(window.location.search);
     const requestId = urlParams.get("request_id");
     const shareLinkId = urlParams.get("share_link_id");
+    const requestTitle = urlParams.get("request_title");
+    const requesterName = urlParams.get("requester_name");
     const redirectUrl = requestId
       ? `${window.location.origin}/auth/callback?request_id=${encodeURIComponent(requestId)}`
       : `${window.location.origin}/auth/callback`;
@@ -88,10 +90,28 @@ const onSubmit = async (values: SignupValues) => {
       }
     }
 
+    // Surface the responded-to request on the new user's dashboard
+    if (data?.user && data?.session && isShareLinkSignup && requestId) {
+      try {
+        const asker = requesterName || "Someone";
+        await supabase.from("notifications").insert({
+          user_id: data.user.id,
+          type: "response",
+          title: `You responded to ${asker}'s request`,
+          message: requestTitle
+            ? `${requestTitle}. See how others answered →`
+            : "See how others answered →",
+          metadata: { request_id: requestId },
+        });
+      } catch (e) {
+        console.error("Failed to create activity notification:", e);
+      }
+    }
+
     if (data?.session) {
       toast.success("Account created. Redirecting…");
-      if (requestId) {
-        window.location.replace(`/requests/${requestId}/respond?welcome=1`);
+      if (isShareLinkSignup) {
+        window.location.replace(`/dashboard`);
       } else {
         navigate("/profile-setup", { replace: true });
       }

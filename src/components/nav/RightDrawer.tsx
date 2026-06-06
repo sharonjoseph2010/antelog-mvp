@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { BookUser, List as ListIcon, LogOut, Settings, Share2, User, UsersRound, X } from "lucide-react";
+import { List as ListIcon, LogOut, Moon, Settings, Shield, Sun, User, X } from "lucide-react";
+import { useTheme } from "next-themes";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import {
   AlertDialog,
@@ -32,6 +33,11 @@ export function RightDrawer({ open, onOpenChange }: RightDrawerProps) {
   const navigate = useNavigate();
   const [profile, setProfile] = useState<ProfileSummary | null>(null);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const { theme, resolvedTheme, setTheme } = useTheme();
+  const [themeMounted, setThemeMounted] = useState(false);
+  useEffect(() => { setThemeMounted(true); }, []);
+  const isDark = themeMounted && (resolvedTheme || theme) === "dark";
 
   useEffect(() => {
     if (!open) return;
@@ -39,15 +45,21 @@ export function RightDrawer({ open, onOpenChange }: RightDrawerProps) {
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user || cancelled) return;
-      const [{ data: prof }, listRes, friendRes] = await Promise.all([
+      const [{ data: prof }, listRes, friendRes, roleRes] = await Promise.all([
         supabase.from("profiles").select("id, full_name, handle").eq("id", user.id).maybeSingle(),
         supabase.from("lists").select("id", { count: "exact", head: true }).eq("owner_id", user.id),
         supabase
           .from("friendships")
           .select("id", { count: "exact", head: true })
           .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`),
+        supabase
+          .from("user_roles")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .eq("role", "admin"),
       ]);
       if (cancelled) return;
+      setIsAdmin((roleRes.count || 0) > 0);
       setProfile({
         id: user.id,
         fullName: (prof?.full_name as string) || user.email || "",
@@ -110,20 +122,18 @@ export function RightDrawer({ open, onOpenChange }: RightDrawerProps) {
 
           <Divider />
 
-          <SectionLabel>Your stuff</SectionLabel>
-          <nav className="flex flex-col gap-0.5">
-            <Item icon={ListIcon} label="My Lists" count={profile?.listCount} onClick={() => go("/lists")} />
-            <Item icon={Share2} label="Network" count={profile?.networkCount} onClick={() => go("/network")} />
-            <Item icon={UsersRound} label="My Groups" onClick={() => go("/groups")} />
-            <Item icon={BookUser} label="Contacts" onClick={() => go("/contacts")} />
-          </nav>
-
-          <Divider />
-
-          <SectionLabel>Account</SectionLabel>
           <nav className="flex flex-col gap-0.5">
             <Item icon={User} label="Profile" onClick={() => go("/profile")} />
+            <Item icon={ListIcon} label="My Lists" count={profile?.listCount} onClick={() => go("/lists")} />
             <Item icon={Settings} label="Settings" onClick={() => go("/settings")} />
+            <Item
+              icon={isDark ? Sun : Moon}
+              label={isDark ? "Light mode" : "Dark mode"}
+              onClick={() => setTheme(isDark ? "light" : "dark")}
+            />
+            {isAdmin && (
+              <Item icon={Shield} label="Admin" onClick={() => go("/admin")} />
+            )}
           </nav>
 
           <div className="flex-1" />

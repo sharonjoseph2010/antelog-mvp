@@ -861,6 +861,7 @@ export type Database = {
           id: string
           interests: Json | null
           is_verified: boolean
+          last_for_you_visit: string | null
           location: string | null
           occupation: string | null
           phone_number: string | null
@@ -881,6 +882,7 @@ export type Database = {
           id: string
           interests?: Json | null
           is_verified?: boolean
+          last_for_you_visit?: string | null
           location?: string | null
           occupation?: string | null
           phone_number?: string | null
@@ -901,6 +903,7 @@ export type Database = {
           id?: string
           interests?: Json | null
           is_verified?: boolean
+          last_for_you_visit?: string | null
           location?: string | null
           occupation?: string | null
           phone_number?: string | null
@@ -1285,6 +1288,7 @@ export type Database = {
         Row: {
           created_at: string | null
           current_responses: number | null
+          forwarder_name: string | null
           generated_by_contact: string | null
           generated_by_name: string | null
           generated_by_user_id: string | null
@@ -1299,6 +1303,7 @@ export type Database = {
         Insert: {
           created_at?: string | null
           current_responses?: number | null
+          forwarder_name?: string | null
           generated_by_contact?: string | null
           generated_by_name?: string | null
           generated_by_user_id?: string | null
@@ -1313,6 +1318,7 @@ export type Database = {
         Update: {
           created_at?: string | null
           current_responses?: number | null
+          forwarder_name?: string | null
           generated_by_contact?: string | null
           generated_by_name?: string | null
           generated_by_user_id?: string | null
@@ -1581,9 +1587,9 @@ export type Database = {
       estimate_anonymous_expertise_reach:
         | {
             Args: {
-              p_category: string
+              p_category?: string
               p_keywords?: string[]
-              p_location: string
+              p_location?: string
             }
             Returns: number
           }
@@ -1604,6 +1610,23 @@ export type Database = {
           handle: string
           matching_domains: string[]
           profile_id: string
+        }[]
+      }
+      find_network_experts_all_degrees: {
+        Args: {
+          domain_filter?: string
+          location_filter?: string
+          max_depth?: number
+          viewer_id: string
+        }
+        Returns: {
+          connection_path: string[]
+          expert_handle: string
+          expert_name: string
+          expert_user_id: string
+          matched_cities: string[]
+          matched_domains: string[]
+          network_degree: number
         }[]
       }
       find_profile_by_normalized_phone: {
@@ -1645,6 +1668,7 @@ export type Database = {
         Args: never
         Returns: Database["public"]["Enums"]["app_role"]
       }
+      get_dashboard_summary: { Args: never; Returns: Json }
       get_degree_of_separation: {
         Args: { user_a: string; user_b: string }
         Returns: number
@@ -1680,6 +1704,7 @@ export type Database = {
           title: string
         }[]
       }
+      get_fyp_latest_surfaced_at: { Args: never; Returns: string }
       get_guest_page_preview: {
         Args: { p_request_id: string }
         Returns: {
@@ -1714,20 +1739,6 @@ export type Database = {
           recommendation_count: number
         }[]
       }
-      get_safe_profile_data: {
-        Args: { profile_id: string }
-        Returns: {
-          batch: string
-          full_name: string
-          handle: string
-          id: string
-          id_card_image_url: string
-          is_verified: boolean
-          phone_number: string
-          student_id_number: string
-          user_type: Database["public"]["Enums"]["user_type"]
-        }[]
-      }
       get_safe_profile_view: {
         Args: { profile_id: string }
         Returns: {
@@ -1743,8 +1754,20 @@ export type Database = {
           occupation: string
           phone_number: string
           relationship: string
+          user_type: string
         }[]
       }
+      get_third_plus_network: {
+        Args: { max_depth?: number; viewer_id: string }
+        Returns: {
+          connection_path: string[]
+          full_name: string
+          handle: string
+          network_degree: number
+          profile_id: string
+        }[]
+      }
+      has_fyp_unread: { Args: never; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1777,6 +1800,7 @@ export type Database = {
         Args: { action_type: string; contact_id?: string }
         Returns: undefined
       }
+      mark_for_you_visited: { Args: never; Returns: undefined }
       match_contacts_by_phone: {
         Args: { user_id_input: string }
         Returns: {

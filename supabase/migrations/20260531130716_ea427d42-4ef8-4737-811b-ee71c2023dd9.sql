@@ -1,0 +1,1 @@
+ALTER TABLE public.share_links ADD COLUMN IF NOT EXISTS forwarder_name TEXT;

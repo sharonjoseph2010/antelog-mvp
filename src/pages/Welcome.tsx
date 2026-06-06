@@ -233,11 +233,9 @@ const Welcome = () => {
   ) => {
     const Icon = variant === "expertise" ? Award : Compass;
     const microLabel = variant === "expertise" ? "You know this well" : "You want to explore this";
-    const activeChip =
-      variant === "expertise"
-        ? "border-[rgba(245,158,11,0.6)] bg-[rgba(245,158,11,0.15)] text-amber-300 hover:bg-[rgba(245,158,11,0.22)]"
-        : "border-[rgba(56,189,248,0.6)] bg-[rgba(56,189,248,0.15)] text-sky-300 hover:bg-[rgba(56,189,248,0.22)]";
-    const accentText = variant === "expertise" ? "text-amber-600 dark:text-amber-400" : "text-sky-600 dark:text-sky-400";
+    // Topic category styling is decorative — no semantic colour. Stay neutral.
+    const activeChip = "border-foreground bg-foreground text-background hover:opacity-90";
+    const accentText = "text-muted-foreground";
     return (
     <div className="space-y-3">
       <div className="space-y-1">
@@ -285,7 +283,7 @@ const Welcome = () => {
             {customs.map((c) => (
               <Badge
                 key={c}
-                className={`gap-1 ${variant === "expertise" ? "bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 hover:bg-amber-500/20" : "bg-sky-500/15 text-sky-700 dark:text-sky-300 border border-sky-500/30 hover:bg-sky-500/20"}`}
+                className="gap-1 bg-secondary text-secondary-foreground border border-border hover:bg-secondary/80"
               >
                 {c}
                 <button onClick={() => setCustoms(customs.filter((x) => x !== c))} aria-label={`Remove ${c}`}>
@@ -420,7 +418,7 @@ const Welcome = () => {
                     <TabsList className="w-full grid grid-cols-2 bg-transparent p-0 h-auto border-b border-border rounded-none">
                       <TabsTrigger
                         value="expertise"
-                        className="rounded-none border-b-2 border-transparent bg-transparent text-muted-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-amber-500 data-[state=active]:text-amber-600 dark:data-[state=active]:text-amber-400 gap-2 py-3"
+                        className="rounded-none border-b-2 border-transparent bg-transparent text-muted-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-foreground data-[state=active]:text-foreground gap-2 py-3"
                       >
                         <Award className="h-4 w-4" />
                         Expert in
@@ -430,7 +428,7 @@ const Welcome = () => {
                       </TabsTrigger>
                       <TabsTrigger
                         value="interest"
-                        className="rounded-none border-b-2 border-transparent bg-transparent text-muted-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-sky-500 data-[state=active]:text-sky-600 dark:data-[state=active]:text-sky-400 gap-2 py-3"
+                        className="rounded-none border-b-2 border-transparent bg-transparent text-muted-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-foreground data-[state=active]:text-foreground gap-2 py-3"
                       >
                         <Compass className="h-4 w-4" />
                         Interested in

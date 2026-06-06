@@ -348,7 +348,7 @@ const Lists = () => {
           <header className="flex items-center justify-between">
             <h1 className="text-3xl font-bold">My Lists</h1>
             <Button asChild>
-              <Link to="/lists/new">Create New List</Link>
+              <Link to="/lists/new">+ New list</Link>
             </Button>
           </header>
 
@@ -544,7 +544,7 @@ const Lists = () => {
                     </div>
                   </div>
                   {tooSpecificWarning && (
-                    <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+                    <div className="attention-surface rounded-md p-3 text-sm">
                       This may be too specific for the Master Directory. Consider publishing it only in your network, or broadening the scope.
                     </div>
                   )}

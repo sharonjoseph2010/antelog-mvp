@@ -1,9 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowRight, GitMerge, Mail, Network as NetworkIcon, Plus, Search, Send, Trash2, Upload, Users, UsersRound, X } from "lucide-react";
+import {
+  Mail,
+  Network as NetworkIcon,
+  Plus,
+  Search,
+  Send,
+  Trash2,
+  Upload,
+  Users,
+  X,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import ImportContactsDialog from "@/components/ImportContactsDialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,22 +36,16 @@ import { cn } from "@/lib/utils";
  * Button text:       12-13px / 500
  */
 
-type TabKey = "friends" | "to_add" | "to_invite" | "groups";
+type TabKey = "on_antelog" | "to_invite";
 
-interface FriendRow {
-  friendshipId: string;
-  userId: string;
-  fullName: string;
-  handle: string;
-  connectedAt: string;
-}
-
-interface ToAddRow {
+interface OnAntelogRow {
   contactId: string;
   userId: string;
-  fullName: string;
+  name: string;
   handle: string;
   joinedAt: string;
+  friendshipId?: string;
+  connectedAt?: string;
   pending?: boolean;
 }
 
@@ -50,33 +55,22 @@ interface ToInviteRow {
   phone: string | null;
 }
 
-interface Group {
-  id: string;
-  creator_id: string;
-  name: string;
-  description: string | null;
-  created_at: string;
-  member_count: number;
-}
-
 const Network = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [userId, setUserId] = useState<string | null>(null);
   const [userHandle, setUserHandle] = useState<string>("");
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<TabKey>("friends");
+  const [tab, setTab] = useState<TabKey>("on_antelog");
   const [search, setSearch] = useState("");
 
-  const [friends, setFriends] = useState<FriendRow[]>([]);
-  const [toAdd, setToAdd] = useState<ToAddRow[]>([]);
+  const [onAntelog, setOnAntelog] = useState<OnAntelogRow[]>([]);
   const [toInvite, setToInvite] = useState<ToInviteRow[]>([]);
-  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [hasAnyContacts, setHasAnyContacts] = useState(true);
 
-  const [removing, setRemoving] = useState<FriendRow | null>(null);
-  const [groups, setGroups] = useState<Group[]>([]);
-  const [groupsLoading, setGroupsLoading] = useState(false);
+  const [removing, setRemoving] = useState<OnAntelogRow | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importTab, setImportTab] = useState<"google" | "file" | "manual">("manual");
 
   useEffect(() => {
     (async () => {
@@ -93,42 +87,6 @@ const Network = () => {
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  useEffect(() => {
-    if (!userId) return;
-    (async () => {
-      setGroupsLoading(true);
-      try {
-        const { data: groupsData } = await supabase
-          .from("groups")
-          .select("*")
-          .eq("creator_id", userId)
-          .order("created_at", { ascending: false });
-        if (groupsData && groupsData.length > 0) {
-          const groupIds = groupsData.map((g: any) => g.id);
-          const { data: memberCounts } = await supabase
-            .from("group_members")
-            .select("group_id")
-            .in("group_id", groupIds);
-          const countsByGroup = (memberCounts || []).reduce((acc: Record<string, number>, member: any) => {
-            acc[member.group_id] = (acc[member.group_id] || 0) + 1;
-            return acc;
-          }, {} as Record<string, number>);
-          const groupsWithCounts = groupsData.map((group: any) => ({
-            ...group,
-            member_count: countsByGroup[group.id] || 0,
-          }));
-          setGroups(groupsWithCounts);
-        } else {
-          setGroups([]);
-        }
-      } catch (err) {
-        console.error("[Network] groups fetch error", err);
-      } finally {
-        setGroupsLoading(false);
-      }
-    })();
-  }, [userId]);
 
   const loadAll = async (uid: string) => {
     setLoading(true);
@@ -151,17 +109,23 @@ const Network = () => {
       const friendIds = (f1 || []).map((f) =>
         f.user1_id === uid ? f.user2_id : f.user1_id
       );
+      const friendshipMap = new Map<string, { id: string; created_at: string }>();
+      for (const f of f1 || []) {
+        const otherId = f.user1_id === uid ? f.user2_id : f.user1_id;
+        friendshipMap.set(otherId, { id: f.id, created_at: f.created_at });
+      }
 
-      let profilesById = new Map<string, { full_name: string | null; handle: string; created_at: string }>();
+      // Fetch profiles for matched users
       const matchedUserIds = (contacts || [])
         .filter((c) => c.is_matched && c.matched_user_id)
         .map((c) => c.matched_user_id as string);
-      const allProfileIds = Array.from(new Set([...friendIds, ...matchedUserIds]));
-      if (allProfileIds.length > 0) {
+
+      let profilesById = new Map<string, { full_name: string | null; handle: string; created_at: string }>();
+      if (matchedUserIds.length > 0) {
         const { data: profs } = await supabase
           .from("profiles")
           .select("id, full_name, handle, created_at")
-          .in("id", allProfileIds);
+          .in("id", matchedUserIds);
         for (const p of profs || []) {
           profilesById.set(p.id, {
             full_name: p.full_name,
@@ -171,40 +135,29 @@ const Network = () => {
         }
       }
 
-      const friendSet = new Set(friendIds);
-
-      const friendRows: FriendRow[] = (f1 || []).map((f) => {
-        const otherId = f.user1_id === uid ? f.user2_id : f.user1_id;
-        const p = profilesById.get(otherId);
-        return {
-          friendshipId: f.id,
-          userId: otherId,
-          fullName: p?.full_name || "Unknown",
-          handle: p?.handle || "",
-          connectedAt: f.created_at,
-        };
-      });
-      friendRows.sort((a, b) => +new Date(b.connectedAt) - +new Date(a.connectedAt));
-      setFriends(friendRows);
-
-      // To add: matched contacts not in friendships
-      const toAddRows: ToAddRow[] = [];
+      // Build unified "On Antelog" list
+      const onAntelogRows: OnAntelogRow[] = [];
       for (const c of contacts || []) {
         if (!c.is_matched || !c.matched_user_id) continue;
-        if (c.matched_user_id === uid) continue;
-        if (friendSet.has(c.matched_user_id)) continue;
+        if (c.matched_user_id === uid) continue; // skip self
         const p = profilesById.get(c.matched_user_id);
-        toAddRows.push({
+        const fs = friendshipMap.get(c.matched_user_id);
+        onAntelogRows.push({
           contactId: c.id,
           userId: c.matched_user_id,
-          fullName: p?.full_name || c.contact_name,
+          name: p?.full_name || c.contact_name,
           handle: p?.handle || "",
           joinedAt: p?.created_at || "",
+          friendshipId: fs?.id,
+          connectedAt: fs?.created_at,
+          pending: false,
         });
       }
-      // Check existing pending friend_requests so we don't double-send
-      if (toAddRows.length > 0) {
-        const targetIds = toAddRows.map((r) => r.userId);
+
+      // Check pending friend_requests for those not yet friends
+      const notFriends = onAntelogRows.filter((r) => !r.friendshipId);
+      if (notFriends.length > 0) {
+        const targetIds = notFriends.map((r) => r.userId);
         const { data: reqs } = await supabase
           .from("friend_requests")
           .select("requester_id, addressee_id, status")
@@ -217,11 +170,13 @@ const Network = () => {
             pending.add(r.requester_id === uid ? r.addressee_id : r.requester_id);
           }
         }
-        for (const row of toAddRows) {
+        for (const row of onAntelogRows) {
           if (pending.has(row.userId)) row.pending = true;
         }
       }
-      setToAdd(toAddRows);
+
+      onAntelogRows.sort((a, b) => a.name.localeCompare(b.name));
+      setOnAntelog(onAntelogRows);
 
       // To invite: unmatched contacts
       const toInviteRows: ToInviteRow[] = (contacts || [])
@@ -239,40 +194,28 @@ const Network = () => {
     }
   };
 
-  const filteredFriends = useMemo(() => {
+  const filteredOnAntelog = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return friends;
-    return friends.filter(
-      (f) => f.fullName.toLowerCase().includes(q) || f.handle.toLowerCase().includes(q)
+    if (!q) return onAntelog;
+    return onAntelog.filter(
+      (r) =>
+        r.name.toLowerCase().includes(q) ||
+        r.handle.toLowerCase().includes(q)
     );
-  }, [friends, search]);
-
-  const filteredToAdd = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    const list = toAdd.filter((r) => !dismissed.has(r.contactId));
-    if (!q) return list;
-    return list.filter(
-      (r) => r.fullName.toLowerCase().includes(q) || r.handle.toLowerCase().includes(q)
-    );
-  }, [toAdd, search, dismissed]);
+  }, [onAntelog, search]);
 
   const filteredToInvite = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return toInvite;
     return toInvite.filter(
       (r) =>
-        r.name.toLowerCase().includes(q) || (r.phone || "").toLowerCase().includes(q)
+        r.name.toLowerCase().includes(q) ||
+        (r.phone || "").toLowerCase().includes(q)
     );
   }, [toInvite, search]);
 
-  const filteredGroups = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return groups;
-    return groups.filter((g) => g.name.toLowerCase().includes(q));
-  }, [groups, search]);
-
   const confirmRemove = async () => {
-    if (!removing) return;
+    if (!removing || !removing.friendshipId) return;
     const target = removing;
     setRemoving(null);
     const { error } = await supabase.from("friendships").delete().eq("id", target.friendshipId);
@@ -280,14 +223,20 @@ const Network = () => {
       toast({ title: "Could not remove", description: error.message, variant: "destructive" });
       return;
     }
-    setFriends((prev) => prev.filter((f) => f.friendshipId !== target.friendshipId));
+    setOnAntelog((prev) =>
+      prev.map((r) =>
+        r.userId === target.userId
+          ? { ...r, friendshipId: undefined, connectedAt: undefined }
+          : r
+      )
+    );
     toast({ title: "Removed from your network" });
   };
 
-  const handleConnect = async (row: ToAddRow) => {
+  const handleConnect = async (row: OnAntelogRow) => {
     if (!userId) return;
-    setToAdd((prev) =>
-      prev.map((r) => (r.contactId === row.contactId ? { ...r, pending: true } : r))
+    setOnAntelog((prev) =>
+      prev.map((r) => (r.userId === row.userId ? { ...r, pending: true } : r))
     );
     try {
       const { data: existing } = await supabase
@@ -326,8 +275,8 @@ const Network = () => {
       });
       toast({ title: "Request sent" });
     } catch (e: any) {
-      setToAdd((prev) =>
-        prev.map((r) => (r.contactId === row.contactId ? { ...r, pending: false } : r))
+      setOnAntelog((prev) =>
+        prev.map((r) => (r.userId === row.userId ? { ...r, pending: false } : r))
       );
       toast({
         title: "Could not send request",
@@ -337,16 +286,12 @@ const Network = () => {
     }
   };
 
-  const handleDismiss = (contactId: string) => {
-    setDismissed((prev) => new Set(prev).add(contactId));
-  };
-
   const buildInviteUrl = (row: ToInviteRow) => {
     const inviteLink = userHandle
       ? `https://antelog.com/invite/${userHandle}`
       : "https://antelog.com";
     const msg = `Hey ${row.name}, I'm on Antelog — a network of verified people sharing real recommendations. Join me: ${inviteLink}`;
-    const phoneDigits = (row.phone || "").replace(/[^\d]/g, "");
+    const phoneDigits = (row.phone || "").replace(/\D/g, "");
     const base = phoneDigits ? `https://wa.me/${phoneDigits}` : "https://wa.me/";
     return `${base}?text=${encodeURIComponent(msg)}`;
   };
@@ -356,34 +301,34 @@ const Network = () => {
     return (
       <>
         <Helmet>
-        <title>Contacts — Antelog</title>
+          <title>Contacts — Antelog</title>
         </Helmet>
         <div className="mx-auto w-full max-w-[1240px] px-6 py-10">
-          <PageHeader showImport={false} onImport={() => navigate("/contacts/import")} subtitle="Build your trusted network. Import your contacts to find who's already on Antelog." />
-          <ImportCards onNavigate={() => navigate("/contacts/import")} />
+          <PageHeader showImport={false} onImport={() => { setImportTab("manual"); setImportOpen(true); }} subtitle="Build your trusted network. Import your contacts to find who's already on Antelog." />
+          <ImportCards onPick={(t) => { setImportTab(t); setImportOpen(true); }} />
           <p className="mt-10 text-center text-[12px] text-muted-foreground">
             Your contacts are private. We only use them to match you with friends already on Antelog.
           </p>
         </div>
+        <ImportContactsDialog
+          open={importOpen}
+          onOpenChange={setImportOpen}
+          defaultTab={importTab}
+          onImported={() => userId && loadAll(userId)}
+        />
       </>
     );
   }
 
   const counts = {
-    friends: friends.length,
-    to_add: toAdd.filter((r) => !dismissed.has(r.contactId)).length,
+    on_antelog: onAntelog.length,
     to_invite: toInvite.length,
-    groups: groups.length,
   };
 
   const placeholder =
-    tab === "friends"
-      ? "Search your friends"
-      : tab === "to_add"
+    tab === "on_antelog"
       ? "Search contacts on Antelog"
-      : tab === "to_invite"
-      ? "Search contacts to invite"
-      : "Search your groups";
+      : "Search contacts to invite";
 
   return (
     <>
@@ -394,17 +339,15 @@ const Network = () => {
       <div className="mx-auto w-full max-w-[1240px] px-6 py-10">
         <PageHeader
           showImport
-          onImport={() => navigate("/contacts/import")}
+          onImport={() => { setImportTab("manual"); setImportOpen(true); }}
           subtitle="Manage your imported contacts and grow your network."
         />
 
         {/* Tabs */}
         <div className="mt-7 border-b border-border/70">
           <div className="flex items-center gap-1">
-            <TabBtn active={tab === "friends"} onClick={() => setTab("friends")} label="1st network" count={counts.friends} icon={Users} />
-            <TabBtn active={tab === "to_add"} onClick={() => setTab("to_add")} label="2nd network" count={counts.to_add} icon={GitMerge} />
-            <TabBtn active={tab === "to_invite"} onClick={() => setTab("to_invite")} label="3rd+ network" count={counts.to_invite} icon={NetworkIcon} />
-            <TabBtn active={tab === "groups"} onClick={() => setTab("groups")} label="Groups" count={counts.groups} icon={UsersRound} />
+            <TabBtn active={tab === "on_antelog"} onClick={() => setTab("on_antelog")} label="On Antelog" count={counts.on_antelog} icon={Users} />
+            <TabBtn active={tab === "to_invite"} onClick={() => setTab("to_invite")} label="Not yet joined" count={counts.to_invite} icon={Send} />
           </div>
         </div>
 
@@ -422,29 +365,32 @@ const Network = () => {
 
         {/* Tab contents */}
         <div className="mt-6">
-          {loading && tab !== "groups" ? (
+          {loading ? (
             <p className="py-10 text-center text-[13px] text-muted-foreground">Loading…</p>
-          ) : tab === "friends" ? (
-            <FriendsList rows={filteredFriends} onRemove={(row) => setRemoving(row)} />
-          ) : tab === "to_add" ? (
-            <ToAddList
-              total={counts.to_add}
-              rows={filteredToAdd}
+          ) : tab === "on_antelog" ? (
+            <OnAntelogList
+              total={counts.on_antelog}
+              rows={filteredOnAntelog}
               onConnect={handleConnect}
-              onDismiss={handleDismiss}
+              onRemove={(row) => setRemoving(row)}
             />
-          ) : tab === "to_invite" ? (
-            <ToInviteList rows={filteredToInvite} buildInviteUrl={buildInviteUrl} />
           ) : (
-            <GroupsList groups={filteredGroups} loading={groupsLoading} />
+            <ToInviteList rows={filteredToInvite} buildInviteUrl={buildInviteUrl} />
           )}
         </div>
       </div>
 
+      <ImportContactsDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        defaultTab={importTab}
+        onImported={() => userId && loadAll(userId)}
+      />
+
       <AlertDialog open={!!removing} onOpenChange={(o) => !o && setRemoving(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove {removing?.fullName} from your network?</AlertDialogTitle>
+            <AlertDialogTitle>Remove {removing?.name} from your network?</AlertDialogTitle>
             <AlertDialogDescription>
               You'll no longer see each other's requests or recommendations as part of your 1st network.
             </AlertDialogDescription>
@@ -562,77 +508,24 @@ function Avatar({ name }: { name: string }) {
   );
 }
 
-function FriendsList({
-  rows,
-  onRemove,
-}: {
-  rows: FriendRow[];
-  onRemove: (row: FriendRow) => void;
-}) {
-  if (rows.length === 0) {
-    return (
-      <EmptyTab message="No friends yet. Connect with contacts already on Antelog from the “To add” tab." />
-    );
-  }
-  return (
-    <ul className="divide-y divide-border/60">
-      {rows.map((row) => (
-        <li key={row.friendshipId} className="flex items-center gap-3 py-3">
-          <Avatar name={row.fullName} />
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <span className="truncate text-[14px] font-medium text-foreground">{row.fullName}</span>
-              {row.handle && (
-                <span className="text-[12px] text-muted-foreground">@{row.handle}</span>
-              )}
-            </div>
-            <div className="text-[11px] text-muted-foreground">
-              Connected since{" "}
-              {new Date(row.connectedAt).toLocaleDateString(undefined, {
-                month: "short",
-                day: "numeric",
-                year: "numeric",
-              })}
-            </div>
-          </div>
-          <Link
-            to={`/profile/${row.userId}`}
-            className="rounded-md border border-border/70 px-3 py-[6px] text-[12px] font-medium text-foreground transition-colors hover:bg-muted"
-          >
-            View profile
-          </Link>
-          <button
-            type="button"
-            onClick={() => onRemove(row)}
-            aria-label={`Remove ${row.fullName}`}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-destructive"
-          >
-            <Trash2 className="h-[15px] w-[15px]" strokeWidth={1.5} />
-          </button>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-function ToAddList({
+function OnAntelogList({
   total,
   rows,
   onConnect,
-  onDismiss,
+  onRemove,
 }: {
   total: number;
-  rows: ToAddRow[];
-  onConnect: (row: ToAddRow) => void;
-  onDismiss: (contactId: string) => void;
+  rows: OnAntelogRow[];
+  onConnect: (row: OnAntelogRow) => void;
+  onRemove: (row: OnAntelogRow) => void;
 }) {
   if (total === 0) {
-    return <EmptyTab message="No contacts waiting to be added. New matches will appear here as your contacts join Antelog." />;
+    return <EmptyTab message="No contacts on Antelog yet. Import more contacts to find friends." />;
   }
   return (
     <>
       <p className="mb-3 text-[11px] text-muted-foreground">
-        {total} contact{total === 1 ? "" : "s"} joined Antelog but haven't connected with you yet
+        {total} contact{total === 1 ? "" : "s"} on Antelog
       </p>
       {rows.length === 0 ? (
         <EmptyTab message="No results match your search." />
@@ -640,37 +533,59 @@ function ToAddList({
         <ul className="divide-y divide-border/60">
           {rows.map((row) => (
             <li key={row.contactId} className="flex items-center gap-3 py-3">
-              <Avatar name={row.fullName} />
+              <Avatar name={row.name} />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <span className="truncate text-[14px] font-medium text-foreground">{row.fullName}</span>
+                  <span className="truncate text-[14px] font-medium text-foreground">{row.name}</span>
                   {row.handle && (
                     <span className="text-[12px] text-muted-foreground">@{row.handle}</span>
                   )}
                 </div>
-                <div className="text-[11px] text-muted-foreground">
-                  {row.joinedAt
-                    ? `Joined ${new Date(row.joinedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })} · `
-                    : ""}
-                  in your contacts
-                </div>
+                {row.friendshipId ? (
+                  <div className="text-[11px] text-muted-foreground">
+                    Connected since{" "}
+                    {new Date(row.connectedAt!).toLocaleDateString(undefined, {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-[11px] text-muted-foreground">
+                    {row.joinedAt
+                      ? `Joined ${new Date(row.joinedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })} · `
+                      : ""}
+                    in your contacts
+                  </div>
+                )}
               </div>
-              <button
-                type="button"
-                onClick={() => onConnect(row)}
-                disabled={row.pending}
-                className="rounded-md bg-foreground px-[14px] py-[6px] text-[12px] font-medium text-background transition-opacity hover:opacity-90 disabled:opacity-60"
-              >
-                {row.pending ? "Request sent" : "Connect"}
-              </button>
-              <button
-                type="button"
-                onClick={() => onDismiss(row.contactId)}
-                aria-label="Dismiss"
-                className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              >
-                <X className="h-[15px] w-[15px]" strokeWidth={1.5} />
-              </button>
+              {row.friendshipId ? (
+                <>
+                  <Link
+                    to={`/profile/${row.userId}`}
+                    className="rounded-md border border-border/70 px-3 py-[6px] text-[12px] font-medium text-foreground transition-colors hover:bg-muted"
+                  >
+                    View profile
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => onRemove(row)}
+                    aria-label={`Remove ${row.name}`}
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-destructive"
+                  >
+                    <Trash2 className="h-[15px] w-[15px]" strokeWidth={1.5} />
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => onConnect(row)}
+                  disabled={row.pending}
+                  className="rounded-md bg-foreground px-[14px] py-[6px] text-[12px] font-medium text-background transition-opacity hover:opacity-90 disabled:opacity-60"
+                >
+                  {row.pending ? "Request sent" : "Connect"}
+                </button>
+              )}
             </li>
           ))}
         </ul>
@@ -718,67 +633,13 @@ function ToInviteList({
   );
 }
 
-function GroupsList({
-  groups,
-  loading,
-}: {
-  groups: Group[];
-  loading: boolean;
-}) {
-  if (loading) {
-    return <EmptyTab message="Loading groups…" />;
-  }
-  if (groups.length === 0) {
-    return <EmptyTab message="No groups yet. Create your first group to organize your friends." />;
-  }
-  return (
-    <>
-      <ul className="divide-y divide-border/60">
-        {groups.map((group) => (
-          <li key={group.id} className="flex items-center gap-3 py-3">
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border bg-muted text-[12px] font-medium text-foreground">
-              {(group.name || "?").trim().charAt(0).toUpperCase()}
-            </span>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <Link
-                  to={`/groups/${group.id}`}
-                  className="truncate text-[14px] font-medium text-foreground hover:underline"
-                >
-                  {group.name}
-                </Link>
-              </div>
-              <div className="text-[11px] text-muted-foreground">
-                {group.member_count} member{group.member_count === 1 ? "" : "s"} · Created {new Date(group.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
-              </div>
-            </div>
-          </li>
-        ))}
-      </ul>
-      <div className="mt-4 rounded-md bg-muted px-4 py-3">
-        <div className="flex items-center justify-between gap-4">
-          <span className="text-[12px] text-muted-foreground">
-            Create, edit, or manage your groups in the dedicated Groups page.
-          </span>
-          <Link
-            to="/groups"
-            className="inline-flex items-center gap-1 text-[12px] font-medium text-foreground transition-colors hover:text-muted-foreground"
-          >
-            Go to Groups <ArrowRight className="h-3 w-3" strokeWidth={1.5} />
-          </Link>
-        </div>
-      </div>
-    </>
-  );
-}
-
 function EmptyTab({ message }: { message: string }) {
   return (
     <div className="py-10 text-center text-[13px] text-muted-foreground">{message}</div>
   );
 }
 
-function ImportCards({ onNavigate }: { onNavigate: () => void }) {
+function ImportCards({ onPick }: { onPick: (tab: "google" | "file" | "manual") => void }) {
   return (
     <div className="mt-8 grid gap-4 md:grid-cols-3">
       <ImportCard
@@ -788,7 +649,7 @@ function ImportCards({ onNavigate }: { onNavigate: () => void }) {
         primary
         actionLabel="Connect Google"
         helper="Most popular · easiest option"
-        onClick={onNavigate}
+        onClick={() => onPick("google")}
       />
       <ImportCard
         icon={<Upload className="h-5 w-5" strokeWidth={1.5} />}
@@ -796,7 +657,7 @@ function ImportCards({ onNavigate }: { onNavigate: () => void }) {
         description="Import from a CSV or vCard (.vcf) file."
         actionLabel="Choose file"
         helper="Works on iPhone and Android"
-        onClick={onNavigate}
+        onClick={() => onPick("file")}
       />
       <ImportCard
         icon={<Plus className="h-5 w-5" strokeWidth={1.5} />}
@@ -804,7 +665,7 @@ function ImportCards({ onNavigate }: { onNavigate: () => void }) {
         description="Enter contacts one by one."
         actionLabel="Add contact"
         helper="For 1–5 contacts"
-        onClick={onNavigate}
+        onClick={() => onPick("manual")}
       />
     </div>
   );

@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation, Link } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import { ThemeProvider } from "next-themes";
 import { useEffect, useState } from "react";
@@ -22,7 +22,7 @@ import ListsNew from "./pages/ListsNew";
 import ListDetail from "./pages/ListDetail";
 import ListEdit from "./pages/ListEdit";
 import Friends from "./pages/Friends";
-import ContactsImportHub from "./pages/ContactsImportHub";
+import FriendRequestPage from "./pages/FriendRequest";
 import ExtendedNetwork from "./pages/ExtendedNetwork";
 import Groups from "./pages/Groups";
 import GroupsNew from "./pages/GroupsNew";
@@ -166,7 +166,7 @@ function App() {
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <TooltipProvider>
             <Toaster />
-            <Sonner />
+            <Sonner position="top-right" />
             <BrowserRouter>
               <AppContent 
                 session={session} 
@@ -201,6 +201,19 @@ function AppContent({
   const navigate = useNavigate();
   const location = useLocation();
   const isGuestPage = location.pathname.startsWith("/r/");
+  const isOnboarding = location.pathname === "/welcome";
+  const AUTH_PATHS = ["/login", "/signup", "/guest-signup", "/register", "/signin"];
+  const isAuthPage = AUTH_PATHS.includes(location.pathname);
+
+  // Guard: don't render any navigation until auth state is fully resolved.
+  // This prevents the nav from flashing before the session is confirmed.
+  if (initializing) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-pulse text-sm text-muted-foreground">Loading...</div>
+      </div>
+    );
+  }
 
   // Admin status is sourced from the database (user_roles, via the
   // get_current_user_role RPC) — never from a hard-coded identity. Default to
@@ -245,6 +258,7 @@ function AppContent({
     "/notifications",
     "/settings",
     "/admin",
+    "/friend-request",
   ];
   const isShellRoute =
     isAuthenticatedShellPath(location.pathname, SHELL_ROUTES);
@@ -369,6 +383,18 @@ function AppContent({
     }
   };
 
+  const handleSkipOnboarding = async () => {
+    if (!user?.id) {
+      navigate("/dashboard", { replace: true });
+      return;
+    }
+    await supabase
+      .from("profiles")
+      .update({ questionnaire_completed: true })
+      .eq("id", user.id);
+    navigate("/dashboard", { replace: true });
+  };
+
   const useShell = isShellRoute && isAuthenticated && userType === "verified";
 
   const routesNode = (
@@ -465,7 +491,16 @@ function AppContent({
           path="/contacts/import"
           element={
             <ProtectedRoute isAuthenticated={isAuthenticated}>
-              <ContactsImportHub />
+              <Network />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/friend-request/:userId"
+          element={
+            <ProtectedRoute isAuthenticated={isAuthenticated}>
+              <FriendRequestPage />
             </ProtectedRoute>
           }
         />
@@ -650,6 +685,43 @@ function AppContent({
         {routesNode && (
           <AppShell onLogout={handleLogout}>{routesNode}</AppShell>
         )}
+      </>
+    );
+  }
+
+  if (isAuthPage) {
+    return (
+      <>
+        <header className="sticky top-0 z-30 border-b border-border bg-background">
+          <div className="flex items-center px-7 py-[14px]">
+            <Link to="/" className="text-[20px] font-semibold tracking-[-0.02em] text-foreground leading-none">
+              Antelog
+            </Link>
+          </div>
+        </header>
+        {routesNode}
+      </>
+    );
+  }
+
+  if (isOnboarding) {
+    return (
+      <>
+        <header className="sticky top-0 z-30 border-b border-border bg-background">
+          <div className="flex items-center justify-between px-7 py-[14px]">
+            <Link to="/" className="text-[20px] font-semibold tracking-[-0.02em] text-foreground leading-none">
+              Antelog
+            </Link>
+            <button
+              type="button"
+              onClick={handleSkipOnboarding}
+              className="text-[13px] text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Skip for now
+            </button>
+          </div>
+        </header>
+        {routesNode}
       </>
     );
   }

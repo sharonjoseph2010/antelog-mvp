@@ -10,11 +10,13 @@ interface SidebarItemProps {
   count?: number | null;
   /** Alert count (e.g. unread) — filled pill */
   alert?: number | null;
+  /** Small unread indicator dot (uses info color) */
+  dot?: boolean;
   end?: boolean;
   onNavigate?: () => void;
 }
 
-export function SidebarItem({ to, icon: Icon, label, count, alert, end, onNavigate }: SidebarItemProps) {
+export function SidebarItem({ to, icon: Icon, label, count, alert, dot, end, onNavigate }: SidebarItemProps) {
   return (
     <NavLink
       to={to}
@@ -38,6 +40,13 @@ export function SidebarItem({ to, icon: Icon, label, count, alert, end, onNaviga
             strokeWidth={1.5}
           />
           <span className="flex-1 truncate">{label}</span>
+          {dot && (
+            <span
+              aria-label="New"
+              className="inline-block h-[6px] w-[6px] rounded-full"
+              style={{ backgroundColor: "hsl(var(--info-fg))" }}
+            />
+          )}
           {alert != null && alert > 0 && (
             <span className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-foreground px-1.5 text-[10px] font-semibold text-background">
               {alert > 99 ? "99+" : alert}

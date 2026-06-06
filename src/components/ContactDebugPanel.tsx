@@ -118,10 +118,10 @@ const ContactDebugPanel = () => {
 
   if (loading) {
     return (
-      <Card className="mt-8 border-amber-200 bg-amber-50/50">
+      <Card className="attention-surface mt-8">
         <CardContent className="flex items-center justify-center py-8">
-          <Loader2 className="w-6 h-6 animate-spin text-amber-600" />
-          <span className="ml-2 text-amber-600">Loading debug data...</span>
+          <Loader2 className="w-6 h-6 animate-spin" />
+          <span className="ml-2">Loading debug data...</span>
         </CardContent>
       </Card>
     );
@@ -135,9 +135,9 @@ const ContactDebugPanel = () => {
   };
 
   return (
-    <Card className="mt-8 border-amber-200 bg-amber-50/50">
+    <Card className="attention-surface mt-8">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-amber-900">
+        <CardTitle className="flex items-center gap-2">
           <AlertCircle className="w-5 h-5" />
           Debug Panel - Phone Number Matching Analysis
         </CardTitle>
@@ -145,37 +145,37 @@ const ContactDebugPanel = () => {
       <CardContent className="space-y-6">
         {/* Contacts Section */}
         <div>
-          <h3 className="font-semibold text-lg mb-3 text-amber-900">
+          <h3 className="font-semibold text-lg mb-3">
             Your Imported Contacts ({contacts.length})
           </h3>
           <div className="space-y-3">
             {contacts.map(contact => {
               const matchingProfiles = getMatchStatus(contact);
               return (
-                <div key={contact.id} className="bg-white p-4 rounded-lg border border-amber-200">
+                <div key={contact.id} className="bg-background p-4 rounded-lg border border-border">
                   <div className="flex items-start justify-between mb-2">
-                    <div className="font-medium text-amber-900">{contact.contact_name}</div>
+                    <div className="font-medium">{contact.contact_name}</div>
                     {contact.is_matched ? (
-                      <Badge variant="default" className="bg-green-100 text-green-800">Matched</Badge>
+                      <Badge variant="default" className="trust-surface">Matched</Badge>
                     ) : (
                       <Badge variant="outline">Not Matched</Badge>
                     )}
                   </div>
-                  <div className="text-sm space-y-1 font-mono text-amber-800">
-                    <div>Original: <code className="bg-amber-100 px-1 rounded">{contact.contact_phone}</code></div>
-                    <div>Normalized: <code className="bg-amber-100 px-1 rounded">{contact.contact_phone_normalized}</code></div>
+                  <div className="text-sm space-y-1 font-mono">
+                    <div>Original: <code className="bg-muted px-1 rounded">{contact.contact_phone}</code></div>
+                    <div>Normalized: <code className="bg-muted px-1 rounded">{contact.contact_phone_normalized}</code></div>
                   </div>
                   {matchingProfiles && matchingProfiles.length > 0 && (
-                    <div className="mt-2 pt-2 border-t border-amber-200">
-                      <div className="text-sm text-green-700 font-medium">
-                        ✅ Should match: {matchingProfiles.map(p => `${p.full_name} (@${p.handle})`).join(', ')}
+                    <div className="mt-2 pt-2 border-t border-border">
+                      <div className="text-sm font-medium" style={{ color: 'hsl(var(--trust-fg))' }}>
+                        Should match: {matchingProfiles.map(p => `${p.full_name} (@${p.handle})`).join(', ')}
                       </div>
                     </div>
                   )}
                   {!matchingProfiles && (
-                    <div className="mt-2 pt-2 border-t border-amber-200">
-                      <div className="text-sm text-red-700 font-medium">
-                        ❌ No matching profiles with this normalized phone
+                    <div className="mt-2 pt-2 border-t border-border">
+                      <div className="text-sm font-medium" style={{ color: 'hsl(var(--danger-fg))' }}>
+                        No matching profiles with this normalized phone
                       </div>
                     </div>
                   )}
@@ -187,18 +187,18 @@ const ContactDebugPanel = () => {
 
         {/* Profiles Section */}
         <div>
-          <h3 className="font-semibold text-lg mb-3 text-amber-900">
+          <h3 className="font-semibold text-lg mb-3">
             All Profiles with Phone Numbers ({profiles.length})
           </h3>
           <div className="space-y-3">
             {profiles.map(profile => (
-              <div key={profile.id} className="bg-white p-4 rounded-lg border border-amber-200">
-                <div className="font-medium text-amber-900 mb-2">
+              <div key={profile.id} className="bg-background p-4 rounded-lg border border-border">
+                <div className="font-medium mb-2">
                   {profile.full_name} (@{profile.handle})
                 </div>
-                <div className="text-sm space-y-1 font-mono text-amber-800">
-                  <div>Original: <code className="bg-amber-100 px-1 rounded">{profile.phone_number}</code></div>
-                  <div>Normalized: <code className="bg-amber-100 px-1 rounded">{profile.phone_number_normalized}</code></div>
+                <div className="text-sm space-y-1 font-mono">
+                  <div>Original: <code className="bg-muted px-1 rounded">{profile.phone_number}</code></div>
+                  <div>Normalized: <code className="bg-muted px-1 rounded">{profile.phone_number_normalized}</code></div>
                 </div>
               </div>
             ))}

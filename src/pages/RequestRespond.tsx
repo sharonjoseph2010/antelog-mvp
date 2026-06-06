@@ -1299,20 +1299,8 @@ export default function RequestRespond() {
   };
 
   const getAudienceBadgeColor = (audienceType: string) => {
-    switch (audienceType) {
-      case "first_network":
-      case "friends":
-        return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200";
-      case "group":
-      case "specific_group":
-        return "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200";
-      case "specific_people":
-        return "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200";
-      case "public":
-        return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200";
-      default:
-        return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200";
-    }
+    // Audience labels are neutral metadata — no semantic colour.
+    return "bg-secondary text-secondary-foreground";
   };
 
   // Get aggregated top recommendations across all responses
@@ -1430,9 +1418,9 @@ export default function RequestRespond() {
       )}
       {/* Forward suggestion banner from notification */}
       {suggestForwardTo && request && (
-        <div className="mb-6 p-4 rounded-lg border border-amber-500/40 bg-amber-500/10 flex items-center justify-between gap-4">
+        <div className="attention-surface mb-6 p-4 rounded-lg flex items-center justify-between gap-4">
           <div className="flex-1">
-            <p className="text-sm text-foreground">
+            <p className="text-sm">
               {request.creator_profile?.full_name || 'Someone'} asked about this — {suggestExpertName || 'someone'} in your network is an expert.
             </p>
           </div>
@@ -1667,15 +1655,15 @@ export default function RequestRespond() {
 
       {/* Expired Banner - Non-creator View */}
       {!isOwnRequest && (request as any).expires_at && isRequestExpired((request as any).expires_at, request.status) && (
-        <Card className="mb-8 border-amber-500/30 bg-amber-500/5">
+        <Card className="attention-surface mb-8">
           <CardContent className="py-6">
             <div className="flex items-center gap-4">
-              <div className="flex-shrink-0 w-12 h-12 bg-amber-100 dark:bg-amber-900 rounded-full flex items-center justify-center">
-                <Timer className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+              <div className="flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center" style={{ background: 'hsl(var(--attention-border) / 0.4)' }}>
+                <Timer className="h-6 w-6" />
               </div>
               <div className="flex-1">
-                <h3 className="font-medium text-amber-800 dark:text-amber-200">This request has expired</h3>
-                <p className="text-sm text-amber-600 dark:text-amber-400">
+                <h3 className="font-medium">This request has expired</h3>
+                <p className="text-sm opacity-80">
                   No new responses can be submitted. Existing responses are still visible.
                 </p>
               </div>
@@ -1727,15 +1715,15 @@ export default function RequestRespond() {
 
       {/* Review in Progress State */}
       {request.status === 'reviewing' && (
-        <Card className="mb-8 border-amber-500/30 bg-amber-500/5">
+        <Card className="attention-surface mb-8">
           <CardContent className="py-6">
             <div className="flex items-center gap-4">
-              <div className="flex-shrink-0 w-12 h-12 bg-amber-100 dark:bg-amber-900 rounded-full flex items-center justify-center">
-                <Clock className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+              <div className="flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center" style={{ background: 'hsl(var(--attention-border) / 0.4)' }}>
+                <Clock className="h-6 w-6" />
               </div>
               <div className="flex-1">
-                <h3 className="font-medium text-amber-800 dark:text-amber-200">Review in Progress</h3>
-                <p className="text-sm text-amber-600 dark:text-amber-400">
+                <h3 className="font-medium">Review in Progress</h3>
+                <p className="text-sm opacity-80">
                   You're currently reviewing this request's recommendations
                 </p>
               </div>
@@ -1934,9 +1922,8 @@ export default function RequestRespond() {
 
       {/* Response Section - Conditional UI based on user's response status */}
       {forwardSuggestion && !isOwnRequest && (
-        <div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 p-4">
-          <p className="text-sm text-amber-900 dark:text-amber-200">
-            <span className="mr-1">💡</span>
+        <div className="attention-surface mb-4 rounded-lg p-4">
+          <p className="text-sm">
             <span className="font-medium">{forwardSuggestion.expert_name}</span> in your network has expertise in this topic. Consider forwarding this request to them.
           </p>
           <div className="mt-3">
@@ -1953,9 +1940,9 @@ export default function RequestRespond() {
       )}
       {isOwnRequest ? null : userResponse && !isEditing ? (
         /* User has already responded - show their response */
-        <Card className="mb-8 border-green-500/30 bg-green-500/5">
+        <Card className="mb-8">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-green-700 dark:text-green-400">
+            <CardTitle className="flex items-center gap-2">
               <ThumbsUp className="h-5 w-5" />
               Your Response
             </CardTitle>
@@ -2087,10 +2074,10 @@ export default function RequestRespond() {
                   
                   {/* Duplicate detection suggestions */}
                   {suggestions && suggestions.index === index && suggestions.items.length > 0 && (
-                    <div className="border rounded-md mt-2 p-3 bg-yellow-50 dark:bg-yellow-950 border-yellow-200 dark:border-yellow-800">
+                    <div className="attention-surface rounded-md mt-2 p-3">
                       <div className="flex items-center gap-2 mb-2">
-                        <AlertTriangle className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
-                        <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                        <AlertTriangle className="h-4 w-4" />
+                        <p className="text-sm font-medium">
                           Similar recommendations exist
                         </p>
                       </div>
@@ -2098,15 +2085,16 @@ export default function RequestRespond() {
                         {suggestions.items.map(item => (
                           <div 
                             key={item.id}
-                            className="flex items-center justify-between text-sm p-2 rounded bg-yellow-100 dark:bg-yellow-900 hover:bg-yellow-200 dark:hover:bg-yellow-800 cursor-pointer transition-colors"
+                            className="flex items-center justify-between text-sm p-2 rounded cursor-pointer transition-colors hover:opacity-80"
+                            style={{ background: 'hsl(var(--attention-border) / 0.35)' }}
                             onClick={() => handleSelectExistingRecommendation(item, index)}
                           >
-                            <span className="text-yellow-900 dark:text-yellow-100">
+                            <span>
                               {item.recommendation_text}
                             </span>
-                            <span className="flex items-center gap-2 text-xs text-yellow-700 dark:text-yellow-300">
+                            <span className="flex items-center gap-2 text-xs opacity-80">
                               {item.similarity_score && (
-                                <span className="bg-yellow-200 dark:bg-yellow-800 px-1.5 py-0.5 rounded">
+                                <span className="px-1.5 py-0.5 rounded" style={{ background: 'hsl(var(--attention-border) / 0.6)' }}>
                                   {Math.round(item.similarity_score * 100)}% match
                                 </span>
                               )}
@@ -2124,7 +2112,7 @@ export default function RequestRespond() {
                           variant="ghost"
                           size="sm"
                           onClick={dismissSuggestions}
-                          className="text-xs text-yellow-700 dark:text-yellow-300 hover:text-yellow-900 dark:hover:text-yellow-100"
+                          className="text-xs opacity-80 hover:opacity-100"
                         >
                           <Check className="h-3 w-3 mr-1" />
                           No, this is different

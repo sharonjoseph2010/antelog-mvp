@@ -19,6 +19,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { SidebarDivider, SidebarItem, SidebarSectionLabel } from "./SidebarItem";
 import { OnboardingCard } from "./OnboardingCard";
 import { UserMenu } from "./UserMenu";
+import { useFypUnread } from "@/hooks/useFypUnread";
 
 interface SidebarProps {
   /** Called when a nav item is clicked (used by mobile drawer to auto-close) */
@@ -44,6 +45,7 @@ export function Sidebar({ onNavigate, onLogout }: SidebarProps) {
   const { theme, resolvedTheme, setTheme } = useTheme();
   const [themeMounted, setThemeMounted] = useState(false);
   useEffect(() => { setThemeMounted(true); }, []);
+  const fypUnread = useFypUnread();
   const [profile, setProfile] = useState<ProfileSummary | null>(null);
   const [counts, setCounts] = useState<SidebarCounts>({
     requestsAlert: 0,
@@ -144,7 +146,7 @@ export function Sidebar({ onNavigate, onLogout }: SidebarProps) {
         <SidebarSectionLabel>General</SidebarSectionLabel>
         <nav className="flex flex-col gap-0.5">
           <SidebarItem to="/dashboard" icon={LayoutGrid} label="Dashboard" onNavigate={onNavigate} />
-          <SidebarItem to="/for-you" icon={Sparkles} label="For You" onNavigate={onNavigate} />
+          <SidebarItem to="/for-you" icon={Sparkles} label="For You" dot={fypUnread} onNavigate={onNavigate} />
           <SidebarItem
             to="/requests"
             icon={MessageCircleQuestion}

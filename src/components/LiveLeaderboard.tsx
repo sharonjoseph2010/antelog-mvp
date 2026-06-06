@@ -220,8 +220,8 @@ export function LiveLeaderboard({
               />
             ) : (
               <span className="relative flex h-2.5 w-2.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500" />
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ background: 'hsl(var(--info-fg))' }} />
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5" style={{ background: 'hsl(var(--info-fg))' }} />
               </span>
             )}
             {isClosed ? "Final Rankings" : "Live Rankings"}
@@ -235,19 +235,11 @@ export function LiveLeaderboard({
       <CardContent className="space-y-3 pt-4">
         {/* Similar pairs banner — creator only */}
         {isCreator && similarPairs.length > 0 && (
-          <div
-            className="p-3"
-            style={{
-              backgroundColor: "rgba(245,158,11,0.08)",
-              borderBottom: "1px solid rgba(245,158,11,0.35)",
-              border: "1px solid rgba(245,158,11,0.35)",
-            }}
-          >
+          <div className="attention-surface p-3 rounded-md">
             <button
               type="button"
               onClick={() => setShowMergePanel((v) => !v)}
               className="w-full flex items-center justify-between gap-2 text-sm font-medium"
-              style={{ color: "rgb(160,100,0)" }}
             >
               <span className="flex items-center gap-2">
                 <AlertTriangle className="h-4 w-4" />
@@ -271,7 +263,7 @@ export function LiveLeaderboard({
                         <span className="mx-2 text-muted-foreground">↔</span>
                         <span className="font-medium">"{p.rec2_text}"</span>{" "}
                         <span className="text-xs text-muted-foreground">({p.rec2_source})</span>
-                        <span className="ml-2 text-xs text-amber-700 dark:text-amber-300">— {pct}% similar</span>
+                        <span className="ml-2 text-xs opacity-80">— {pct}% similar</span>
                       </div>
                       <Button
                         size="sm"
@@ -445,7 +437,7 @@ export function LiveLeaderboard({
                 </div>
               </RadioGroup>
 
-              <div className="rounded-md bg-amber-500/10 border border-amber-500/30 p-2 text-xs text-amber-800 dark:text-amber-200 flex items-center gap-2">
+              <div className="attention-surface rounded-md p-2 text-xs flex items-center gap-2">
                 <AlertTriangle className="h-3.5 w-3.5" />
                 This cannot be undone.
               </div>

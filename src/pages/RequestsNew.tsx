@@ -16,6 +16,9 @@ import { checkForDuplicates } from "@/lib/masterDirectory";
 import { MessageSquare, ArrowLeft, Users, User, UserCheck, Globe, X, CircleCheck, ExternalLink, AlertTriangle, Search, ClipboardList, Brain, Sparkles } from "lucide-react";
 import { z } from "zod";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Drawer, DrawerContent, DrawerFooter } from "@/components/ui/drawer";
+import PublicProfile from "@/pages/PublicProfile";
+import ExpertProfileModal from "@/components/ExpertProfileModal";
 
 interface Group {
   id: string;
@@ -42,6 +45,14 @@ const DOMAIN_KEYWORDS: Record<string, string[]> = {
   "Education": ["education", "course", "tutor", "coaching", "college", "university", "bootcamp", "class"],
   "Real Estate": ["real estate", "apartment", "flat", "house", "rent", "broker", "property", "pg"],
 };
+
+const REQUEST_PLACEHOLDERS = [
+  "e.g., Best noise-cancelling headphones under ₹5,000?",
+  "e.g., Good dermatologist in Bengaluru you'd actually recommend?",
+  "e.g., Most reliable second-hand car dealer in Delhi?",
+  "e.g., Best biryani in Hyderabad — not the tourist traps?",
+  "e.g., Accountant who's good with freelancer taxes in India?",
+];
 
 function deriveDomainsFromTitle(title: string): string[] {
   const lower = ` ${title.toLowerCase()} `;
@@ -85,6 +96,10 @@ export default function RequestsNew() {
   const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
   const [duplicateResults, setDuplicateResults] = useState<any[]>([]);
   const [expiryDays, setExpiryDays] = useState("7");
+  const [randomPlaceholder] = useState(() => {
+    const idx = Math.floor(Math.random() * REQUEST_PLACEHOLDERS.length);
+    return REQUEST_PLACEHOLDERS[idx];
+  });
   const [anonReach, setAnonReach] = useState<number | null>(null);
   // Nudge 1: similar directory lists
   const [similarDirectoryList, setSimilarDirectoryList] = useState<{
@@ -97,10 +112,22 @@ export default function RequestsNew() {
   } | null>(null);
   const [directoryNudgeDismissed, setDirectoryNudgeDismissed] = useState(false);
   // Nudge 2: network experts
-  const [networkExperts, setNetworkExperts] = useState<Array<{ profile_id: string; full_name: string | null; handle: string | null; matching_domains: string[]; degree: number }>>([]);
+  const [networkExperts, setNetworkExperts] = useState<Array<{
+    profile_id: string;
+    full_name: string | null;
+    handle: string | null;
+    matching_domains: string[];
+    degree: number;
+    expertise_cities: string[];
+    connection_path: string[];
+    intermediate_names: string[];
+  }>>([]);
   const [expertNudgeDismissed, setExpertNudgeDismissed] = useState(false);
   // Inline message shown inside the directory nudge after "Send request to them"
   const [directoryForwardMessage, setDirectoryForwardMessage] = useState<string | null>(null);
+  // V5C: pending forwards queued from expert pills (target profile_id)
+  const [pendingForwards, setPendingForwards] = useState<Set<string>>(new Set());
+  const [profileSheetExpertId, setProfileSheetExpertId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     title: '',
     category: '' as 'films' | 'places' | 'products' | 'services' | 'other',
@@ -220,12 +247,48 @@ export default function RequestsNew() {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
-        const { data, error } = await supabase.rpc("find_network_experts", {
-          viewer_id: user.id,
-          query_domains: domains,
-        });
-        if (error) throw error;
-        setNetworkExperts((data || []).slice(0, 3));
+
+        // Query across all degrees, one call per derived domain, then merge.
+        const results = await Promise.all(
+          domains.map((dom) =>
+            supabase.rpc("find_network_experts_all_degrees", {
+              viewer_id: user.id,
+              domain_filter: dom,
+              max_depth: 4,
+            })
+          )
+        );
+        const merged = new Map<string, any>();
+        for (const { data, error } of results) {
+          if (error) {
+            console.error("find_network_experts_all_degrees error", error);
+            continue;
+          }
+          for (const r of (data || []) as any[]) {
+            const nd = r.network_degree ?? r.degree;
+            const existing = merged.get(r.expert_user_id);
+            if (!existing || nd < (existing.network_degree ?? existing.degree)) merged.set(r.expert_user_id, r);
+          }
+        }
+        const base = Array.from(merged.values())
+          .sort((a, b) => (a.network_degree ?? a.degree) - (b.network_degree ?? b.degree))
+          .slice(0, 8);
+
+        setNetworkExperts(
+          base.map((r: any) => {
+            const path: string[] = Array.isArray(r.connection_path) ? r.connection_path : [];
+            return {
+              profile_id: r.expert_user_id,
+              full_name: r.expert_name ?? null,
+              handle: r.expert_handle ?? null,
+              matching_domains: r.matched_domains || [],
+              expertise_cities: r.matched_cities || [],
+              degree: r.network_degree ?? r.degree,
+              connection_path: path,
+              intermediate_names: path.slice(1, -1).filter((n) => typeof n === "string" && n.trim().length > 0),
+            };
+          })
+        );
       } catch (err) {
         console.error("find_network_experts error", err);
       }
@@ -233,8 +296,10 @@ export default function RequestsNew() {
     return () => clearTimeout(timer);
   }, [formData.title, expertNudgeDismissed]);
 
-  const frostedAmber = "relative rounded-lg border border-[rgba(245,158,11,0.4)] bg-[rgba(245,158,11,0.10)] backdrop-blur-sm p-4";
-  const frostedSky = "relative rounded-lg border border-[rgba(56,189,248,0.4)] bg-[rgba(56,189,248,0.10)] backdrop-blur-sm p-4";
+  // Semantic surfaces — see src/index.css. Attention = pending/not-yet-done.
+  // Info = system messages/tips. Both use soft fills + coloured border + readable text.
+  const frostedAmber = "attention-surface relative rounded-lg border-l-[3px] p-4";
+  const frostedSky = "info-surface relative rounded-lg border-l-[3px] p-4";
 
   const loadUserGroups = async () => {
     try {
@@ -776,9 +841,71 @@ export default function RequestsNew() {
 
       log('=== REQUEST CREATION DEBUG END ===\n');
 
+      // V5C: execute queued forwards from expert pills
+      let forwardedCount = 0;
+      if (pendingForwards.size > 0) {
+        try {
+          const targetIds = Array.from(pendingForwards);
+          const forwardRows: any[] = [];
+          const forwardNotifs: any[] = [];
+          const creatorFirst = (creatorName || 'Someone').split(' ')[0];
+
+          for (const targetId of targetIds) {
+            const expert = networkExperts.find((e) => e.profile_id === targetId);
+            if (!expert) continue;
+
+            const network_path =
+              expert.connection_path && expert.connection_path.length >= 2
+                ? expert.connection_path
+                : [user.id, targetId];
+            const network_depth = network_path.length - 1;
+            const intermediates = expert.intermediate_names || [];
+
+            forwardRows.push({
+              request_id: newRequest.id,
+              forwarded_by_user_id: user.id,
+              forwarded_to: [targetId],
+              network_path,
+              network_depth,
+              forwarded_to_audience: 'first_network',
+            });
+
+            const pathText =
+              intermediates.length > 0
+                ? `${creatorFirst} asked · forwarded via ${intermediates.join(' → ')} · to you`
+                : `${creatorFirst} asked · forwarded directly to you`;
+
+            forwardNotifs.push({
+              user_id: targetId,
+              type: 'request_forwarded',
+              title: `${creatorName} asked about something you'd know`,
+              message: `${pathText}: ${formData.title}`,
+              related_user_id: user.id,
+              metadata: { request_id: newRequest.id, network_path, network_depth },
+            });
+          }
+
+          if (forwardRows.length > 0) {
+            const { error: fwdErr } = await supabase
+              .from('request_forwards')
+              .insert(forwardRows);
+            if (fwdErr) {
+              console.error('Forward insert failed:', fwdErr);
+            } else {
+              forwardedCount = forwardRows.length;
+              await supabase.from('notifications').insert(forwardNotifs);
+            }
+          }
+        } catch (err) {
+          console.error('Pending forwards execution failed:', err);
+        }
+      }
+
       toast({
         title: "Request Created!",
-        description: `Your request has been sent to ${formData.audience_types.length} ${formData.audience_types.length === 1 ? 'audience' : 'audiences'}`
+        description: forwardedCount > 0
+          ? `Sent to ${formData.audience_types.length} ${formData.audience_types.length === 1 ? 'audience' : 'audiences'} · forwarded to ${forwardedCount} ${forwardedCount === 1 ? 'person' : 'people'}`
+          : `Your request has been sent to ${formData.audience_types.length} ${formData.audience_types.length === 1 ? 'audience' : 'audiences'}`
       });
 
       navigate('/requests');
@@ -892,7 +1019,7 @@ export default function RequestsNew() {
               <Label htmlFor="title">Your Request *</Label>
               <Textarea
                 id="title"
-                placeholder="e.g., Can someone recommend good coffee shops near SRFTI campus?"
+                placeholder={randomPlaceholder}
                 value={formData.title}
                 onChange={(e) => setFormData({...formData, title: e.target.value})}
                 onBlur={handleTitleBlur}
@@ -916,32 +1043,32 @@ export default function RequestsNew() {
                   <div className="space-y-3">
                     {/* Unified panel: contributor IS also a matching expert */}
                     {showDirectory && unified && similarDirectoryList && matchedExpert && (
-                      <div className={frostedAmber}>
-                        <button
-                          type="button"
-                          onClick={() => { setDirectoryNudgeDismissed(true); setExpertNudgeDismissed(true); }}
-                          className="absolute top-2 right-2 text-amber-300/70 hover:text-amber-200"
-                          aria-label="Dismiss"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                        <div className="flex items-start gap-2 pr-6">
-                          <Brain className="h-4 w-4 mt-0.5 text-amber-300 shrink-0" />
-                          <div className="space-y-2 flex-1">
-                            <p className="text-sm font-medium text-amber-200">
-                              {similarDirectoryList.contributor_name || (matchedExpert.full_name ?? "Someone")} in your network already made this list
-                            </p>
-                            <p className="text-sm text-amber-100/90">
-                              "{similarDirectoryList.title}" — {similarDirectoryList.total_votes} {similarDirectoryList.total_votes === 1 ? "vote" : "votes"}
-                            </p>
-                            <p className="text-sm text-amber-100/90">
-                              {(similarDirectoryList.contributor_name || matchedExpert.full_name || "They").split(" ")[0]} knows: {matchedExpert.matching_domains.join(", ")}
-                            </p>
-                            {directoryForwardMessage && (
-                              <p className="text-sm text-amber-100 bg-amber-500/10 border border-amber-400/30 rounded p-2">
-                                {directoryForwardMessage}
-                              </p>
-                            )}
+                       <div className={frostedAmber}>
+                         <button
+                           type="button"
+                           onClick={() => { setDirectoryNudgeDismissed(true); setExpertNudgeDismissed(true); }}
+                           className="absolute top-2 right-2 opacity-70 hover:opacity-100"
+                           aria-label="Dismiss"
+                         >
+                           <X className="h-4 w-4" />
+                         </button>
+                         <div className="flex items-start gap-2 pr-6">
+                           <Brain className="h-4 w-4 mt-0.5 shrink-0" />
+                           <div className="space-y-2 flex-1">
+                             <p className="text-sm font-medium">
+                               {similarDirectoryList.contributor_name || (matchedExpert.full_name ?? "Someone")} in your network already made this list
+                             </p>
+                             <p className="text-sm">
+                               "{similarDirectoryList.title}" — {similarDirectoryList.total_votes} {similarDirectoryList.total_votes === 1 ? "vote" : "votes"}
+                             </p>
+                             <p className="text-sm">
+                               {(similarDirectoryList.contributor_name || matchedExpert.full_name || "They").split(" ")[0]} knows: {matchedExpert.matching_domains.join(", ")}
+                             </p>
+                             {directoryForwardMessage && (
+                               <p className="text-sm rounded p-2" style={{ background: 'hsl(var(--attention-bg) / 0.6)', border: '0.5px solid hsl(var(--attention-border))' }}>
+                                 {directoryForwardMessage}
+                               </p>
+                             )}
                             <div className="flex flex-wrap gap-2 pt-1">
                               <Button type="button" variant="outline" size="sm" onClick={() => window.open(`/directory/${similarDirectoryList.id}`, '_blank')}>
                                 View their list
@@ -960,109 +1087,206 @@ export default function RequestsNew() {
 
                     {/* Directory nudge (when not unified) */}
                     {showDirectory && !unified && similarDirectoryList && (
-                      <div className={frostedAmber}>
-                        <button
-                          type="button"
-                          onClick={() => setDirectoryNudgeDismissed(true)}
-                          className="absolute top-2 right-2 text-amber-300/70 hover:text-amber-200"
-                          aria-label="Dismiss"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                        <div className="flex items-start gap-2 pr-6">
-                          <ClipboardList className="h-4 w-4 mt-0.5 text-amber-300 shrink-0" />
-                          <div className="space-y-2 flex-1">
-                            {similarDirectoryList.contributor_name ? (
-                              <>
-                                <p className="text-sm font-medium text-amber-200">
-                                  {similarDirectoryList.contributor_name} in your network already made this list
-                                </p>
-                                <p className="text-sm text-amber-100/90">
-                                  "{similarDirectoryList.title}" — {similarDirectoryList.total_votes} {similarDirectoryList.total_votes === 1 ? "vote" : "votes"}
-                                </p>
-                                {directoryForwardMessage && (
-                                  <p className="text-sm text-amber-100 bg-amber-500/10 border border-amber-400/30 rounded p-2">
-                                    {directoryForwardMessage}
-                                  </p>
-                                )}
-                                <div className="flex flex-wrap gap-2 pt-1">
-                                  <Button type="button" variant="outline" size="sm" onClick={() => window.open(`/directory/${similarDirectoryList.id}`, '_blank')}>
-                                    View their list
-                                  </Button>
-                                  <Button type="button" variant="outline" size="sm" onClick={handleSendRequestToContributor}>
-                                    Send request to them
-                                  </Button>
-                                  <Button type="button" variant="ghost" size="sm" onClick={() => setDirectoryNudgeDismissed(true)}>
-                                    Continue
-                                  </Button>
-                                </div>
-                              </>
-                            ) : (
-                              <>
-                                <p className="text-sm font-medium text-amber-200">
-                                  This might already exist in the Master Directory
-                                </p>
-                                <p className="text-sm text-amber-100/90">
-                                  "{similarDirectoryList.title}" — {similarDirectoryList.total_votes} {similarDirectoryList.total_votes === 1 ? "vote" : "votes"}
-                                </p>
-                                <div className="flex flex-wrap gap-2 pt-1">
-                                  <Button type="button" variant="outline" size="sm" onClick={() => window.open(`/directory/${similarDirectoryList.id}`, '_blank')}>
-                                    View existing list
-                                  </Button>
-                                  <Button type="button" variant="ghost" size="sm" onClick={() => setDirectoryNudgeDismissed(true)}>
-                                    Continue creating request
-                                  </Button>
-                                </div>
-                              </>
-                            )}
+                       <div className={frostedAmber}>
+                         <button
+                           type="button"
+                           onClick={() => setDirectoryNudgeDismissed(true)}
+                           className="absolute top-2 right-2 opacity-70 hover:opacity-100"
+                           aria-label="Dismiss"
+                         >
+                           <X className="h-4 w-4" />
+                         </button>
+                         <div className="flex items-start gap-2 pr-6">
+                           <ClipboardList className="h-4 w-4 mt-0.5 shrink-0" />
+                           <div className="space-y-2 flex-1">
+                             {similarDirectoryList.contributor_name ? (
+                               <>
+                                 <p className="text-sm font-medium">
+                                   {similarDirectoryList.contributor_name} in your network already made this list
+                                 </p>
+                                 <p className="text-sm">
+                                   "{similarDirectoryList.title}" — {similarDirectoryList.total_votes} {similarDirectoryList.total_votes === 1 ? "vote" : "votes"}
+                                 </p>
+                                 {directoryForwardMessage && (
+                                   <p className="text-sm rounded p-2" style={{ background: 'hsl(var(--attention-bg) / 0.6)', border: '0.5px solid hsl(var(--attention-border))' }}>
+                                     {directoryForwardMessage}
+                                   </p>
+                                 )}
+                                 <div className="flex flex-wrap gap-2 pt-1">
+                                   <Button type="button" variant="outline" size="sm" onClick={() => window.open(`/directory/${similarDirectoryList.id}`, '_blank')}>
+                                     View their list
+                                   </Button>
+                                   <Button type="button" variant="outline" size="sm" onClick={handleSendRequestToContributor}>
+                                     Send request to them
+                                   </Button>
+                                   <Button type="button" variant="ghost" size="sm" onClick={() => setDirectoryNudgeDismissed(true)}>
+                                     Continue
+                                   </Button>
+                                 </div>
+                               </>
+                             ) : (
+                               <>
+                                 <p className="text-sm font-medium">
+                                   This might already exist in the Master Directory
+                                 </p>
+                                 <p className="text-sm">
+                                   "{similarDirectoryList.title}" — {similarDirectoryList.total_votes} {similarDirectoryList.total_votes === 1 ? "vote" : "votes"}
+                                 </p>
+                                 <div className="flex flex-wrap gap-2 pt-1">
+                                   <Button type="button" variant="outline" size="sm" onClick={() => window.open(`/directory/${similarDirectoryList.id}`, '_blank')}>
+                                     View existing list
+                                   </Button>
+                                   <Button type="button" variant="ghost" size="sm" onClick={() => setDirectoryNudgeDismissed(true)}>
+                                     Continue creating request
+                                   </Button>
+                                 </div>
+                               </>
+                             )}
                           </div>
                         </div>
                       </div>
                     )}
 
                     {/* Expert nudge (suppressed when unified to avoid duplication) */}
-                    {showExperts && !unified && (
-                      <div className={frostedSky}>
-                        <button
-                          type="button"
-                          onClick={() => setExpertNudgeDismissed(true)}
-                          className="absolute top-2 right-2 text-sky-300/70 hover:text-sky-200"
-                          aria-label="Dismiss"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                        <div className="flex items-start gap-2 pr-6">
-                          <Brain className="h-4 w-4 mt-0.5 text-sky-300 shrink-0" />
-                          <div className="space-y-2 flex-1">
-                            <p className="text-sm font-medium text-sky-200">
-                              People in your network know about this
-                            </p>
-                            <ul className="space-y-1">
-                              {networkExperts.map((expert) => {
-                                const label = expert.degree === 1 ? "friend" : "friend of a friend";
-                                const name = expert.full_name || (expert.handle ? `@${expert.handle}` : "Someone");
-                                return (
-                                  <li key={expert.profile_id} className="text-sm text-sky-100/90">
-                                    {name} <span className="text-sky-200/70">({label})</span> · knows: {expert.matching_domains.join(", ")}
-                                  </li>
-                                );
-                              })}
-                            </ul>
-                            <p className="text-xs text-sky-100/70 italic">
-                              They'll be able to answer this well.
-                            </p>
+                     {showExperts && !unified && (
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-1.5">
+                            <Users className="h-3 w-3" style={{ color: 'var(--color-text-secondary)' }} />
+                             <span style={{ color: 'var(--color-text-secondary)', fontSize: 11, fontWeight: 500 }}>
+                               {networkExperts.length} {networkExperts.length === 1 ? 'person' : 'people'} across your network know about this
+                             </span>
                           </div>
-                        </div>
-                      </div>
-                    )}
+                          {(() => {
+                            const titleLower = (formData.title || '').toLowerCase();
+                            const enriched = networkExperts.map((expert) => {
+                              const matchedCity = (expert.expertise_cities || []).find(
+                                (c) => c && titleLower.includes(c.toLowerCase())
+                              ) || null;
+                              const hasDomain = (expert.matching_domains || []).length > 0;
+                              const rank = hasDomain && matchedCity ? 0 : hasDomain ? 1 : matchedCity ? 2 : 3;
+                              return { ...expert, matchedCity, rank };
+                            });
+                            enriched.sort((a, b) => a.rank - b.rank);
+                            return enriched;
+                          })().map((expert) => {
+                           const name = expert.full_name || (expert.handle ? `@${expert.handle}` : 'Someone');
+                           const initials = (expert.full_name || expert.handle || '?')
+                             .split(/\s+/)
+                             .map((p) => p.charAt(0).toUpperCase())
+                             .slice(0, 2)
+                             .join('');
+                           const ordinal = (n: number) => {
+                             const s = ['th', 'st', 'nd', 'rd'];
+                             const v = n % 100;
+                             return n + (s[(v - 20) % 10] || s[v] || s[0]);
+                           };
+                           const degreeLabel = ordinal(expert.degree);
+                           const degreeOpacity =
+                             expert.degree <= 1 ? 1 : expert.degree === 2 ? 0.95 : expert.degree === 3 ? 0.9 : 0.85;
+                           const intermediates = expert.intermediate_names || [];
+                           const queued = pendingForwards.has(expert.profile_id);
+                           return (
+                              <div
+                                key={expert.profile_id}
+                                 className="flex items-center gap-2.5"
+                                 style={{
+                                   background: 'var(--color-background-secondary)',
+                                   border: '0.5px solid var(--color-border-tertiary)',
+                                   borderRadius: 12,
+                                   padding: '10px 12px',
+                                   opacity: degreeOpacity,
+                                 }}
+                              >
+                               <div
+                                 className="flex items-center justify-center shrink-0"
+                                 style={{
+                                    width: 32,
+                                    height: 32,
+                                   borderRadius: '9999px',
+                                    background: 'hsl(var(--trust-avatar-bg))',
+                                    color: 'hsl(var(--trust-avatar-fg))',
+                                    fontSize: 12,
+                                   fontWeight: 600,
+                                 }}
+                               >
+                                 {initials || '?'}
+                               </div>
+                                 <div className="flex-1 min-w-0">
+                                   <div
+                                     className="truncate"
+                                     style={{ color: 'var(--color-text-primary)', fontSize: 12, fontWeight: 500 }}
+                                   >
+                                     {name}
+                                   </div>
+                                   <div
+                                     className="truncate"
+                                     style={{ color: 'var(--color-text-secondary)', fontSize: 10 }}
+                                   >
+                                     {[
+                                       degreeLabel,
+                                       intermediates.length > 0 ? `via ${intermediates.join(' → ')}` : null,
+                                       expert.matching_domains.length > 0 ? expert.matching_domains.join(', ') : null,
+                                       expert.matchedCity ? `knows ${expert.matchedCity}` : null,
+                                     ]
+                                       .filter(Boolean)
+                                       .join(' · ')}
+                                   </div>
+                                 </div>
+                                 <div className="flex items-center gap-1.5 shrink-0">
+                                   <button
+                                     type="button"
+                                     onClick={() => setProfileSheetExpertId(expert.profile_id)}
+                                     style={{
+                                       border: '0.5px solid var(--color-border-secondary)',
+                                       borderRadius: 6,
+                                       color: 'var(--color-text-secondary)',
+                                       fontSize: 10,
+                                       background: 'transparent',
+                                       padding: '4px 8px',
+                                       cursor: 'pointer',
+                                       whiteSpace: 'nowrap',
+                                     }}
+                                   >
+                                     View →
+                                   </button>
+                                   <button
+                                     type="button"
+                                     disabled={queued}
+                                     onClick={() => {
+                                       setPendingForwards((prev) => {
+                                         const next = new Set(prev);
+                                         next.add(expert.profile_id);
+                                         return next;
+                                       });
+                                     }}
+                                     style={{
+                                       border: 'none',
+                                       borderRadius: 6,
+                                       color: 'var(--color-background-primary)',
+                                       fontSize: 10,
+                                       background: 'var(--color-text-primary)',
+                                       padding: '4px 8px',
+                                       opacity: queued ? 0.5 : 1,
+                                       cursor: queued ? 'default' : 'pointer',
+                                       whiteSpace: 'nowrap',
+                                     }}
+                                   >
+                                     {queued ? 'Forwarding ✓' : 'Forward →'}
+                                   </button>
+                                 </div>
+                              </div>
+                           );
+                         })}
+                       </div>
+                     )}
                   </div>
                 );
               })()}
 
               {/* Duplicate Warning */}
               {showDuplicateWarning && duplicateResults.length > 0 && (
-                <Alert variant="default" className="border-yellow-500/50 bg-yellow-50 dark:bg-yellow-950/20">
-                  <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                <Alert variant="default" className="attention-surface">
+                  <AlertTriangle className="h-4 w-4" />
                   <AlertTitle>Similar lists already exist</AlertTitle>
                   <AlertDescription className="space-y-3">
                     <p className="text-sm">These might already have what you're looking for:</p>
@@ -1327,15 +1551,15 @@ export default function RequestsNew() {
             {/* On Antelog */}
             <div className="space-y-3">
               <div className="flex items-center gap-2">
-                <CircleCheck className="h-4 w-4 text-green-600" />
+                <CircleCheck className="h-4 w-4" style={{ color: 'hsl(var(--trust-fg))' }} />
                 <h3 className="font-semibold">On Antelog ({antelogContacts.length})</h3>
               </div>
               <p className="text-xs text-muted-foreground">These people will be notified in-app</p>
               {antelogContacts.length > 0 ? (
                 <div className="space-y-2">
                   {antelogContacts.map((contact) => (
-                    <div key={contact.id} className="flex items-center gap-3 p-2 rounded-lg border border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/30">
-                      <div className="h-8 w-8 rounded-full bg-green-200 dark:bg-green-800 flex items-center justify-center text-sm font-medium">
+                    <div key={contact.id} className="flex items-center gap-3 p-2 rounded-lg border border-border bg-secondary/50">
+                      <div className="h-8 w-8 rounded-full flex items-center justify-center text-sm font-medium" style={{ background: 'hsl(var(--trust-avatar-bg))', color: 'hsl(var(--trust-avatar-fg))' }}>
                         {contact.full_name?.charAt(0) || '?'}
                       </div>
                       <div className="flex-1 min-w-0">
@@ -1354,7 +1578,7 @@ export default function RequestsNew() {
             {/* Not on Antelog */}
             <div className="space-y-3">
               <div className="flex items-center gap-2">
-                <ExternalLink className="h-4 w-4 text-orange-600" />
+                <ExternalLink className="h-4 w-4 text-muted-foreground" />
                 <h3 className="font-semibold">Not on Antelog ({externalContacts.length})</h3>
               </div>
               <p className="text-xs text-muted-foreground">Generate a share link for these contacts</p>
@@ -1362,8 +1586,8 @@ export default function RequestsNew() {
                 <>
                   <div className="space-y-2">
                     {externalContacts.slice(0, 10).map((contact, idx) => (
-                      <div key={idx} className="flex items-center gap-3 p-2 rounded-lg border border-orange-200 bg-orange-50 dark:border-orange-900 dark:bg-orange-950/30">
-                        <div className="h-8 w-8 rounded-full bg-orange-200 dark:bg-orange-800 flex items-center justify-center text-sm font-medium">
+                      <div key={idx} className="flex items-center gap-3 p-2 rounded-lg border border-border bg-secondary/30">
+                        <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-sm font-medium text-muted-foreground">
                           {contact.contact_name?.charAt(0) || '?'}
                         </div>
                         <div className="flex-1 min-w-0">
@@ -1412,6 +1636,22 @@ export default function RequestsNew() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <ExpertProfileModal
+        expert={profileSheetExpertId ? networkExperts.find((e) => e.profile_id === profileSheetExpertId) || null : null}
+        requestText={formData.title}
+        queued={profileSheetExpertId ? pendingForwards.has(profileSheetExpertId) : false}
+        onClose={() => setProfileSheetExpertId(null)}
+        onForward={() => {
+          if (!profileSheetExpertId) return;
+          setPendingForwards((prev) => {
+            const next = new Set(prev);
+            next.add(profileSheetExpertId);
+            return next;
+          });
+          setProfileSheetExpertId(null);
+        }}
+      />
     </div>
   );
 }
