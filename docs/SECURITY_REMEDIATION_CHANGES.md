@@ -13,6 +13,14 @@ security review. It is the implementation counterpart to the review.
 > - **Edge-function and database changes are authored but NOT runnable in CI here** (no Deno, no DB access). They **MUST** be applied to a **staging** Supabase project via the CLI and smoke-tested before production.
 > - The RLS change (#1) is the highest blast radius in the project. Treat the [staging checklist](#staging-validation-checklist) as a merge gate.
 
+## ⏱️ Update after staging validation (2026-06-06)
+Validated by restoring the **live prod schema** into a preprod project and applying the migrations there. The test corrected several assumptions from the (older) review:
+- **#1 is now just `ENABLE ROW LEVEL SECURITY`.** Prod **already has correct, current policies** on all 25 core tables — they were simply unenforced (RLS off). The earlier draft re-created policies from the review and was **stale/wrong** (e.g. `requests.audience_types` is now an array: `first_network/group/specific_people/public/anonymous_expertise`). The migration was rewritten to only enable RLS.
+- **D1 (profiles friend-read) and `get_safe_profile_view`/`get_display_identity` already exist in prod** — those items are moot.
+- **D4 reverted.** Prod already permits the client notification insert (`"Authenticated users can create notifications" WITH CHECK (true)`), and `create_notification` does not exist in prod — so the client rewiring was reverted to the direct insert. (The permissive insert is a minor follow-up to tighten, separately.)
+- **Kept & still needed:** `get_request_for_guest` (D3 — enabling RLS blocks anon request reads), `guest_contributions` policies (#6), `recommendation_votes` SELECT fix (#7), rate-limit infra (#10), admin seed (#8).
+- **Verified on preprod:** all 3 migrations apply cleanly; RLS enforces (a stranger sees 0 other profiles; a non-admin `UPDATE user_roles … 'admin'` is blocked by RLS; owner sees own row).
+
 ---
 
 ## 1. Summary by finding

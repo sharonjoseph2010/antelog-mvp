@@ -13,6 +13,21 @@ that a git merge does **not** do automatically.
 >
 > **Freeze Lovable UI edits** to this project until deploy is done — editing in
 > Lovable mid-deploy can regenerate/conflict with these migrations and functions.
+>
+> ### ⚠️ Migration-history caveat (found during staging validation)
+> The repo's **full migration history does NOT replay onto an empty database**
+> (invalid `CREATE POLICY IF NOT EXISTS` + duplicate object definitions in the
+> Lovable-generated history). This matters in two ways:
+> - **On prod / any existing project** (history already recorded in
+>   `supabase_migrations.schema_migrations`): `supabase db push` applies **only
+>   the 3 new security migrations** — it works normally. ✅
+> - **On a brand-new empty project**: `supabase db push` of the whole history
+>   **fails**. To stand up a fresh staging env, **clone the prod schema** first
+>   (`pg_dump --schema-only --schema=public` from prod → restore into the new
+>   project), then apply the 3 new migrations. (This is how the 2026-06-06
+>   staging validation was done.)
+> - Separately worth fixing: **squash the migration history into a clean,
+>   replayable baseline** so new environments / disaster recovery are possible.
 
 ---
 
