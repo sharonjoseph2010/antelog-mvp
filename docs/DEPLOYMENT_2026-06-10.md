@@ -28,10 +28,13 @@ objects created by earlier ones.
 |------|-------------|----------|-----------|-------------------|----------------------|
 | 1 | `security/phase0-anon-pii-revoke-akp-20260610` | D1, D7 | `20260610120000` | No | DB only |
 | 2 | `security/phase1-rls-quickwins-akp-20260610` | F1, F2, F4, D5 | `20260610120100`, `20260610120300` | **Yes** (`GuestResponse.tsx`) | **YES — migration + front-end together** |
-| 3+ | (Phase 2 onward — added as built) | … | `20260610120400`+ | varies | varies |
+| 3 | `security/phase2-anon-surface-akp-20260610` | D2, D3, D8 | `20260610120500`, `…0600`, `…0700` | **Yes** (`GuestResponse.tsx`, `RequestRespond.tsx`) | **YES — migration + front-end together** |
+| 4+ | (Phase 3 onward — added as built) | … | `20260610120800`+ | varies | varies |
 
-> **Why order matters:** Phase 2's anon-grant lockdown (a later phase) re-grants
-> `increment_share_link_open`, which **Phase 1 creates**. Apply Phase 1 first.
+> **Why order matters:** Phase 2's anon-grant lockdown re-grants
+> `increment_share_link_open` (and the other guest RPCs), which **Phase 1
+> creates**. Apply Phase 1 first. Phase 2's branch is **stacked on Phase 1**, so
+> merge Phase 1 → main first; Phase 2's PR then retargets to main cleanly.
 
 ---
 
@@ -167,11 +170,67 @@ this bug, now fixed.
 
 ---
 
-## Phases 2+ (placeholder)
+## Phase 2 — anon surface lockdown + network auth.uid() (D2, D3, D8)
 
-Sections will be appended here as each phase PR is opened, in the same format:
-what changes in the DB, co-dependency callout, apply commands, staging
-checklist, rollback. Always follow the **merge order** table at the top.
+**PR:** `security/phase2-anon-surface-akp-20260610` (**stacked on Phase 1**)
+**Migrations:** `20260610120500` (D2), `20260610120600` (D3), `20260610120700` (D8)
+**Front-end:** `GuestResponse.tsx` (D2 token), `RequestRespond.tsx` (D3).
+
+> ### 🔴 CO-DEPENDENT + 🚨 HIGHEST-RISK PHASE — staging smoke test is mandatory
+> `20260610120700` (D8) **revokes the entire public-schema function surface from
+> `anon`** and re-grants only a 7-function allowlist. If any logged-out flow
+> needs a function not on the list, that flow breaks with `permission denied for
+> function`. The allowlist was verified against all 6 public routes, but **you
+> must walk the full logged-out guest flow on staging before prod.**
+> Also co-dependent: D2 changes `get_guest_page_preview`'s signature (adds the
+> token) — old front-end + new DB (or vice-versa) breaks the preview.
+
+### What changes in the DB
+- **D2:** `get_guest_page_preview(request_id)` → `(request_id, token)`; old overload dropped; now requires a valid share token.
+- **D3:** `find_network_experts` and `can_reveal_identity` pin the viewer to `auth.uid()` (close authenticated IDOR). `get_extended_network` is **not** changed (RLS-coupled — see the migration header; its anon access is closed by D8, residual authenticated IDOR is a tracked follow-up).
+- **D8:** `REVOKE ALL ON ALL FUNCTIONS IN SCHEMA public FROM anon` + undo the `ALTER DEFAULT PRIVILEGES … TO anon`; re-grant only: `get_request_for_guest`, `get_guest_page_preview`, `resolve_share_link`, `increment_share_link_open`, `increment_share_link_response`, `create_guest_share_link`, `share_link_matches`. `authenticated`/`service_role` untouched.
+
+### Apply
+```bash
+git checkout security/phase2-anon-surface-akp-20260610
+supabase link --project-ref <STAGING_REF> && supabase db push
+# then deploy/point the staging front-end and run the checklist
+```
+
+### Verify on STAGING (all must pass — this is the gate)
+- [ ] **Logged-out guest flow, end to end:** open `/r/<id>/<token>`, see the
+      request + preview, **submit a recommendation**, use **"Pass it along"** to
+      mint a forward link and open it. No `permission denied` anywhere.
+- [ ] **Preview is token-gated:** in a logged-out console,
+      `supabase.rpc('get_guest_page_preview', { p_request_id: '<id>' })` (no
+      token) returns **no rows / error**; with the correct token it returns rows.
+- [ ] **Anon network probes denied:** logged-out,
+      `supabase.rpc('get_extended_network', { user_id: '<any>' })` and
+      `find_network_experts`/`can_reveal_identity` all return
+      **permission denied** (D8 revoked them from anon).
+- [ ] **Authenticated network features still work:** Extended Network page,
+      Friends page, expert suggestions in "new request", and responding to a
+      request (creator identity reveal logic) all behave as before.
+- [ ] **Profiles still readable** by in-network authenticated users (confirms
+      `get_extended_network` keeping its `authenticated` grant — D8 did not
+      revoke it).
+- [ ] **Authenticated IDOR closed** on the guarded fns: as user A, calling
+      `find_network_experts({ viewer_id: '<user B id>', query_domains: [...] })`
+      returns **empty** (not B's network).
+
+### Rollback
+- D8: re-grant the specific function(s) to anon, e.g.
+  `GRANT EXECUTE ON FUNCTION public.<fn>(<args>) TO anon;` (re-opens that surface).
+- D2/D3: revert the front-end and re-create the prior function bodies (kept in
+  git history). Prefer fixing forward — add the missing function to the D8
+  allowlist rather than reverting the whole phase.
+
+---
+
+## Phases 3+ (placeholder)
+
+Sections will be appended here as each phase PR is opened, in the same format.
+Always follow the **merge order** table at the top.
 
 ---
 
