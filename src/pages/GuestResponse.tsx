@@ -152,9 +152,11 @@ export default function GuestResponse() {
       const creator_profile = { full_name: requestData.creator_name ?? null };
       setRequest({ ...requestData, creator_profile });
 
-      // Fetch preview recommendations
+      // Fetch preview recommendations (token-gated — D2: request_id alone no
+      // longer reads a request's answers).
       const { data: previewData } = await supabase.rpc("get_guest_page_preview" as any, {
         p_request_id: requestId!,
+        p_token: token!,
       });
       if (previewData && Array.isArray(previewData)) {
         const items = previewData.slice(0, 2).map((r: any) => ({
