@@ -234,6 +234,16 @@ Always follow the **merge order** table at the top.
 
 ---
 
+## Deferred follow-ups (not in any phase yet)
+
+- **`get_extended_network` authenticated IDOR (from D3).** Its `anon` access is
+  closed (D8), but a logged-in user can still enumerate another user's
+  2nd-degree network by passing a different `user_id`. Deferred deliberately: the
+  function is called by the `profiles` RLS policy and `get_safe_profile_view`
+  with varied viewer args, so the fix (an `auth.uid()` guard or a
+  `get_my_extended_network()` wrapper) must be validated on a **live staging DB**
+  against profile reads + all internal callers before shipping. Owner: akp.
+
 ## If anything is unclear
 
 Ping akp **before** touching prod. A broken guest flow or a half-applied RLS
