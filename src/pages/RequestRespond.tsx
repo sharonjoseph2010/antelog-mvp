@@ -779,10 +779,13 @@ export default function RequestRespond() {
       // Anonymous expertise routing must seal identity: never include real name/handle
       // when the responder reached this request through anonymous routing.
       if (!isEditing && request.creator_id !== user.id) {
+        // can_reveal_identity is symmetric in (viewer, target); the viewer must
+        // be the caller (auth.uid()), so query as (me -> creator) rather than
+        // (creator -> me) — same result. (D3)
         const { data: canReveal } = await supabase.rpc("can_reveal_identity", {
-          p_viewer_id: request.creator_id,
+          p_viewer_id: user.id,
           p_request_id: request.id,
-          p_target_user_id: user.id,
+          p_target_user_id: request.creator_id,
         });
 
         let title: string;
