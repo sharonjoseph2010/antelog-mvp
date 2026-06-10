@@ -1,8 +1,18 @@
 name: security-guard
 
-# Fails the build if a migration re-disables Row-Level Security (finding A2).
-# RLS was globally disabled once already (migration 20251126112541) and shipped;
-# this guard makes a regression a hard CI failure instead of a silent one.
+# Guards the migration directory against security regressions. Two checks:
+#   1. No migration may DISABLE Row-Level Security (finding A2/#01). RLS was
+#      globally disabled once (20251126112541) and shipped; a regression must be
+#      a hard CI failure, not a silent one.
+#   2. No new SECURITY DEFINER function may omit SET search_path (findings
+#      F4/D5/A3). A definer function without a pinned search_path is a privesc
+#      vector (function_search_path_mutable).
+#
+# IMPORTANT: both checks run ONLY against migration files ADDED/MODIFIED in the
+# change under test, not the whole tree. The historical disable migration
+# (20251126112541) and pre-remediation definer functions legitimately live in
+# history and must NOT fail every build. Comments are stripped before matching
+# so prose mentioning "SECURITY DEFINER" (e.g. a remediation note) is ignored.
 
 on:
   pull_request:
@@ -14,14 +24,63 @@ on:
       - "supabase/migrations/**"
 
 jobs:
-  no-rls-disable:
+  migration-guard:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Reject DISABLE ROW LEVEL SECURITY in migrations
+        with:
+          fetch-depth: 0
+
+      - name: Collect changed migration files
+        id: changed
         run: |
-          if grep -rniE 'disable[[:space:]]+row[[:space:]]+level[[:space:]]+security' supabase/migrations; then
-            echo "::error::A migration disables Row-Level Security. This is not allowed (finding A2/#01)."
-            exit 1
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+            base="origin/${{ github.base_ref }}"
+          else
+            base="${{ github.event.before }}"
+            # New branch / first push: github.event.before is all-zeros — fall back to HEAD^.
+            if ! git cat-file -e "$base^{commit}" 2>/dev/null; then base="HEAD^"; fi
           fi
-          echo "OK — no migration disables RLS."
+          files=$(git diff --name-only --diff-filter=AM "$base"...HEAD -- 'supabase/migrations/*.sql' || true)
+          {
+            echo "files<<__EOF__"
+            echo "$files"
+            echo "__EOF__"
+          } >> "$GITHUB_OUTPUT"
+          echo "Changed migrations:"; echo "${files:-<none>}"
+
+      - name: Reject DISABLE ROW LEVEL SECURITY in new migrations
+        run: |
+          set -euo pipefail
+          fail=0
+          while IFS= read -r f; do
+            [ -z "$f" ] && continue
+            [ -f "$f" ] || continue
+            # Strip -- line comments before matching.
+            if sed 's/--.*//' "$f" | grep -qiE 'disable[[:space:]]+row[[:space:]]+level[[:space:]]+security'; then
+              echo "::error file=$f::Migration disables Row-Level Security (finding A2/#01)."
+              fail=1
+            fi
+          done <<< "${{ steps.changed.outputs.files }}"
+          [ "$fail" -eq 0 ] && echo "OK — no new migration disables RLS."
+          exit $fail
+
+      - name: Reject SECURITY DEFINER without SET search_path in new migrations
+        run: |
+          set -euo pipefail
+          fail=0
+          while IFS= read -r f; do
+            [ -z "$f" ] && continue
+            [ -f "$f" ] || continue
+            stripped=$(sed 's/--.*//' "$f")
+            if echo "$stripped" | grep -qiE 'security[[:space:]]+definer'; then
+              if ! echo "$stripped" | grep -qiE 'set[[:space:]]+search_path'; then
+                echo "::error file=$f::SECURITY DEFINER function without SET search_path (findings F4/D5/A3). Add 'SET search_path = public'."
+                fail=1
+              fi
+            fi
+          done <<< "${{ steps.changed.outputs.files }}"
+          [ "$fail" -eq 0 ] && echo "OK — every new SECURITY DEFINER function pins search_path."
+          exit $fail

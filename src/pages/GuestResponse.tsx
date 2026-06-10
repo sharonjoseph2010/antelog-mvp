@@ -70,13 +70,12 @@ const guestContributionSchema = z.object({
   ),
 });
 
+// Resolved display name for one hop in the sharing chain. The server
+// (resolve_share_link) already collapses generated_by_user_id -> profile name /
+// forwarder_name / generated_by_name, so the client never sees tokens or user
+// ids of other links — only what it needs to render the path.
 type ChainLink = {
-  id: string;
-  parent_link_id: string | null;
-  generated_by_user_id: string | null;
-  generated_by_name: string | null;
-  forwarder_name?: string | null;
-  user_full_name?: string | null;
+  name: string | null;
 };
 
 const categoryIcon = (cat?: string | null) => {
@@ -122,40 +121,6 @@ export default function GuestResponse() {
   const [chainExpanded, setChainExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  // Walk parent_link_id chain backwards; returns ordered list:
-  // [originalRequesterLink, ..., currentLink]
-  const reconstructFullChain = async (linkId: string): Promise<ChainLink[]> => {
-    const out: ChainLink[] = [];
-    let currentId: string | null = linkId;
-    let depth = 0;
-
-    while (currentId && depth < 10) {
-      const { data, error } = await supabase
-        .from("share_links")
-        .select("id, parent_link_id, generated_by_user_id, generated_by_name, forwarder_name")
-        .eq("id", currentId)
-        .single();
-      if (error || !data) break;
-      out.unshift(data as ChainLink);
-      currentId = data.parent_link_id;
-      depth++;
-    }
-
-    // Resolve any user full names
-    const userIds = out.map((l) => l.generated_by_user_id).filter(Boolean) as string[];
-    if (userIds.length) {
-      const { data: profs } = await supabase
-        .from("profiles")
-        .select("id, full_name")
-        .in("id", userIds);
-      const map = new Map((profs || []).map((p: any) => [p.id, p.full_name]));
-      out.forEach((l) => {
-        if (l.generated_by_user_id) l.user_full_name = map.get(l.generated_by_user_id) || null;
-      });
-    }
-    return out;
-  };
-
   useEffect(() => {
     if (requestId && token) {
       loadRequestData();
@@ -200,13 +165,16 @@ export default function GuestResponse() {
         setPreview({ items, total });
       }
 
-      const { data: linkData, error: linkError } = await supabase
-        .from("share_links")
-        .select("id, generated_by_name, forwarder_name, current_responses, max_responses, times_opened")
-        .eq("token", token!)
-        .single();
+      // share_links is no longer anon-readable (F1/F2). The token-validated
+      // SECURITY DEFINER RPC returns only this link's display fields plus the
+      // resolved sharing chain (root -> current).
+      const { data: linkRows, error: linkError } = await supabase.rpc(
+        "resolve_share_link" as any,
+        { p_token: token! },
+      );
+      const linkData = (Array.isArray(linkRows) ? linkRows[0] : linkRows) as any;
 
-      if (linkError) {
+      if (linkError || !linkData) {
         toast({
           title: "Invalid Link",
           description: "This share link is not valid or has expired.",
@@ -215,9 +183,8 @@ export default function GuestResponse() {
         return;
       }
 
-      // Reconstruct full sharing chain
-      const fullChain = await reconstructFullChain(linkData.id);
-      setChain(fullChain);
+      // Chain comes pre-resolved (no token/user-id leakage), ordered root -> current.
+      setChain(((linkData.chain as ChainLink[]) ?? []));
       setShareLink(linkData);
 
       if ((linkData.current_responses ?? 0) >= (linkData.max_responses ?? 5)) {
@@ -228,10 +195,7 @@ export default function GuestResponse() {
         });
       }
 
-      await supabase
-        .from("share_links")
-        .update({ times_opened: (linkData.times_opened ?? 0) + 1 })
-        .eq("id", linkData.id);
+      await supabase.rpc("increment_share_link_open" as any, { p_token: token! });
     } catch (error) {
       console.error("Error loading request:", error);
       toast({
@@ -376,13 +340,7 @@ export default function GuestResponse() {
       if (contributionError) throw contributionError;
 
       if (shareLink) {
-        await supabase
-          .from("share_links")
-          .update({
-            current_responses: (shareLink.current_responses ?? 0) + 1,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", shareLink.id);
+        await supabase.rpc("increment_share_link_response" as any, { p_token: token! });
       }
 
       setHasSubmitted(true);
@@ -419,26 +377,17 @@ export default function GuestResponse() {
       return null;
     }
     try {
-      const { data: tokenData, error: tokenError } = await supabase.rpc("generate_share_token");
+      // share_links is no longer anon-insertable (F1/F2). The SECURITY DEFINER
+      // RPC validates the parent token, derives request_id/parent from it, and
+      // mints the child link server-side, returning the new token.
+      const { data: newToken, error: linkError } = await supabase.rpc(
+        "create_guest_share_link" as any,
+        { p_parent_token: token!, p_name: nameToUse, p_contact: contributorContact || null },
+      );
 
-      if (tokenError) throw tokenError;
+      if (linkError || !newToken) throw linkError ?? new Error("No token returned");
 
-      const { error: linkError } = await supabase
-        .from("share_links")
-        .insert({
-          request_id: requestId!,
-          parent_link_id: shareLink?.id,
-          token: tokenData,
-          generated_by_name: nameToUse,
-          forwarder_name: nameToUse,
-          generated_by_contact: contributorContact || null,
-          max_responses: 5,
-          current_responses: 0,
-        });
-
-      if (linkError) throw linkError;
-
-      const generatedUrl = `${window.location.origin}/r/${requestId}/${tokenData}`;
+      const generatedUrl = `${window.location.origin}/r/${requestId}/${newToken}`;
       setMyShareLink(generatedUrl);
       return generatedUrl;
     } catch (error) {
@@ -507,17 +456,16 @@ export default function GuestResponse() {
   // more than one entry, the request was forwarded.
   const isForwarded = chain.length > 1;
   const lastForwarder = isForwarded ? chain[chain.length - 1] : null;
-  const lastForwarderName =
-    lastForwarder?.user_full_name || lastForwarder?.forwarder_name || lastForwarder?.generated_by_name || "A friend";
+  const lastForwarderName = lastForwarder?.name || "A friend";
 
   // People in the chain (named rows): use requester as first, then any
   // intermediate forwarders. The very first share_link is created by the
-  // requester (no generated_by_name needed there).
+  // requester, so its name is replaced by the resolved requester name.
   const chainPeople: { name: string; role: string }[] = chain.length
     ? [
         { name: requesterName, role: "Asked the question" },
         ...chain.slice(1).map((l, i, arr) => ({
-          name: l.user_full_name || l.forwarder_name || l.generated_by_name || "A friend",
+          name: l.name || "A friend",
           role: i === arr.length - 1 ? "Passed it to you" : "Passed it on",
         })),
       ]
