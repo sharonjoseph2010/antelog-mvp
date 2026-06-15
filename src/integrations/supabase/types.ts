@@ -916,6 +916,27 @@ export type Database = {
         }
         Relationships: []
       }
+      rate_limit_log: {
+        Row: {
+          action: string
+          created_at: string
+          id: string
+          key: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          id?: string
+          key: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          id?: string
+          key?: string
+        }
+        Relationships: []
+      }
       recommendation_clusters: {
         Row: {
           canonical_text: string
@@ -1561,6 +1582,15 @@ export type Database = {
         }
         Returns: boolean
       }
+      check_rate_limit: {
+        Args: {
+          _action: string
+          _key: string
+          _limit: number
+          _window_seconds: number
+        }
+        Returns: boolean
+      }
       cleanup_expired_contacts: { Args: never; Returns: undefined }
       debug_anonymous_match: {
         Args: { p_request_id: string; p_uid?: string }
@@ -1723,6 +1753,20 @@ export type Database = {
           is_friend: boolean
         }[]
       }
+      get_request_for_guest: {
+        Args: { p_request_id: string; p_token: string }
+        Returns: {
+          category: Database["public"]["Enums"]["request_category"]
+          created_at: string
+          creator_id: string
+          creator_name: string
+          expires_at: string
+          id: string
+          location: string
+          status: Database["public"]["Enums"]["request_status"]
+          title: string
+        }[]
+      }
       get_response_origin: { Args: { p_response_id: string }; Returns: string }
       get_response_tree: {
         Args: { p_request_id: string }
@@ -1796,6 +1840,10 @@ export type Database = {
         Args: { profile_id: string; viewer_id: string }
         Returns: boolean
       }
+      is_request_forward_recipient: {
+        Args: { p_request_id: string; p_uid: string }
+        Returns: boolean
+      }
       log_contact_access: {
         Args: { action_type: string; contact_id?: string }
         Returns: undefined
@@ -1859,6 +1907,10 @@ export type Database = {
           similarity_score: number
           vote_count: number
         }[]
+      }
+      share_link_matches: {
+        Args: { p_link_id: string; p_request_id: string }
+        Returns: boolean
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
