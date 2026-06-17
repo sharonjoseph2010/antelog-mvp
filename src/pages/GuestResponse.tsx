@@ -25,7 +25,6 @@ import {
   TrendingUp,
   Eye,
   MessageSquare,
-  Gift,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { z } from "zod";
