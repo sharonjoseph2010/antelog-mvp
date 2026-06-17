@@ -39,8 +39,15 @@ const Index = () => {
             <Button asChild size="lg">
               <Link to="/waitlist">Join Waitlist</Link>
             </Button>
-            <Button asChild size="lg" variant="outline">
-              <Link to="/directory">Browse the Directory</Link>
+            <Button
+              size="lg"
+              variant="outline"
+              disabled
+              aria-disabled="true"
+              title="Coming soon"
+              className="cursor-not-allowed"
+            >
+              Browse the Directory · Coming soon
             </Button>
           </div>
         </section>
@@ -60,8 +67,11 @@ const Index = () => {
               </p>
             </div>
             <div className="rounded-lg bg-muted p-6">
-              <p className="mb-2.5 text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
-                Master Directory
+              <p className="mb-2.5 flex items-center gap-2 text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
+                <span>Master Directory</span>
+                <span className="rounded-sm border border-border px-1 py-px text-[9px] tracking-[0.08em]">
+                  Coming soon
+                </span>
               </p>
               <h3 className="mb-2.5 text-[22px] font-medium">
                 Browse what verified people use.
