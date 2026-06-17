@@ -108,7 +108,10 @@ export const VerifiedRoute = ({ isAuthenticated, userType, children }: VerifiedR
     return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   }
   if (userType === 'guest') {
-    return <Navigate to="/directory" replace />;
+    // BETA: /directory is gated to a Coming Soon screen, so it would be a
+    // dead-end fallback. /dashboard would loop (it's also VerifiedRoute), so
+    // we send guests to /signup — the "Join Antelog" conversion path.
+    return <Navigate to="/signup" replace />;
   }
   return <QuestionnaireGate>{children}</QuestionnaireGate>;
 };
