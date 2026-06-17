@@ -360,9 +360,17 @@ const Header = ({ isAuthenticated, isAdmin, userType, onLogout }: HeaderProps) =
             </>
           ) : isAuthenticated && userType === 'guest' ? (
             <>
-              <Link to="/signup">
-                <Button variant="outline" size="sm">Upgrade to Verified</Button>
-              </Link>
+              {/*
+                BETA: "Upgrade to Verified" CTA hidden during free beta.
+                Everything is free and there is no payment path, so this
+                shortcut misleads testers. The /signup route itself is
+                untouched — guests can still convert by visiting it directly
+                or via the logged-out header. Re-enable post-beta.
+
+                <Link to="/signup">
+                  <Button variant="outline" size="sm">Upgrade to Verified</Button>
+                </Link>
+              */}
               <Button variant="outline" size="sm" onClick={async () => {
                 await onLogout();
                 navigate("/", { replace: true });
