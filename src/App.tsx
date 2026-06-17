@@ -39,6 +39,11 @@ import { log, warn } from "@/lib/logger";
 import { AppShell } from "@/layouts/AppShell";
 import Directory from "./pages/Directory";
 import DirectoryListDetail from "./pages/DirectoryListDetail";
+import DirectoryComingSoon from "./pages/DirectoryComingSoon";
+// Keep Directory components referenced while the Master Directory route is gated
+// behind a Coming Soon screen, so the imports survive tree-shaking/lint.
+const _preservedDirectoryRefs = { Directory, DirectoryListDetail };
+void _preservedDirectoryRefs;
 import GuestSignup from "./pages/GuestSignup";
 import ForYou from "./pages/ForYou";
 import Profile from "./pages/Profile";
@@ -403,16 +408,12 @@ function AppContent({
         <Route path="/signup" element={<Signup />} />
         <Route path="/guest-signup" element={<GuestSignup />} />
         <Route path="/waitlist" element={<Waitlist />} />
-        <Route path="/directory" element={
-          <ProtectedRoute isAuthenticated={isAuthenticated}>
-            <Directory />
-          </ProtectedRoute>
-        } />
-        <Route path="/directory/:id" element={
-          <ProtectedRoute isAuthenticated={isAuthenticated}>
-            <DirectoryListDetail />
-          </ProtectedRoute>
-        } />
+        {/* Master Directory is deferred for beta — gated behind a Coming Soon screen.
+            Underlying Directory/DirectoryListDetail components are intentionally
+            preserved (imports kept) so the route can be re-enabled later. */}
+        <Route path="/directory" element={<DirectoryComingSoon />} />
+        <Route path="/directory/:id" element={<DirectoryComingSoon />} />
+        {/* Preserve component references so imports aren't pruned while MD is gated. */}
         <Route path="/login" element={<Login />} />
 
         <Route

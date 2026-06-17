@@ -252,16 +252,17 @@ const Header = ({ isAuthenticated, isAdmin, userType, onLogout }: HeaderProps) =
         
         <div className="flex items-center gap-4">
           <ThemeToggle />
-          {/* Master Directory requires authentication */}
-          {isAuthenticated ? (
-            <Link to="/directory" className="hover:underline">
-              Master Directory
-            </Link>
-          ) : (
-            <Link to="/guest-signup" className="hidden sm:inline hover:underline">
-              Master Directory
-            </Link>
-          )}
+          {/* Master Directory is deferred for beta — visible but inaccessible. */}
+          <span
+            aria-disabled="true"
+            title="Coming soon"
+            className="inline-flex items-center gap-1.5 text-muted-foreground/70 cursor-not-allowed select-none"
+          >
+            Master Directory
+            <span className="rounded-sm border border-border px-1 py-px text-[9px] uppercase tracking-[0.08em]">
+              Coming soon
+            </span>
+          </span>
           
           {isAuthenticated && userType === 'verified' ? (
             <>

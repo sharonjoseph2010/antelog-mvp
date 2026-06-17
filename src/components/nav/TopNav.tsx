@@ -59,17 +59,16 @@ export function TopNav() {
             >
               Antelog
             </Link>
-            <NavLink
-              to="/directory"
-              className={({ isActive }) =>
-                cn(
-                  "text-[13px] font-medium text-foreground hover:opacity-80",
-                  isActive && "underline underline-offset-[15px] decoration-[1.5px]"
-                )
-              }
+            <span
+              aria-disabled="true"
+              title="Coming soon"
+              className="inline-flex items-center gap-1.5 text-[13px] font-medium text-muted-foreground/70 cursor-not-allowed select-none"
             >
               Master Directory
-            </NavLink>
+              <span className="rounded-sm border border-border px-1 py-px text-[9px] uppercase tracking-[0.08em] text-muted-foreground">
+                Coming soon
+              </span>
+            </span>
             <span className="self-center h-[14px] w-px bg-border" />
             <nav className="flex items-baseline gap-5">
               <NavLink to="/dashboard" className={navLinkCls} end>Home</NavLink>
@@ -132,7 +131,7 @@ export function TopNav() {
         <MobileTab to="/dashboard" icon={Home} label="Home" />
         <MobileTab to="/network" icon={Users} label="Network" />
         <MobileTab to="/requests" icon={Inbox} label="Requests" />
-        <MobileTab to="/directory" icon={BookOpen} label="Directory" />
+        <MobileTabDisabled icon={BookOpen} label="Directory" />
         <button
           type="button"
           onClick={() => setDrawerOpen(true)}
@@ -173,5 +172,25 @@ function MobileTab({
       <Icon className="h-5 w-5" strokeWidth={1.5} />
       <span>{label}</span>
     </NavLink>
+  );
+}
+
+function MobileTabDisabled({
+  icon: Icon,
+  label,
+}: {
+  icon: typeof Home;
+  label: string;
+}) {
+  return (
+    <div
+      aria-disabled="true"
+      title="Coming soon"
+      className="flex flex-col items-center justify-center gap-1 py-2 text-[10px] text-muted-foreground/60 cursor-not-allowed select-none"
+    >
+      <Icon className="h-5 w-5" strokeWidth={1.5} />
+      <span>{label}</span>
+      <span className="text-[8px] uppercase tracking-[0.08em]">Soon</span>
+    </div>
   );
 }
