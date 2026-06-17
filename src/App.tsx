@@ -40,6 +40,10 @@ import { AppShell } from "@/layouts/AppShell";
 import Directory from "./pages/Directory";
 import DirectoryListDetail from "./pages/DirectoryListDetail";
 import DirectoryComingSoon from "./pages/DirectoryComingSoon";
+// Keep Directory components referenced while the Master Directory route is gated
+// behind a Coming Soon screen, so the imports survive tree-shaking/lint.
+const _preservedDirectoryRefs = { Directory, DirectoryListDetail };
+void _preservedDirectoryRefs;
 import GuestSignup from "./pages/GuestSignup";
 import ForYou from "./pages/ForYou";
 import Profile from "./pages/Profile";
