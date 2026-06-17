@@ -41,7 +41,9 @@ export default function GuestSignup() {
   const onSubmit = async (values: GuestSignupValues) => {
     setLoading(true);
     try {
-      const redirectUrl = `${window.location.origin}/directory`;
+      // BETA: /directory is gated to Coming Soon. No request context is carried
+      // into GuestSignup, so land guests on /dashboard (network home) instead.
+      const redirectUrl = `${window.location.origin}/dashboard`;
       
       const { data, error } = await supabase.auth.signUp({
         email: values.email,
@@ -91,7 +93,8 @@ export default function GuestSignup() {
           description: "Your account has been created. You now have access to our directory.",
         });
 
-        navigate("/directory");
+        // BETA: see note above — /directory is a Coming Soon dead-end.
+        navigate("/dashboard");
       }
     } catch (error: any) {
       toast({
