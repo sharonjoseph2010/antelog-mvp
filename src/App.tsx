@@ -409,7 +409,7 @@ function AppContent({
             preserved (imports kept) so the route can be re-enabled later. */}
         <Route path="/directory" element={<DirectoryComingSoon />} />
         <Route path="/directory/:id" element={<DirectoryComingSoon />} />
-        {false && <Route path="/__directory_disabled" element={<><Directory /><DirectoryListDetail /></>} />}
+        {/* Preserve component references so imports aren't pruned while MD is gated. */}
         <Route path="/login" element={<Login />} />
 
         <Route
