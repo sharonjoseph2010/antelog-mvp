@@ -361,7 +361,7 @@ const Header = ({ isAuthenticated, isAdmin, userType, onLogout }: HeaderProps) =
           ) : isAuthenticated && userType === 'guest' ? (
             <>
               <Link to="/signup">
-                <Button variant="outline" size="sm">Join Antelog</Button>
+                <Button variant="outline" size="sm">Sign Up</Button>
               </Link>
               <Button variant="outline" size="sm" onClick={async () => {
                 await onLogout();
@@ -374,7 +374,7 @@ const Header = ({ isAuthenticated, isAdmin, userType, onLogout }: HeaderProps) =
             <>
               <Link to="/login" className="hover:underline">Sign In</Link>
               <Button asChild size="sm">
-                <Link to="/signup">Get Verified</Link>
+                <Link to="/signup">Sign Up</Link>
               </Button>
             </>
           )}
