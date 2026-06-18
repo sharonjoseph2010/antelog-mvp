@@ -188,19 +188,21 @@ const onSubmit = async (values: SignupValues) => {
             This is an early beta. Things may be rough — your feedback shapes what it becomes.
           </p>
 
-          {/* Progress */}
-          <div className="mb-9">
-            <div className="mb-2 flex items-center justify-between text-[12px] text-muted-foreground">
-              <span>Founding members</span>
-              <span className="tabular-nums">{FOUNDING_TAKEN} / {FOUNDING_TOTAL}</span>
+          {/* Progress — hidden until count reaches 10 to avoid negative social proof */}
+          {FOUNDING_TAKEN >= 10 && (
+            <div className="mb-9">
+              <div className="mb-2 flex items-center justify-between text-[12px] text-muted-foreground">
+                <span>Founding members</span>
+                <span className="tabular-nums">{FOUNDING_TAKEN} / {FOUNDING_TOTAL}</span>
+              </div>
+              <div className="h-[3px] w-full overflow-hidden rounded-full bg-muted">
+                <div
+                  className="h-full bg-foreground transition-all"
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
             </div>
-            <div className="h-[3px] w-full overflow-hidden rounded-full bg-muted">
-              <div
-                className="h-full bg-foreground transition-all"
-                style={{ width: `${pct}%` }}
-              />
-            </div>
-          </div>
+          )}
 
           {/* Primary — code-gated signup */}
           <div className="rounded-lg bg-muted p-6 sm:p-7">
@@ -232,6 +234,16 @@ const onSubmit = async (values: SignupValues) => {
                         </p>
                       )}
                       <FormMessage />
+                      <a
+                        href="#waitlist"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          document.getElementById("waitlist")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                        }}
+                        className="mt-1 inline-block text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground"
+                      >
+                        Don't have a code? Join the waitlist below ↓
+                      </a>
                     </FormItem>
                   )}
                 />
@@ -303,10 +315,10 @@ const onSubmit = async (values: SignupValues) => {
           </div>
 
           {/* Secondary — waitlist */}
-          <div className="mt-4 rounded-lg border border-border p-6 sm:p-7">
+          <div id="waitlist" className="mt-4 rounded-lg border border-border p-6 sm:p-7 scroll-mt-8">
             <h2 className="mb-1 text-[18px] font-medium">No code yet?</h2>
             <p className="mb-4 text-[13px] text-muted-foreground">
-              Request access and we'll let you in as spots open up.
+              Join the waitlist and we'll let you in as spots open up.
             </p>
 
             {!showWaitlist ? (
