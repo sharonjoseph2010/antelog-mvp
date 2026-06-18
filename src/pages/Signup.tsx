@@ -311,7 +311,7 @@ const onSubmit = async (values: SignupValues) => {
 
             {!showWaitlist ? (
               <Button variant="outline" onClick={() => setShowWaitlist(true)}>
-                Join the waitlist
+                Join Waitlist
               </Button>
             ) : (
               <form onSubmit={handleWaitlistSubmit} className="space-y-4">
@@ -355,7 +355,7 @@ const onSubmit = async (values: SignupValues) => {
                 </div>
                 <div className="flex gap-2">
                   <Button type="submit" disabled={waitlistSubmitting}>
-                    {waitlistSubmitting ? "Submitting…" : "Request access"}
+                    {waitlistSubmitting ? "Submitting…" : "Join Waitlist"}
                   </Button>
                   <Button type="button" variant="ghost" onClick={() => setShowWaitlist(false)}>
                     Cancel
