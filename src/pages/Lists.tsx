@@ -390,7 +390,10 @@ const Lists = () => {
                         <Link to={`/lists/${list.id}`}>View details</Link>
                       </Button>
 
-                      {list.visibility === "private" && (
+                      {/* BETA: Master Directory is gated to a Coming Soon screen,
+                          so "Publish to Directory" would dead-end. Hidden behind
+                          a flag — re-enable when the Directory ships. */}
+                      {false && list.visibility === "private" && (
                         <Button
                           variant="outline"
                           size="sm"
