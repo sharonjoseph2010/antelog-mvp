@@ -14,10 +14,7 @@ export function AppShell({ children }: AppShellProps) {
   return (
     <div className="flex min-h-screen w-full flex-col bg-background text-foreground">
       <TopNav />
-      <main
-        className="flex min-w-0 flex-1 flex-col"
-        style={{ paddingBottom: "calc(76px + env(safe-area-inset-bottom))" }}
-      >
+      <main className="flex min-w-0 flex-1 flex-col pb-[calc(76px+env(safe-area-inset-bottom))] md:pb-0">
         {children}
       </main>
     </div>
