@@ -145,12 +145,6 @@ export function TopNav() {
           <span>You</span>
         </button>
       </nav>
-      {/* Spacer so content isn't hidden behind the bottom tab bar on mobile */}
-      <div
-        className="md:hidden"
-        aria-hidden
-        style={{ height: "calc(76px + env(safe-area-inset-bottom))" }}
-      />
 
       <RightDrawer open={drawerOpen} onOpenChange={setDrawerOpen} />
     </>
