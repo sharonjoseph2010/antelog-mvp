@@ -127,7 +127,10 @@ export function TopNav() {
       </header>
 
       {/* Mobile bottom tab bar */}
-      <nav className="fixed bottom-0 left-0 right-0 z-30 grid grid-cols-5 border-t border-border bg-background md:hidden">
+      <nav
+        className="fixed bottom-0 left-0 right-0 z-30 grid grid-cols-5 border-t border-border bg-background md:hidden"
+        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      >
         <MobileTab to="/dashboard" icon={Home} label="Home" />
         <MobileTab to="/network" icon={Users} label="Network" />
         <MobileTab to="/requests" icon={Inbox} label="Requests" />
@@ -143,7 +146,11 @@ export function TopNav() {
         </button>
       </nav>
       {/* Spacer so content isn't hidden behind the bottom tab bar on mobile */}
-      <div className="h-14 md:hidden" aria-hidden />
+      <div
+        className="md:hidden"
+        aria-hidden
+        style={{ height: "calc(76px + env(safe-area-inset-bottom))" }}
+      />
 
       <RightDrawer open={drawerOpen} onOpenChange={setDrawerOpen} />
     </>
