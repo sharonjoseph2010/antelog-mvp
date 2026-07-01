@@ -252,11 +252,13 @@ const Header = ({ isAuthenticated, isAdmin, userType, onLogout }: HeaderProps) =
         
         <div className="flex items-center gap-4">
           <ThemeToggle />
-          {/* Master Directory is deferred for beta — visible but inaccessible. */}
+          {/* Master Directory is deferred for beta — visible but inaccessible.
+              Hidden on mobile to keep the header on one line; the hero CTA
+              "Browse the Directory · Coming soon" covers it on small screens. */}
           <span
             aria-disabled="true"
             title="Coming soon"
-            className="inline-flex items-center gap-1.5 text-muted-foreground/70 cursor-not-allowed select-none"
+            className="hidden md:inline-flex items-center gap-1.5 text-muted-foreground/70 cursor-not-allowed select-none"
           >
             Master Directory
             <span className="rounded-sm border border-border px-1 py-px text-[9px] uppercase tracking-[0.08em]">
